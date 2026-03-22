@@ -1,0 +1,274 @@
+/* Databases section */
+.databases-container {
+	max-width: 1200px;
+	margin: 0 auto;
+}
+
+.databases-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 20px;
+}
+
+.databases-header button {
+	background-color: #0984e3;
+	color: white;
+	border: none;
+	padding: 8px 16px;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+
+.databases-header button:hover {
+	background-color: #74b9ff;
+}
+
+/* Create database form */
+.create-db-form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	background: #fff;
+	padding: 20px;
+	border-radius: 12px;
+	margin-bottom: 20px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+body.dark .create-db-form {
+	background: #2f3640;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.create-db-form input,
+.create-db-form select {
+	padding: 10px;
+	border: 1px solid #dcdde1;
+	border-radius: 6px;
+	font-size: 14px;
+}
+
+body.dark .create-db-form input,
+body.dark .create-db-form select {
+	background-color: #3d3d3d;
+	color: #dcdde1;
+	border-color: #555;
+}
+
+.create-db-form label {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 14px;
+}
+
+.create-db-form button {
+	background-color: #00b894;
+	color: white;
+	border: none;
+	padding: 10px 20px;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background 0.2s;
+}
+
+.create-db-form button:hover {
+	background-color: #55efc4;
+}
+
+/* Database list */
+.database-list {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+	gap: 20px;
+}
+
+/* Database card */
+.database-card {
+	background: #fff;
+	padding: 20px;
+	border-radius: 12px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+	transition:
+		transform 0.2s,
+		box-shadow 0.2s;
+}
+
+.database-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+body.dark .database-card {
+	background: #2f3640;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.database-card h3 {
+	margin: 0 0 10px;
+	color: #2d3436;
+}
+
+body.dark .database-card h3 {
+	color: #dcdde1;
+}
+
+.database-card p {
+	margin: 5px 0;
+	font-size: 14px;
+	color: #636e72;
+}
+
+body.dark .database-card p {
+	color: #b2bec3;
+}
+
+.database-card a {
+	color: #0984e3;
+	text-decoration: none;
+}
+
+.database-card a:hover {
+	text-decoration: underline;
+}
+
+.database-buttons {
+	display: flex;
+	gap: 8px;
+	margin-top: 15px;
+}
+
+.database-buttons button {
+	flex: 1;
+	padding: 6px 12px;
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	transition: background 0.2s;
+	font-size: 13px;
+}
+
+.database-buttons button:first-child {
+	background-color: #00b894;
+	color: white;
+}
+
+.database-buttons button:first-child:hover {
+	background-color: #55efc4;
+}
+
+.database-buttons button:last-child {
+	background-color: #d63031;
+	color: white;
+}
+
+.database-buttons button:last-child:hover {
+	background-color: #ff7675;
+}
+
+.status {
+	display: inline-block;
+	padding: 2px 8px;
+	border-radius: 12px;
+	font-size: 0.8rem;
+	font-weight: 500;
+}
+.status.running {
+	background-color: #00b89420;
+	color: #00b894;
+}
+.status.stopped {
+	background-color: #d6303120;
+	color: #d63031;
+}
+.status.unknown {
+	background-color: #636e7220;
+	color: #636e72;
+}
+
+.status.error {
+	background-color: #e1705520;
+	color: #e17055;
+	border: 1px solid #e17055;
+}
+
+/* Add these styles to separate the button groups */
+
+.database-buttons {
+	display: flex;
+	gap: 8px;
+	margin-top: 15px;
+	flex-wrap: wrap;
+}
+
+.database-buttons button {
+	flex: 1;
+	padding: 8px 12px;
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 500;
+	transition: all 0.2s;
+}
+
+/* First row buttons */
+.database-buttons button:first-child {
+	background-color: #00b894;
+	color: white;
+}
+.database-buttons button:first-child:hover {
+	background-color: #55efc4;
+}
+.database-buttons button:last-child {
+	background-color: #d63031;
+	color: white;
+}
+.database-buttons button:last-child:hover {
+	background-color: #ff7675;
+}
+
+/* Adminer buttons (second row) */
+.adminer-buttons {
+	margin-top: 8px;
+}
+.adminer-buttons button:first-child {
+	background-color: #0984e3;
+	color: white;
+}
+.adminer-buttons button:first-child:hover {
+	background-color: #74b9ff;
+}
+.adminer-buttons button:last-child {
+	background-color: #e17055;
+	color: white;
+}
+.adminer-buttons button:last-child:hover {
+	background-color: #fdcb6e;
+	color: #2d3436;
+}
+
+/* Connection button (third row) */
+.connection-button {
+	margin-top: 8px;
+}
+.connection-button button {
+	background-color: #6c5ce7;
+	color: white;
+	width: 100%;
+}
+.connection-button button:hover {
+	background-color: #a29bfe;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+	.create-db-form {
+		flex-direction: column;
+	}
+	.database-list {
+		grid-template-columns: 1fr;
+	}
+}

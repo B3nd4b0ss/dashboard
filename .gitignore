@@ -1,0 +1,59 @@
+# Node modules
+node_modules/
+client/node_modules/
+server/node_modules/
+
+# Projects directory (each project's generated files)
+projects/
+
+# Data files
+data.json
+databases.json
+
+# Build outputs
+dist/
+client/dist/
+server/dist/
+
+# Environment files
+.env
+.env.local
+.env.development
+.env.production
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE / editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Docker (if you ever add volumes or compose files, you might want to exclude them)
+docker-compose.override.yml
+*.pid

@@ -1,0 +1,293 @@
+/* Overview */
+.overview {
+	max-width: 1200px;
+	margin: 0 auto;
+}
+
+/* Create form */
+.create-form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+	background: #fff;
+	padding: 20px;
+	border-radius: 12px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+	margin-bottom: 30px;
+	transition: background 0.3s;
+}
+
+body.dark .create-form {
+	background: #2f3640;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.create-form input,
+.create-form select {
+	padding: 10px 12px;
+	border: 1px solid #dcdde1;
+	border-radius: 8px;
+	font-size: 14px;
+	transition: border 0.2s;
+}
+
+body.dark .create-form input,
+body.dark .create-form select {
+	background-color: #3d3d3d;
+	color: #dcdde1;
+	border-color: #555;
+}
+
+.create-form button {
+	background-color: #0984e3;
+	color: white;
+	border: none;
+	border-radius: 8px;
+	padding: 10px 24px;
+	cursor: pointer;
+	transition: background 0.2s;
+	font-weight: 500;
+}
+
+.create-form button:hover {
+	background-color: #74b9ff;
+}
+
+/* Project list */
+.project-list {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+	gap: 24px;
+}
+
+/* Project card */
+.project-card {
+	background: #fff;
+	padding: 20px;
+	border-radius: 12px;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+	transition:
+		transform 0.2s,
+		box-shadow 0.2s;
+}
+
+.project-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+body.dark .project-card {
+	background: #2f3640;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.project-link {
+	text-decoration: none;
+	color: inherit;
+}
+
+.project-card h3 {
+	margin: 0 0 12px;
+	color: #2d3436;
+	font-size: 1.25rem;
+}
+
+body.dark .project-card h3 {
+	color: #dcdde1;
+}
+
+.project-card p {
+	margin: 6px 0;
+	color: #636e72;
+	font-size: 14px;
+}
+
+body.dark .project-card p {
+	color: #b2bec3;
+}
+
+.project-card .buttons {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 16px;
+}
+
+.project-card button {
+	flex: 1;
+	padding: 8px 12px;
+	font-size: 13px;
+	border: none;
+	border-radius: 6px;
+	cursor: pointer;
+	font-weight: 500;
+	transition: all 0.2s;
+}
+
+.project-card button.start {
+	background-color: #00b894;
+	color: white;
+}
+.project-card button.start:hover {
+	background-color: #55efc4;
+}
+
+.project-card button.stop {
+	background-color: #d63031;
+	color: white;
+}
+.project-card button.stop:hover {
+	background-color: #ff7675;
+}
+
+.project-card button.delete {
+	background-color: #636e72;
+	color: white;
+}
+.project-card button.delete:hover {
+	background-color: #b2bec3;
+}
+
+.project-card button.copy {
+	background-color: #0984e3;
+	color: white;
+}
+.project-card button.copy:hover {
+	background-color: #74b9ff;
+}
+
+/* Terminal Modal */
+.terminal-modal {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background-color: rgba(0, 0, 0, 0.7);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	z-index: 1000;
+	backdrop-filter: blur(4px);
+}
+
+.terminal-container {
+	width: 800px;
+	max-width: 90vw;
+	height: 500px;
+	background-color: #1e1e1e;
+	border-radius: 8px;
+	box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+	display: flex;
+	flex-direction: column;
+	overflow: hidden;
+}
+
+.terminal-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 12px 20px;
+	background-color: #2d2d2d;
+	border-bottom: 1px solid #3d3d3d;
+}
+
+.terminal-header h3 {
+	margin: 0;
+	color: #fff;
+	font-size: 16px;
+	font-weight: 500;
+}
+
+.terminal-header button {
+	background-color: #d63031;
+	color: white;
+	border: none;
+	padding: 4px 12px;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 12px;
+	transition: background 0.2s;
+}
+
+.terminal-header button:hover {
+	background-color: #ff7675;
+}
+
+.terminal-content {
+	flex: 1;
+	padding: 16px;
+	overflow-y: auto;
+	font-family: 'Courier New', monospace;
+	font-size: 13px;
+	background-color: #1e1e1e;
+	color: #d4d4d4;
+}
+
+.terminal-line {
+	margin: 2px 0;
+	white-space: pre-wrap;
+	word-wrap: break-word;
+	line-height: 1.5;
+}
+
+.terminal-line.log {
+	color: #4ec9b0;
+}
+
+.terminal-line.error {
+	color: #f48771;
+}
+
+.terminal-line.complete {
+	color: #6a9955;
+	font-weight: bold;
+}
+
+.terminal-cursor {
+	display: inline-block;
+	width: 8px;
+	height: 16px;
+	background-color: #4ec9b0;
+	animation: blink 1s infinite;
+	margin-left: 2px;
+}
+
+@keyframes blink {
+	0%,
+	50% {
+		opacity: 1;
+	}
+	51%,
+	100% {
+		opacity: 0;
+	}
+}
+
+/* Scrollbar styling for terminal */
+.terminal-content::-webkit-scrollbar {
+	width: 8px;
+}
+
+.terminal-content::-webkit-scrollbar-track {
+	background: #2d2d2d;
+}
+
+.terminal-content::-webkit-scrollbar-thumb {
+	background: #4ec9b0;
+	border-radius: 4px;
+}
+
+.terminal-content::-webkit-scrollbar-thumb:hover {
+	background: #6a9955;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+	.create-form {
+		flex-direction: column;
+	}
+	.project-list {
+		grid-template-columns: 1fr;
+	}
+}
