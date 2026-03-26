@@ -1,10 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import { useLocation, useNavigate } from 'react-router-dom';
+import SurfaceSelect from './SurfaceSelect';
 import './Databases.css';
 
 const API = 'http://localhost:4000';
+const DATABASE_TYPE_OPTIONS = [
+	{
+		value: 'postgres',
+		label: 'PostgreSQL',
+		description: 'Relational database with strong SQL tooling.',
+	},
+	{
+		value: 'mysql',
+		label: 'MySQL',
+		description: 'Popular relational database for app backends.',
+	},
+	{
+		value: 'mongodb',
+		label: 'MongoDB',
+		description: 'Document database for flexible schemas.',
+	},
+];
 
 function Databases() {
+	const location = useLocation();
+	const navigate = useNavigate();
 	const [databases, setDatabases] = useState([]);
 	const [showCreateForm, setShowCreateForm] = useState(false);
 	const [newDb, setNewDb] = useState({
@@ -17,33 +38,36 @@ function Databases() {
 	const [showConnectionModal, setShowConnectionModal] = useState(false);
 	const [selectedDatabase, setSelectedDatabase] = useState(null);
 	const [copied, setCopied] = useState(false);
+	const [showCreateTerminal, setShowCreateTerminal] = useState(false);
+	const [createTerminalOutput, setCreateTerminalOutput] = useState([]);
+	const [createProgress, setCreateProgress] = useState(0);
+	const [isCreatingDatabase, setIsCreatingDatabase] = useState(false);
+	const projectComposerDraft = location.state?.projectComposerDraft || null;
+	const isProjectComposerFlow = Boolean(
+		location.state?.fromProjectComposer && projectComposerDraft,
+	);
+	const createOutputEndRef = useRef(null);
 
 	useEffect(() => {
 		loadDatabases();
 	}, []);
 
+	useEffect(() => {
+		if (isProjectComposerFlow) {
+			setShowCreateForm(true);
+		}
+	}, [isProjectComposerFlow]);
+
+	useEffect(() => {
+		createOutputEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+	}, [createTerminalOutput]);
+
 	const loadDatabases = async () => {
 		try {
 			const res = await axios.get(`${API}/databases`);
 			setDatabases(res.data);
-			// Fetch status for each database
-			for (const db of res.data) {
-				try {
-					const statusRes = await axios.get(
-						`${API}/databases/${db.id}/status`,
-					);
-					setStatuses((prev) => ({
-						...prev,
-						[db.id]: statusRes.data.status,
-					}));
-				} catch (err) {
-					console.error(
-						`Failed to fetch status for ${db.name}:`,
-						err,
-					);
-					setStatuses((prev) => ({ ...prev, [db.id]: 'error' }));
-				}
-			}
+			// Fetch statuses for all databases
+			await fetchAllStatuses(res.data);
 		} catch (err) {
 			console.error('Failed to load databases:', err);
 			alert(
@@ -52,23 +76,180 @@ function Databases() {
 		}
 	};
 
+	const fetchAllStatuses = async (dbList) => {
+		const newStatuses = {};
+		for (const db of dbList) {
+			await fetchSingleStatus(db.id, newStatuses);
+		}
+		setStatuses(newStatuses);
+	};
+
+	const fetchSingleStatus = async (id, statusMap = null) => {
+		try {
+			const statusRes = await axios.get(`${API}/databases/${id}/status`);
+			const status = statusRes.data.status;
+			if (statusMap) {
+				statusMap[id] = status;
+			} else {
+				setStatuses((prev) => ({ ...prev, [id]: status }));
+			}
+		} catch (err) {
+			console.error(`Failed to fetch status for ${id}:`, err);
+			if (statusMap) {
+				statusMap[id] = 'error';
+			} else {
+				setStatuses((prev) => ({ ...prev, [id]: 'error' }));
+			}
+		}
+	};
+
+	const refreshStatus = (id) => {
+		fetchSingleStatus(id);
+	};
+
+	const updateCreateProgressFromLog = (message) => {
+		if (message.includes('Preparing')) {
+			setCreateProgress(10);
+		} else if (message.includes('Reserved database port')) {
+			setCreateProgress((previous) => Math.max(previous, 24));
+		} else if (message.includes('Reserved Adminer port')) {
+			setCreateProgress((previous) => Math.max(previous, 34));
+		} else if (
+			message.includes('Creating Docker Compose stack directory')
+		) {
+			setCreateProgress((previous) => Math.max(previous, 48));
+		} else if (message.includes('Writing docker-compose.yml')) {
+			setCreateProgress((previous) => Math.max(previous, 66));
+		} else if (message.includes('Starting Docker Compose services')) {
+			setCreateProgress((previous) => Math.max(previous, 82));
+		} else if (message.includes('Database stack started successfully')) {
+			setCreateProgress((previous) => Math.max(previous, 94));
+		} else if (message.includes('Database created successfully')) {
+			setCreateProgress(100);
+		}
+	};
+
+	const closeCreateTerminal = () => {
+		if (isCreatingDatabase) {
+			return;
+		}
+
+		setShowCreateTerminal(false);
+		setCreateTerminalOutput([]);
+		setCreateProgress(0);
+	};
+
 	const createDatabase = async () => {
 		if (!newDb.name) {
 			alert('Please enter a database name');
 			return;
 		}
+
+		setShowCreateTerminal(true);
+		setIsCreatingDatabase(true);
+		setCreateProgress(0);
+		setCreateTerminalOutput([
+			{
+				type: 'log',
+				message: 'Starting database creation...',
+				timestamp: new Date().toLocaleTimeString(),
+			},
+		]);
+
 		try {
-			await axios.post(`${API}/databases`, newDb);
-			setShowCreateForm(false);
-			setNewDb({
-				name: '',
-				type: 'postgres',
-				port: '',
-				withClient: false,
+			const response = await fetch(`${API}/databases/create-stream`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(newDb),
 			});
-			loadDatabases();
-		} catch (err) {
-			alert(err.response?.data?.error || 'Failed to create database');
+
+			if (!response.ok) {
+				const errorData = await response
+					.json()
+					.catch(() => ({ error: 'Database creation failed.' }));
+				throw new Error(errorData.error || 'Database creation failed.');
+			}
+
+			if (!response.body) {
+				throw new Error('Streaming output is unavailable.');
+			}
+
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder();
+
+			while (true) {
+				const { done, value } = await reader.read();
+				if (done) {
+					break;
+				}
+
+				const chunk = decoder.decode(value, { stream: true });
+				for (const line of chunk.split('\n')) {
+					if (!line.startsWith('data: ')) {
+						continue;
+					}
+
+					const data = JSON.parse(line.slice(6));
+					const entry = {
+						...data,
+						timestamp: new Date().toLocaleTimeString(),
+					};
+
+					setCreateTerminalOutput((previous) => [...previous, entry]);
+
+					if (data.type === 'log') {
+						updateCreateProgressFromLog(data.message);
+					}
+
+					if (data.type === 'complete') {
+						const createdDatabase = data.database;
+						setCreateProgress(100);
+						setIsCreatingDatabase(false);
+
+						if (isProjectComposerFlow && projectComposerDraft) {
+							navigate('/projects', {
+								state: {
+									projectComposerDraft: {
+										...projectComposerDraft,
+										databaseId: createdDatabase.id,
+									},
+									composerMessage: `"${createdDatabase.name}" is ready and linked to your new project draft.`,
+								},
+							});
+							return;
+						}
+
+						setShowCreateForm(false);
+						setNewDb({
+							name: '',
+							type: 'postgres',
+							port: '',
+							withClient: false,
+						});
+						await loadDatabases();
+
+						window.setTimeout(() => {
+							setShowCreateTerminal(false);
+							setCreateTerminalOutput([]);
+							setCreateProgress(0);
+						}, 1800);
+					}
+
+					if (data.type === 'error') {
+						setIsCreatingDatabase(false);
+					}
+				}
+			}
+		} catch (error) {
+			setCreateTerminalOutput((previous) => [
+				...previous,
+				{
+					type: 'error',
+					message: `Error: ${error.message}`,
+					timestamp: new Date().toLocaleTimeString(),
+				},
+			]);
+			setIsCreatingDatabase(false);
 		}
 	};
 
@@ -85,7 +266,7 @@ function Databases() {
 	const startDatabase = async (id) => {
 		try {
 			await axios.post(`${API}/databases/${id}/start`);
-			loadDatabases(); // reload to update status
+			await refreshStatus(id);
 		} catch (err) {
 			alert(err.response?.data?.error || 'Failed to start database');
 		}
@@ -94,7 +275,7 @@ function Databases() {
 	const stopDatabase = async (id) => {
 		try {
 			await axios.post(`${API}/databases/${id}/stop`);
-			loadDatabases();
+			await refreshStatus(id);
 		} catch (err) {
 			alert(err.response?.data?.error || 'Failed to stop database');
 		}
@@ -103,7 +284,7 @@ function Databases() {
 	const startClient = async (id) => {
 		try {
 			await axios.post(`${API}/databases/${id}/client/start`);
-			loadDatabases();
+			await refreshStatus(id); // optional, but client status is separate
 		} catch (err) {
 			alert(err.response?.data?.error || 'Failed to start client');
 		}
@@ -112,10 +293,24 @@ function Databases() {
 	const stopClient = async (id) => {
 		try {
 			await axios.post(`${API}/databases/${id}/client/stop`);
-			loadDatabases();
+			await refreshStatus(id);
 		} catch (err) {
 			alert(err.response?.data?.error || 'Failed to stop client');
 		}
+	};
+
+	const returnToProjectComposer = () => {
+		if (!projectComposerDraft) {
+			navigate('/projects');
+			return;
+		}
+
+		navigate('/projects', {
+			state: {
+				projectComposerDraft,
+				composerMessage: 'Project draft restored.',
+			},
+		});
 	};
 
 	const showConnectionString = (db) => {
@@ -126,8 +321,12 @@ function Databases() {
 	const copyToClipboard = async (db) => {
 		if (!db || !db.credentials) return;
 		const { user, password, database, port, host } = db.credentials;
-		const conn = `postgresql://${user}:${password}@${host}:${port}/${database}`;
-
+		let conn;
+		if (db.type === 'mongodb') {
+			conn = `mongodb://${host}:${port}/${database}`;
+		} else {
+			conn = `${db.type}://${user}:${password}@${host}:${port}/${database}`;
+		}
 		try {
 			await navigator.clipboard.writeText(conn);
 			setCopied(true);
@@ -137,58 +336,164 @@ function Databases() {
 		}
 	};
 
+	const getStatusBadge = (status) => {
+		switch (status) {
+			case 'running':
+				return <span className='status-badge running'>● Running</span>;
+			case 'stopped':
+				return <span className='status-badge stopped'>● Stopped</span>;
+			case 'error':
+				return <span className='status-badge error'>⚠️ Error</span>;
+			default:
+				return <span className='status-badge unknown'>? Unknown</span>;
+		}
+	};
+
 	return (
 		<div className='databases-container'>
+			{showCreateTerminal && (
+				<div className='terminal-modal' onClick={closeCreateTerminal}>
+					<div
+						className='terminal-container'
+						onClick={(event) => event.stopPropagation()}>
+						<div className='terminal-header'>
+							<div>
+								<p className='terminal-label'>Provisioning</p>
+								<h3>Database creation log</h3>
+							</div>
+							<button
+								type='button'
+								onClick={closeCreateTerminal}
+								disabled={isCreatingDatabase}>
+								Close
+							</button>
+						</div>
+						<div className='progress-bar-container'>
+							<div
+								className='progress-bar'
+								style={{ width: `${createProgress}%` }}
+							/>
+						</div>
+						<div className='terminal-content'>
+							{createTerminalOutput.map((entry, index) => (
+								<div
+									key={`${entry.timestamp}-${index}`}
+									className={`terminal-line ${entry.type}`}>
+									<span className='timestamp'>
+										[{entry.timestamp}]
+									</span>
+									{entry.message}
+								</div>
+							))}
+							{isCreatingDatabase && (
+								<div className='terminal-cursor' />
+							)}
+							<div ref={createOutputEndRef} />
+						</div>
+					</div>
+				</div>
+			)}
+
 			<div className='databases-header'>
 				<h2>Databases</h2>
-				<button onClick={() => setShowCreateForm(!showCreateForm)}>
-					{showCreateForm ? 'Cancel' : 'Create Database'}
-				</button>
+				<div>
+					<button
+						onClick={() => loadDatabases()}
+						className='refresh-all-btn'>
+						🔄 Refresh All
+					</button>
+					<button onClick={() => setShowCreateForm(!showCreateForm)}>
+						{showCreateForm ? 'Cancel' : 'Create Database'}
+					</button>
+				</div>
 			</div>
+
+			{isProjectComposerFlow && (
+				<div className='database-context-banner'>
+					<div className='database-context-copy'>
+						<strong>Create a database for your new project</strong>
+						<p>
+							This page opened from the project composer. As soon
+							as you create a database, you will be sent back to
+							`/projects` and it will already be selected.
+						</p>
+					</div>
+					<button
+						type='button'
+						className='database-context-action'
+						onClick={returnToProjectComposer}>
+						Back to project draft
+					</button>
+				</div>
+			)}
 
 			{showCreateForm && (
 				<div className='create-db-form'>
-					<input
-						placeholder='Database Name'
-						value={newDb.name}
-						onChange={(e) =>
-							setNewDb({ ...newDb, name: e.target.value })
-						}
-					/>
-					<select
-						value={newDb.type}
-						onChange={(e) =>
-							setNewDb({ ...newDb, type: e.target.value })
-						}>
-						<option value='postgres'>PostgreSQL</option>
-					</select>
-					<input
-						placeholder='Port (optional)'
-						type='number'
-						value={newDb.port}
-						onChange={(e) =>
-							setNewDb({ ...newDb, port: e.target.value })
-						}
-					/>
-					<label
-						style={{
-							display: 'flex',
-							alignItems: 'center',
-							gap: '5px',
-						}}>
-						<input
-							type='checkbox'
-							checked={newDb.withClient}
-							onChange={(e) =>
-								setNewDb({
-									...newDb,
-									withClient: e.target.checked,
-								})
-							}
-						/>
-						Create with Adminer client
-					</label>
-					<button onClick={createDatabase}>Create</button>
+					<div className='database-form-grid'>
+						<label className='database-field'>
+							<span>Database name</span>
+							<input
+								placeholder='project-db'
+								value={newDb.name}
+								onChange={(e) =>
+									setNewDb({ ...newDb, name: e.target.value })
+								}
+							/>
+						</label>
+
+						<div className='database-field'>
+							<span>Database type</span>
+							<SurfaceSelect
+								value={newDb.type}
+								onChange={(nextValue) =>
+									setNewDb({ ...newDb, type: nextValue })
+								}
+								options={DATABASE_TYPE_OPTIONS}
+								className='database-surface-select'
+							/>
+						</div>
+
+						<label className='database-field'>
+							<span>Port</span>
+							<input
+								placeholder='Optional'
+								type='number'
+								value={newDb.port}
+								onChange={(e) =>
+									setNewDb({ ...newDb, port: e.target.value })
+								}
+							/>
+						</label>
+
+						<label className='database-field database-toggle-field'>
+							<span>Client</span>
+							<div className='database-toggle-row'>
+								<input
+									type='checkbox'
+									checked={newDb.withClient}
+									onChange={(e) =>
+										setNewDb({
+											...newDb,
+											withClient: e.target.checked,
+										})
+									}
+								/>
+								<strong>Create with Adminer client</strong>
+							</div>
+						</label>
+					</div>
+
+					<div className='database-form-actions'>
+						<button
+							type='button'
+							className='database-create-button'
+							onClick={createDatabase}
+							disabled={isCreatingDatabase}>
+							{isCreatingDatabase
+								? 'Creating...'
+								: 'Create database'}
+						</button>
+					</div>
 				</div>
 			)}
 
@@ -210,17 +515,22 @@ function Databases() {
 						<p>Type: {db.type}</p>
 						<p>Port: {db.port}</p>
 						<p>Container: {db.containerName}</p>
-						<p>
-							Status:
-							<span
-								className={`status ${statuses[db.id] === 'error' ? 'error' : statuses[db.id]}`}>
-								{statuses[db.id] === 'error'
-									? 'Docker error'
-									: statuses[db.id] || 'unknown'}
-							</span>
-						</p>
-						<p>User: {db.credentials.user}</p>
-						<p>Password: {db.credentials.password}</p>
+						<div className='status-row'>
+							<span className='status-label'>Status:</span>
+							{getStatusBadge(statuses[db.id])}
+							<button
+								className='refresh-status'
+								onClick={() => refreshStatus(db.id)}
+								title='Refresh status'>
+								⟳
+							</button>
+						</div>
+						{db.type !== 'mongodb' && (
+							<>
+								<p>User: {db.credentials.user}</p>
+								<p>Password: {db.credentials.password}</p>
+							</>
+						)}
 						{db.clientPort && (
 							<p>
 								Adminer:{' '}
@@ -233,7 +543,7 @@ function Databases() {
 							</p>
 						)}
 
-						{/* Database Control Buttons - Row 1 */}
+						{/* Database Control Buttons */}
 						<div className='database-buttons'>
 							{statuses[db.id] === 'running' ? (
 								<button onClick={() => stopDatabase(db.id)}>
@@ -248,7 +558,7 @@ function Databases() {
 								Delete
 							</button>
 						</div>
-						{/* Connection String Button - Row 3 */}
+
 						<div className='database-buttons connection-button'>
 							<button
 								className='connection-btn'
@@ -283,19 +593,14 @@ function Databases() {
 							<div className='connection-string-container'>
 								<div className='connection-string'>
 									<span className='connection-string-label'>
-										PostgreSQL URL:
+										{selectedDatabase.type.toUpperCase()}{' '}
+										URL:
 									</span>
 									<div className='connection-string-value'>
 										<code>
-											postgresql://
-											{selectedDatabase.credentials.user}
-											:********@
-											{selectedDatabase.credentials.host}:
-											{selectedDatabase.credentials.port}/
-											{
-												selectedDatabase.credentials
-													.database
-											}
+											{selectedDatabase.type === 'mongodb'
+												? `mongodb://${selectedDatabase.credentials.host}:${selectedDatabase.credentials.port}/${selectedDatabase.credentials.database}`
+												: `${selectedDatabase.type}://${selectedDatabase.credentials.user}:********@${selectedDatabase.credentials.host}:${selectedDatabase.credentials.port}/${selectedDatabase.credentials.database}`}
 										</code>
 									</div>
 								</div>
@@ -305,19 +610,9 @@ function Databases() {
 									</span>
 									<div className='connection-string-value'>
 										<code>
-											postgresql://
-											{selectedDatabase.credentials.user}:
-											{
-												selectedDatabase.credentials
-													.password
-											}
-											@{selectedDatabase.credentials.host}
-											:{selectedDatabase.credentials.port}
-											/
-											{
-												selectedDatabase.credentials
-													.database
-											}
+											{selectedDatabase.type === 'mongodb'
+												? `mongodb://${selectedDatabase.credentials.host}:${selectedDatabase.credentials.port}/${selectedDatabase.credentials.database}`
+												: `${selectedDatabase.type}://${selectedDatabase.credentials.user}:${selectedDatabase.credentials.password}@${selectedDatabase.credentials.host}:${selectedDatabase.credentials.port}/${selectedDatabase.credentials.database}`}
 										</code>
 									</div>
 								</div>

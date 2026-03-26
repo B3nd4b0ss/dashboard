@@ -4,14 +4,18 @@ const projectService = require('../services/projectService');
 const { startProject, stopProject } = require('../services/projectLifecycle');
 
 // Get all projects
-router.get('/', (req, res) => {
-	const projects = projectService.getAllProjects();
-	res.json(projects);
+router.get('/', async (req, res) => {
+	try {
+		const projects = await projectService.getAllProjects();
+		res.json(projects);
+	} catch (err) {
+		res.status(500).json({ error: err.message });
+	}
 });
 
 // Get single project
-router.get('/:name', (req, res) => {
-	const project = projectService.getProject(req.params.name);
+router.get('/:name', async (req, res) => {
+	const project = await projectService.getProject(req.params.name);
 	if (!project) return res.sendStatus(404);
 	res.json(project);
 });
@@ -42,8 +46,8 @@ router.patch('/:name', async (req, res) => {
 // Start project
 router.post('/:name/start', async (req, res) => {
 	try {
-		await startProject(req.params.name);
-		res.json({ message: 'Started' });
+		const result = await startProject(req.params.name);
+		res.json(result);
 	} catch (err) {
 		res.status(400).json({ error: err.message });
 	}
@@ -52,8 +56,8 @@ router.post('/:name/start', async (req, res) => {
 // Stop project
 router.post('/:name/stop', async (req, res) => {
 	try {
-		await stopProject(req.params.name);
-		res.json({ message: 'Stopped' });
+		const result = await stopProject(req.params.name);
+		res.json(result);
 	} catch (err) {
 		res.status(400).json({ error: err.message });
 	}

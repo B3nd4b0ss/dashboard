@@ -37,6 +37,58 @@ router.post('/', async (req, res) => {
 	}
 });
 
+router.post('/create-stream', async (req, res) => {
+	res.writeHead(200, {
+		'Content-Type': 'text/event-stream',
+		'Cache-Control': 'no-cache',
+		Connection: 'keep-alive',
+	});
+	res.flushHeaders();
+
+	const eventEmitter = new (require('events').EventEmitter)();
+
+	eventEmitter.on('log', (message) => {
+		res.write(`data: ${JSON.stringify({ type: 'log', message })}\n\n`);
+	});
+
+	eventEmitter.on('error', (message) => {
+		res.write(`data: ${JSON.stringify({ type: 'error', message })}\n\n`);
+		res.end();
+	});
+
+	eventEmitter.on('complete', (database) => {
+		res.write(
+			`data: ${JSON.stringify({ type: 'complete', database })}\n\n`,
+		);
+		res.end();
+	});
+
+	const { name, type, port, withClient } = req.body;
+	if (!name || !type) {
+		eventEmitter.emit('error', 'Name and type required');
+		return;
+	}
+
+	if (!(await dockerAvailable())) {
+		eventEmitter.emit(
+			'error',
+			'Docker is not running. Please start Docker Desktop and try again.',
+		);
+		return;
+	}
+
+	try {
+		await databaseService.createDatabaseWithStream(
+			{ name, type, port, withClient },
+			eventEmitter,
+		);
+	} catch (err) {
+		if (!res.writableEnded) {
+			eventEmitter.emit('error', err.message);
+		}
+	}
+});
+
 // Delete database
 router.delete('/:id', async (req, res) => {
 	try {

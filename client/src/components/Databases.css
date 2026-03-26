@@ -11,6 +11,52 @@
 	margin-bottom: 20px;
 }
 
+.database-context-banner {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 18px;
+	margin-bottom: 20px;
+	padding: 18px 20px;
+	border-radius: 16px;
+	background: rgba(9, 132, 227, 0.08);
+	border: 1px solid rgba(9, 132, 227, 0.16);
+}
+
+.database-context-copy {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+
+.database-context-copy strong {
+	color: #2d3436;
+	font-size: 1rem;
+}
+
+.database-context-copy p {
+	margin: 0;
+	color: #636e72;
+	line-height: 1.6;
+}
+
+.database-context-action {
+	flex-shrink: 0;
+	background: #0984e3;
+	color: white;
+	border: none;
+	padding: 10px 14px;
+	border-radius: 10px;
+	cursor: pointer;
+	font-weight: 600;
+	transition: background 0.2s;
+}
+
+.database-context-action:hover {
+	background: #74b9ff;
+}
+
 .databases-header button {
 	background-color: #0984e3;
 	color: white;
@@ -27,12 +73,11 @@
 
 /* Create database form */
 .create-db-form {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 12px;
+	display: grid;
+	gap: 18px;
 	background: #fff;
-	padding: 20px;
-	border-radius: 12px;
+	padding: 22px;
+	border-radius: 18px;
 	margin-bottom: 20px;
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
@@ -42,40 +87,138 @@ body.dark .create-db-form {
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 
-.create-db-form input,
-.create-db-form select {
-	padding: 10px;
+body.dark .database-context-banner {
+	background: rgba(116, 185, 255, 0.12);
+	border-color: rgba(116, 185, 255, 0.16);
+}
+
+body.dark .database-context-copy strong {
+	color: #dcdde1;
+}
+
+body.dark .database-context-copy p {
+	color: #b2bec3;
+}
+
+.database-form-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 16px;
+}
+
+.database-field {
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	min-width: 0;
+}
+
+.database-field > span {
+	color: #636e72;
+	font-size: 0.82rem;
+	font-weight: 700;
+	letter-spacing: 0.08em;
+	text-transform: uppercase;
+}
+
+.database-field input {
+	width: 100%;
+	min-height: 46px;
+	padding: 0 16px;
 	border: 1px solid #dcdde1;
-	border-radius: 6px;
+	border-radius: 14px;
+	background: #f7f9fc;
+	color: #2d3436;
 	font-size: 14px;
 }
 
-body.dark .create-db-form input,
-body.dark .create-db-form select {
-	background-color: #3d3d3d;
+.database-field input:focus {
+	outline: none;
+	border-color: rgba(9, 132, 227, 0.34);
+	box-shadow: 0 0 0 4px rgba(9, 132, 227, 0.12);
+}
+
+.database-surface-select {
+	width: 100%;
+	min-width: 0;
+}
+
+.create-db-form .database-surface-select .surface-select-trigger {
+	min-height: 46px;
+	background: #f7f9fc;
+	border-color: #dcdde1;
+	border-radius: 14px;
+}
+
+.database-toggle-field {
+	grid-column: 1 / -1;
+}
+
+.database-toggle-row {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 46px;
+	padding: 0 16px;
+	border: 1px solid #dcdde1;
+	border-radius: 14px;
+	background: #f7f9fc;
+}
+
+.database-toggle-row input {
+	width: 16px;
+	height: 16px;
+	margin: 0;
+}
+
+.database-toggle-row strong {
+	color: #2d3436;
+	font-size: 0.94rem;
+}
+
+.database-form-actions {
+	display: flex;
+	justify-content: flex-end;
+}
+
+.database-create-button {
+	background: linear-gradient(135deg, #00b894, #1d9163);
+	color: white;
+	border: none;
+	min-height: 44px;
+	padding: 0 18px;
+	border-radius: 14px;
+	cursor: pointer;
+	font-weight: 700;
+	transition:
+		transform 0.18s ease,
+		opacity 0.18s ease;
+}
+
+.database-create-button:hover {
+	transform: translateY(-1px);
+}
+
+.database-create-button:disabled {
+	opacity: 0.6;
+	cursor: not-allowed;
+	transform: none;
+}
+
+body.dark .database-field > span {
+	color: #b2bec3;
+}
+
+body.dark .database-field input,
+body.dark .database-toggle-row,
+body.dark .create-db-form .database-surface-select .surface-select-trigger {
+	background: #3d3d3d;
 	color: #dcdde1;
 	border-color: #555;
 }
 
-.create-db-form label {
-	display: flex;
-	align-items: center;
-	gap: 5px;
-	font-size: 14px;
-}
-
-.create-db-form button {
-	background-color: #00b894;
-	color: white;
-	border: none;
-	padding: 10px 20px;
-	border-radius: 6px;
-	cursor: pointer;
-	transition: background 0.2s;
-}
-
-.create-db-form button:hover {
-	background-color: #55efc4;
+body.dark .database-toggle-row strong {
+	color: #dcdde1;
 }
 
 /* Database list */
@@ -263,10 +406,95 @@ body.dark .database-card p {
 	background-color: #a29bfe;
 }
 
+/* Status row */
+.status-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 5px 0;
+}
+.status-label {
+	font-weight: 500;
+	color: #636e72;
+}
+.status-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
+	padding: 2px 8px;
+	border-radius: 12px;
+	font-size: 12px;
+	font-weight: 500;
+}
+.status-badge.running {
+	background-color: #00b89420;
+	color: #00b894;
+	border: 1px solid #00b894;
+}
+.status-badge.stopped {
+	background-color: #636e7220;
+	color: #636e72;
+	border: 1px solid #636e72;
+}
+.status-badge.error {
+	background-color: #d6303120;
+	color: #d63031;
+	border: 1px solid #d63031;
+}
+.status-badge.unknown {
+	background-color: #fdcb6e20;
+	color: #fdcb6e;
+	border: 1px solid #fdcb6e;
+}
+.refresh-status {
+	background: none;
+	border: none;
+	cursor: pointer;
+	font-size: 14px;
+	padding: 2px 4px;
+	border-radius: 4px;
+	transition: background 0.2s;
+	color: #0984e3;
+}
+.refresh-status:hover {
+	background-color: #0984e320;
+}
+.refresh-all-btn {
+	background-color: #0984e3;
+	color: white;
+	border: none;
+	padding: 8px 12px;
+	border-radius: 6px;
+	cursor: pointer;
+	margin-right: 8px;
+	transition: background 0.2s;
+}
+.refresh-all-btn:hover {
+	background-color: #74b9ff;
+}
+.client-checkbox {
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	font-size: 14px;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
-	.create-db-form {
+	.database-context-banner {
 		flex-direction: column;
+	}
+
+	.database-form-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.database-form-actions {
+		justify-content: stretch;
+	}
+
+	.database-create-button {
+		width: 100%;
 	}
 	.database-list {
 		grid-template-columns: 1fr;
