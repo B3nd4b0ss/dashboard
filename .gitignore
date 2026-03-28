@@ -9,6 +9,7 @@ projects/
 # Data files
 data.json
 databases.json
+tasks.json
 
 # Build outputs
 dist/
