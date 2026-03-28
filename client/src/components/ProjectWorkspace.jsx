@@ -109,6 +109,13 @@ function getDefaultTerminalWorkingDirectory(projectMeta, primaryCommandPreset) {
 		return primaryCommandPreset.cwd;
 	}
 
+	if (
+		projectMeta?.backend === 'java-console' ||
+		projectMeta?.backend === 'java-maven'
+	) {
+		return '';
+	}
+
 	if (projectMeta?.backend) {
 		return 'backend';
 	}

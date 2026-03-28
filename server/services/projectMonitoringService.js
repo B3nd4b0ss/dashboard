@@ -2,8 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const { execFile } = require('child_process');
-const { PROJECTS_DIR } = require('../config/constants');
 const { processes } = require('./runtimeRegistry');
+const { getProjectPath } = require('../utils/projectPaths');
 
 const HEALTH_CACHE_TTL_MS = 5000;
 const HEALTH_TIMEOUT_MS = 3000;
@@ -105,6 +105,10 @@ function renameProjectMonitoringState(oldName, nextName) {
 		workspaceCache.set(nextKey, workspaceCache.get(oldKey));
 		workspaceCache.delete(oldKey);
 	}
+}
+
+function invalidateProjectWorkspaceMetrics(projectName) {
+	workspaceCache.delete(getProjectKey(projectName));
 }
 
 function recordServiceLaunch(projectName, serviceName, proc) {
@@ -340,8 +344,8 @@ async function getDirectorySize(rootPath) {
 	return totalSize;
 }
 
-async function getWorkspaceMetrics(projectName) {
-	const projectKey = getProjectKey(projectName);
+async function getWorkspaceMetrics(project) {
+	const projectKey = getProjectKey(project.name);
 	const cached = workspaceCache.get(projectKey);
 	const now = Date.now();
 
@@ -349,7 +353,7 @@ async function getWorkspaceMetrics(projectName) {
 		return cached.value;
 	}
 
-	const projectPath = path.join(PROJECTS_DIR, projectName);
+	const projectPath = getProjectPath(project);
 	const metrics = {
 		workspaceSizeBytes: null,
 		driveFreeBytes: null,
@@ -685,7 +689,7 @@ async function getProjectMonitoringMap(projects, runtimeSnapshotMap = null) {
 	const workspaceMetricsEntries = await Promise.all(
 		projects.map(async (project) => [
 			getProjectKey(project.name),
-			await getWorkspaceMetrics(project.name),
+			await getWorkspaceMetrics(project),
 		]),
 	);
 	const workspaceMetricsMap = new Map(workspaceMetricsEntries);
@@ -779,6 +783,7 @@ module.exports = {
 	recordServiceLaunch,
 	recordServiceStopRequest,
 	recordServiceExit,
+	invalidateProjectWorkspaceMetrics,
 	renameProjectMonitoringState,
 	clearProjectMonitoringState,
 };

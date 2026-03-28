@@ -1,8 +1,11 @@
+const fs = require('fs');
+const path = require('path');
 const {
 	getJavaQualifiedMainClass,
 	getJavaSourceRelativePath,
 	getProjectScaffold,
 } = require('./projectScaffold');
+const { getProjectPath } = require('../utils/projectPaths');
 
 const FRONTEND_TEMPLATE_DEFINITIONS = Object.freeze({
 	'vite-react': {
@@ -157,6 +160,18 @@ function getDirectoryLabel(directory) {
 	}
 }
 
+function getCommandPresetWorkingDirectory(project, backendDefinition) {
+	if (
+		backendDefinition?.kind !== 'java-console' &&
+		backendDefinition?.kind !== 'java-maven'
+	) {
+		return 'backend';
+	}
+
+	const projectPath = getProjectPath(project);
+	return fs.existsSync(path.join(projectPath, 'backend')) ? 'backend' : '';
+}
+
 function createCommandPreset({
 	id,
 	label,
@@ -220,12 +235,13 @@ function getProjectCommandPresets(project) {
 	}
 
 	if (backendDefinition?.kind === 'node') {
+		const backendCwd = getCommandPresetWorkingDirectory(project, backendDefinition);
 		presets.push(
 			createCommandPreset({
 				id: 'backend-dev',
 				label: 'Run backend',
 				description: 'Start the backend development server with reloads.',
-				cwd: 'backend',
+				cwd: backendCwd,
 				steps: ['npm run dev'],
 				primary: true,
 			}),
@@ -235,19 +251,20 @@ function getProjectCommandPresets(project) {
 				id: 'backend-install',
 				label: 'Install backend deps',
 				description: 'Install backend dependencies again inside the project.',
-				cwd: 'backend',
+				cwd: backendCwd,
 				steps: ['npm install'],
 			}),
 		);
 	}
 
 	if (backendDefinition?.kind === 'python') {
+		const backendCwd = getCommandPresetWorkingDirectory(project, backendDefinition);
 		presets.push(
 			createCommandPreset({
 				id: 'backend-run',
 				label: 'Run Python server',
 				description: 'Start the generated Python HTTP server.',
-				cwd: 'backend',
+				cwd: backendCwd,
 				steps: [`${pythonCommand} app.py`],
 				primary: true,
 			}),
@@ -255,12 +272,13 @@ function getProjectCommandPresets(project) {
 	}
 
 	if (backendDefinition?.kind === 'python-cli') {
+		const backendCwd = getCommandPresetWorkingDirectory(project, backendDefinition);
 		presets.push(
 			createCommandPreset({
 				id: 'backend-run',
 				label: 'Run Python app',
 				description: 'Execute the Python application entrypoint.',
-				cwd: 'backend',
+				cwd: backendCwd,
 				steps: [`${pythonCommand} -m app`],
 				primary: true,
 			}),
@@ -270,19 +288,20 @@ function getProjectCommandPresets(project) {
 				id: 'backend-test',
 				label: 'Run Python tests',
 				description: 'Run the bundled Python smoke tests.',
-				cwd: 'backend',
+				cwd: backendCwd,
 				steps: [`${pythonCommand} -m unittest discover tests`],
 			}),
 		);
 	}
 
 	if (backendDefinition?.kind === 'php') {
+		const backendCwd = getCommandPresetWorkingDirectory(project, backendDefinition);
 		presets.push(
 			createCommandPreset({
 				id: 'backend-run',
 				label: 'Run PHP server',
 				description: 'Launch the generated PHP starter with the built-in server.',
-				cwd: 'backend',
+				cwd: backendCwd,
 				steps: [`php -S 127.0.0.1:${backendPort} -t .`],
 				primary: true,
 			}),
@@ -290,6 +309,7 @@ function getProjectCommandPresets(project) {
 	}
 
 	if (backendDefinition?.kind === 'java') {
+		const backendCwd = getCommandPresetWorkingDirectory(project, backendDefinition);
 		const javaSourcePath = getJavaSourceRelativePath(scaffold);
 		const javaMainClass = getJavaQualifiedMainClass(scaffold);
 		presets.push(
@@ -297,7 +317,7 @@ function getProjectCommandPresets(project) {
 				id: 'backend-run',
 				label: 'Run Java server',
 				description: 'Compile the generated Java sources and launch the HTTP server.',
-				cwd: 'backend',
+				cwd: backendCwd,
 				steps: [
 					`javac --release ${scaffold.javaVersion} -d out ${javaSourcePath}`,
 					`java -cp out ${javaMainClass}`,
@@ -308,6 +328,7 @@ function getProjectCommandPresets(project) {
 	}
 
 	if (backendDefinition?.kind === 'java-console') {
+		const backendCwd = getCommandPresetWorkingDirectory(project, backendDefinition);
 		const javaSourcePath = getJavaSourceRelativePath(scaffold);
 		const javaMainClass = getJavaQualifiedMainClass(scaffold);
 		presets.push(
@@ -315,7 +336,7 @@ function getProjectCommandPresets(project) {
 				id: 'backend-build',
 				label: 'Compile Java app',
 				description: 'Compile the Java console application into the out folder.',
-				cwd: 'backend',
+				cwd: backendCwd,
 				steps: [
 					`javac --release ${scaffold.javaVersion} -d out ${javaSourcePath}`,
 				],
@@ -326,7 +347,7 @@ function getProjectCommandPresets(project) {
 				id: 'backend-run',
 				label: 'Run Java app',
 				description: 'Compile and run the Java console application.',
-				cwd: 'backend',
+				cwd: backendCwd,
 				steps: [
 					`javac --release ${scaffold.javaVersion} -d out ${javaSourcePath}`,
 					`java -cp out ${javaMainClass}`,
@@ -337,12 +358,13 @@ function getProjectCommandPresets(project) {
 	}
 
 	if (backendDefinition?.kind === 'java-maven') {
+		const backendCwd = getCommandPresetWorkingDirectory(project, backendDefinition);
 		presets.push(
 			createCommandPreset({
 				id: 'backend-run',
 				label: 'Run Maven app',
 				description: 'Use Maven to execute the generated Java application.',
-				cwd: 'backend',
+				cwd: backendCwd,
 				steps: ['mvn exec:java'],
 				primary: true,
 			}),
@@ -352,7 +374,7 @@ function getProjectCommandPresets(project) {
 				id: 'backend-build',
 				label: 'Build Maven app',
 				description: 'Compile and package the Maven application.',
-				cwd: 'backend',
+				cwd: backendCwd,
 				steps: ['mvn package'],
 			}),
 		);
@@ -361,7 +383,7 @@ function getProjectCommandPresets(project) {
 				id: 'backend-test',
 				label: 'Run Maven tests',
 				description: 'Execute the Maven test lifecycle.',
-				cwd: 'backend',
+				cwd: backendCwd,
 				steps: ['mvn test'],
 			}),
 		);

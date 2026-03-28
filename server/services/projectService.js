@@ -3,7 +3,6 @@ const path = require('path');
 const { spawn } = require('child_process');
 const { loadProjects, saveProjects } = require('../utils/fileOperations');
 const { findProject } = require('../utils/helpers');
-const { PROJECTS_DIR } = require('../config/constants');
 const { getDatabaseById } = require('./databaseService');
 const {
 	processes,
@@ -21,6 +20,7 @@ const {
 const {
 	getProjectMonitoringMap,
 	createProjectMonitoringSnapshot,
+	invalidateProjectWorkspaceMetrics,
 	renameProjectMonitoringState,
 	clearProjectMonitoringState,
 } = require('./projectMonitoringService');
@@ -38,6 +38,13 @@ const {
 	getProjectScaffold,
 	resolveProjectScaffold,
 } = require('./projectScaffold');
+const {
+	buildProjectPath,
+	getProjectLocation,
+	getProjectPath,
+	isPathInside,
+	pathsEqual,
+} = require('../utils/projectPaths');
 
 function resolveNpmCommand() {
 	if (process.platform !== 'win32') {
@@ -150,7 +157,8 @@ function decorateProject(
 	result.status = runtime.status;
 	result.frontendUrl = runtime.services.frontend?.url || null;
 	result.backendUrl = runtime.services.backend?.url || null;
-	result.projectPath = path.join(PROJECTS_DIR, project.name);
+	result.projectPath = getProjectPath(project);
+	result.projectLocation = getProjectLocation(project);
 	result.monitoring =
 		monitoringMap?.get(project.name.toLowerCase()) ||
 		createProjectMonitoringSnapshot(project, runtime);
@@ -275,10 +283,21 @@ async function getProject(name) {
 }
 
 async function createProject(data) {
-	const { name, frontend, backend, databaseId, frontendPort, backendPort } =
-		data;
+	const {
+		name,
+		frontend,
+		backend,
+		databaseId,
+		frontendPort,
+		backendPort,
+		projectLocation,
+	} = data;
 	const projects = loadProjects();
-	const trimmedName = name.trim();
+	const trimmedName = String(name || '').trim();
+
+	if (!trimmedName) {
+		throw new Error('Project name is required');
+	}
 
 	if (findProject(projects, trimmedName)) {
 		throw new Error('Name exists');
@@ -307,6 +326,11 @@ async function createProject(data) {
 		frontend,
 		backend,
 	});
+	const projectPath = buildProjectPath(trimmedName, projectLocation);
+
+	if (await fs.pathExists(projectPath)) {
+		throw new Error('Project folder already exists');
+	}
 
 	const newProject = {
 		name: trimmedName,
@@ -315,6 +339,7 @@ async function createProject(data) {
 		databaseId: linkedDatabase ? linkedDatabase.id : null,
 		frontendPort: resolvedPorts.frontendPort,
 		backendPort: resolvedPorts.backendPort,
+		projectPath,
 		scaffold,
 		status: 'stopped',
 	};
@@ -322,7 +347,6 @@ async function createProject(data) {
 	projects.push(newProject);
 	saveProjects(projects);
 
-	const projectPath = path.join(PROJECTS_DIR, trimmedName);
 	try {
 		await fs.mkdirp(projectPath);
 
@@ -355,10 +379,22 @@ async function createProject(data) {
 
 // ---------- Streaming Project Creation ----------
 async function createProjectWithStream(data, eventEmitter) {
-	const { name, frontend, backend, databaseId, frontendPort, backendPort } =
-		data;
+	const {
+		name,
+		frontend,
+		backend,
+		databaseId,
+		frontendPort,
+		backendPort,
+		projectLocation,
+	} = data;
 	const projects = loadProjects();
-	const trimmedName = name.trim();
+	const trimmedName = String(name || '').trim();
+
+	if (!trimmedName) {
+		eventEmitter.emit('error', 'Project name is required');
+		throw new Error('Project name is required');
+	}
 
 	if (findProject(projects, trimmedName)) {
 		eventEmitter.emit('error', 'Project name already exists');
@@ -396,6 +432,12 @@ async function createProjectWithStream(data, eventEmitter) {
 		frontend,
 		backend,
 	});
+	const projectPath = buildProjectPath(trimmedName, projectLocation);
+
+	if (await fs.pathExists(projectPath)) {
+		eventEmitter.emit('error', 'Project folder already exists');
+		throw new Error('Project folder already exists');
+	}
 
 	const newProject = {
 		name: trimmedName,
@@ -404,6 +446,7 @@ async function createProjectWithStream(data, eventEmitter) {
 		databaseId: linkedDatabase ? linkedDatabase.id : null,
 		frontendPort: resolvedPorts.frontendPort,
 		backendPort: resolvedPorts.backendPort,
+		projectPath,
 		scaffold,
 		status: 'stopped',
 	};
@@ -411,8 +454,8 @@ async function createProjectWithStream(data, eventEmitter) {
 	projects.push(newProject);
 	saveProjects(projects);
 
-	const projectPath = path.join(PROJECTS_DIR, trimmedName);
 	await fs.mkdirp(projectPath);
+	eventEmitter.emit('log', `Project folder: ${projectPath}`);
 
 	// Create frontend
 	if (frontend) {
@@ -456,15 +499,27 @@ async function createProjectWithStream(data, eventEmitter) {
 	}
 
 	eventEmitter.emit('log', '✅ Project created successfully!');
-eventEmitter.emit('complete', newProject);
-return newProject;
+	eventEmitter.emit('complete', decorateProject(newProject));
+	return decorateProject(newProject);
 }
 
 async function createProjectWithStreamSafe(data, eventEmitter) {
-	const { name, frontend, backend, databaseId, frontendPort, backendPort } =
-		data;
+	const {
+		name,
+		frontend,
+		backend,
+		databaseId,
+		frontendPort,
+		backendPort,
+		projectLocation,
+	} = data;
 	const projects = loadProjects();
-	const trimmedName = name.trim();
+	const trimmedName = String(name || '').trim();
+
+	if (!trimmedName) {
+		eventEmitter.emit('error', 'Project name is required');
+		throw new Error('Project name is required');
+	}
 
 	if (findProject(projects, trimmedName)) {
 		eventEmitter.emit('error', 'Project name already exists');
@@ -507,6 +562,12 @@ async function createProjectWithStreamSafe(data, eventEmitter) {
 		frontend,
 		backend,
 	});
+	const projectPath = buildProjectPath(trimmedName, projectLocation);
+
+	if (await fs.pathExists(projectPath)) {
+		eventEmitter.emit('error', 'Project folder already exists');
+		throw new Error('Project folder already exists');
+	}
 
 	const newProject = {
 		name: trimmedName,
@@ -515,6 +576,7 @@ async function createProjectWithStreamSafe(data, eventEmitter) {
 		databaseId: linkedDatabase ? linkedDatabase.id : null,
 		frontendPort: resolvedPorts.frontendPort,
 		backendPort: resolvedPorts.backendPort,
+		projectPath,
 		scaffold,
 		status: 'stopped',
 	};
@@ -522,10 +584,9 @@ async function createProjectWithStreamSafe(data, eventEmitter) {
 	projects.push(newProject);
 	saveProjects(projects);
 
-	const projectPath = path.join(PROJECTS_DIR, trimmedName);
-
 	try {
 		await fs.mkdirp(projectPath);
+		eventEmitter.emit('log', `Project folder: ${projectPath}`);
 
 		if (frontend) {
 			const frontendTemplate = getFrontendTemplateDefinition(frontend);
@@ -580,8 +641,8 @@ async function createProjectWithStreamSafe(data, eventEmitter) {
 	}
 
 	eventEmitter.emit('log', 'Project created successfully!');
-	eventEmitter.emit('complete', newProject);
-	return newProject;
+	eventEmitter.emit('complete', decorateProject(newProject));
+	return decorateProject(newProject);
 }
 
 function getDatabaseEnvContent(linkedDatabase) {
@@ -2996,7 +3057,7 @@ async function createBackend(
 	linkedDatabase = null,
 	scaffold = null,
 ) {
-	const backendPath = path.join(projectPath, 'backend');
+	const backendPath = getBackendWorkspacePath(projectPath, template);
 	const blueprint = buildBackendBlueprint(
 		name,
 		port,
@@ -3025,7 +3086,7 @@ async function createBackendWithStream(
 	linkedDatabase = null,
 	scaffold = null,
 ) {
-	const backendPath = path.join(projectPath, 'backend');
+	const backendPath = getBackendWorkspacePath(projectPath, template);
 	const blueprint = buildBackendBlueprint(
 		name,
 		port,
@@ -3134,7 +3195,7 @@ async function syncJavaSourceFile(
 	const nextRelativePath = getJavaSourceRelativePath(nextScaffold, {
 		mavenLayout,
 	});
-	const backendRoot = path.join(projectPath, 'backend');
+	const backendRoot = getBackendWorkspacePath(projectPath, backendKind);
 	const oldSourcePath = path.join(backendRoot, oldRelativePath);
 	const nextSourcePath = path.join(backendRoot, nextRelativePath);
 
@@ -3212,7 +3273,10 @@ async function syncGeneratedProjectFiles(projectPath, previousProject, nextProje
 		return;
 	}
 
-	const backendPath = path.join(projectPath, 'backend');
+	const backendPath = getBackendWorkspacePath(
+		projectPath,
+		nextProject.backend,
+	);
 
 	if (backendDefinition.kind === 'node') {
 		await updateJsonFileIfPresent(path.join(backendPath, 'package.json'), (value) => ({
@@ -3261,6 +3325,16 @@ async function updateProject(oldName, updates) {
 	const oldFrontendPort = project.frontendPort;
 	const oldBackendPort = project.backendPort;
 	const nextName = updates.name ? updates.name.trim() : project.name;
+	if (!nextName) {
+		throw new Error('Project name is required');
+	}
+	const currentProjectPath = getProjectPath(project);
+	const nextProjectPath = buildProjectPath(
+		nextName,
+		Object.prototype.hasOwnProperty.call(updates, 'projectLocation')
+			? updates.projectLocation
+			: getProjectLocation(project),
+	);
 	const nextScaffold = buildNextProjectScaffold(project, updates, nextName);
 
 	// Validate new name
@@ -3272,6 +3346,20 @@ async function updateProject(oldName, updates) {
 		) {
 			throw new Error('Name already exists');
 		}
+	}
+
+	if (
+		!pathsEqual(currentProjectPath, nextProjectPath) &&
+		isPathInside(nextProjectPath, currentProjectPath)
+	) {
+		throw new Error('Project folder cannot be moved inside itself');
+	}
+
+	if (
+		!pathsEqual(currentProjectPath, nextProjectPath) &&
+		(await fs.pathExists(nextProjectPath))
+	) {
+		throw new Error('Destination project folder already exists');
 	}
 
 	const nextPorts = validateProjectPorts({
@@ -3304,12 +3392,18 @@ async function updateProject(oldName, updates) {
 		await stopProject(oldNameValue);
 	}
 
+	if (!pathsEqual(currentProjectPath, nextProjectPath)) {
+		await fs.mkdirp(path.dirname(nextProjectPath));
+		await fs.move(currentProjectPath, nextProjectPath);
+	}
+
 	// Update metadata
 	if (updates.name) project.name = nextName;
 	if (typeof updates.frontendPort !== 'undefined' && project.frontend)
 		project.frontendPort = nextPorts.frontendPort;
 	if (typeof updates.backendPort !== 'undefined' && project.backend)
 		project.backendPort = nextPorts.backendPort;
+	project.projectPath = nextProjectPath;
 	project.scaffold = nextScaffold;
 	if (typeof updates.databaseId !== 'undefined') {
 		project.databaseId = updates.databaseId || null;
@@ -3318,17 +3412,16 @@ async function updateProject(oldName, updates) {
 	projects[projectIndex] = project;
 	saveProjects(projects);
 
-	// Rename folder if name changed
 	if (updates.name && nextName !== oldNameValue) {
-		const oldPath = path.join(PROJECTS_DIR, oldNameValue);
-		const newPath = path.join(PROJECTS_DIR, nextName);
-		await fs.move(oldPath, newPath);
 		renameProjectTasks(oldNameValue, nextName);
 		renameProjectMonitoringState(oldNameValue, nextName);
 	}
+	if (!pathsEqual(currentProjectPath, nextProjectPath)) {
+		invalidateProjectWorkspaceMetrics(project.name);
+	}
 
 	// Update config files for port changes
-	const projectPath = path.join(PROJECTS_DIR, project.name);
+	const projectPath = getProjectPath(project);
 	const backendDefinition = getBackendTemplateDefinition(project.backend);
 	await syncGeneratedProjectFiles(projectPath, previousProject, project);
 	if (
@@ -3393,7 +3486,10 @@ async function updateProject(oldName, updates) {
 	}
 
 	if (project.backend && typeof updates.databaseId !== 'undefined') {
-		const envPath = path.join(projectPath, 'backend', '.env');
+		const envPath = path.join(
+			getBackendWorkspacePath(projectPath, project.backend),
+			'.env',
+		);
 		let envContent = '';
 
 		if (linkedDatabase) {
@@ -3428,7 +3524,7 @@ async function deleteProject(name) {
 	}
 
 	// Remove folder
-	await fs.remove(path.join(PROJECTS_DIR, project.name));
+	await fs.remove(getProjectPath(project));
 
 	// Remove metadata
 	projects.splice(projectIndex, 1);
@@ -3450,6 +3546,23 @@ function getConnectionString(db) {
 		default:
 			return '';
 	}
+}
+
+function shouldUseProjectRootForBackend(template) {
+	const backendDefinition = getBackendTemplateDefinition(template);
+	return (
+		backendDefinition?.kind === 'java-console' ||
+		backendDefinition?.kind === 'java-maven'
+	);
+}
+
+function getBackendWorkspacePath(projectPath, template) {
+	if (!shouldUseProjectRootForBackend(template)) {
+		return path.join(projectPath, 'backend');
+	}
+
+	const legacyBackendPath = path.join(projectPath, 'backend');
+	return fs.existsSync(legacyBackendPath) ? legacyBackendPath : projectPath;
 }
 
 // ---------- Export ----------

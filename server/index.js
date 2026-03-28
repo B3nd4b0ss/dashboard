@@ -5,6 +5,7 @@ const databasesRouter = require('./routes/databases');
 const dockerRouter = require('./routes/docker');
 const tasksRouter = require('./routes/tasks');
 const membersRouter = require('./routes/members');
+const systemRouter = require('./routes/system');
 const { PORT } = require('./config/constants');
 const { configureProcessToolEnvironment } = require('./services/developmentToolchain');
 
@@ -26,6 +27,7 @@ app.use('/databases', databasesRouter);
 app.use('/docker', dockerRouter);
 app.use('/tasks', tasksRouter);
 app.use('/members', membersRouter);
+app.use('/system', systemRouter);
 
 const server = app.listen(PORT, () =>
 	console.log(`Dashboard backend running on port ${PORT}`),

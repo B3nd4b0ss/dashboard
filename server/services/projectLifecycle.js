@@ -2,9 +2,9 @@ const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const kill = require('tree-kill');
-const { PROJECTS_DIR } = require('../config/constants');
 const { loadProjects, saveProjects } = require('../utils/fileOperations');
 const { findProject } = require('../utils/helpers');
+const { getProjectPath } = require('../utils/projectPaths');
 const {
 	startContainer,
 	stopContainer,
@@ -514,7 +514,7 @@ async function startProject(name) {
 		throw new Error('Project not found');
 	}
 
-	const projectPath = path.join(PROJECTS_DIR, project.name);
+	const projectPath = getProjectPath(project);
 	const runtime = processes[project.name] || {};
 	const servicePaths = {};
 	const servicesToStart = [];

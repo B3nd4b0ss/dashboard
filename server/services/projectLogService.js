@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
-const { PROJECTS_DIR } = require('../config/constants');
 const { loadProjects } = require('../utils/fileOperations');
 const { findProject } = require('../utils/helpers');
+const { getProjectPath } = require('../utils/projectPaths');
 
 const PROJECT_LOG_FOLDER = '.dashboard';
 const PROJECT_RUNTIME_LOG_FOLDER = 'runtime-logs';
@@ -17,22 +17,21 @@ function assertServiceName(serviceName) {
 	}
 }
 
-function getProjectLogDirectory(projectName) {
+function getProjectLogDirectory(project) {
 	return path.join(
-		PROJECTS_DIR,
-		projectName,
+		getProjectPath(project),
 		PROJECT_LOG_FOLDER,
 		PROJECT_RUNTIME_LOG_FOLDER,
 	);
 }
 
-function getProjectServiceLogPath(projectName, serviceName) {
+function getProjectServiceLogPath(project, serviceName) {
 	assertServiceName(serviceName);
-	return path.join(getProjectLogDirectory(projectName), `${serviceName}.log`);
+	return path.join(getProjectLogDirectory(project), `${serviceName}.log`);
 }
 
-function ensureRuntimeLogDirectory(projectName) {
-	const logDirectory = getProjectLogDirectory(projectName);
+function ensureRuntimeLogDirectory(project) {
+	const logDirectory = getProjectLogDirectory(project);
 	fs.mkdirSync(logDirectory, { recursive: true });
 	return logDirectory;
 }
@@ -66,8 +65,9 @@ function appendRuntimeLogEvent(
 	message,
 	label = 'system',
 ) {
-	const logPath = getProjectServiceLogPath(projectName, serviceName);
-	ensureRuntimeLogDirectory(projectName);
+	const project = ensureProjectExists(projectName);
+	const logPath = getProjectServiceLogPath(project, serviceName);
+	ensureRuntimeLogDirectory(project);
 
 	const lines = sanitizeLogText(message).split('\n').filter(Boolean);
 	if (lines.length === 0) {
@@ -80,8 +80,9 @@ function appendRuntimeLogEvent(
 }
 
 function createRuntimeLogSession(projectName, serviceName, context = {}) {
-	const logPath = getProjectServiceLogPath(projectName, serviceName);
-	ensureRuntimeLogDirectory(projectName);
+	const project = ensureProjectExists(projectName);
+	const logPath = getProjectServiceLogPath(project, serviceName);
+	ensureRuntimeLogDirectory(project);
 
 	const stream = fs.createWriteStream(logPath, {
 		flags: 'a',
@@ -201,7 +202,8 @@ async function readTailText(filePath, maxBytes = MAX_TAIL_BYTES) {
 }
 
 async function readServiceRuntimeLog(projectName, serviceName, lineLimit) {
-	const logPath = getProjectServiceLogPath(projectName, serviceName);
+	const project = ensureProjectExists(projectName);
+	const logPath = getProjectServiceLogPath(project, serviceName);
 
 	try {
 		const { content, truncated, size, updatedAt } =

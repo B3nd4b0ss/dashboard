@@ -39,6 +39,7 @@ const API = 'http://localhost:4000';
 const REFRESH_INTERVAL_MS = 7000;
 const EMPTY_FORM = {
 	name: '',
+	projectLocation: '',
 	frontendFamily: '',
 	frontendPreset: '',
 	frontend: '',
@@ -609,6 +610,7 @@ function buildFastLaneDraft(lane, previous = EMPTY_FORM) {
 	const baseDraft = {
 		...EMPTY_FORM,
 		name: previous.name,
+		projectLocation: previous.projectLocation,
 		databaseId: previous.databaseId,
 		description: previous.description,
 		version: previous.version,
@@ -754,6 +756,25 @@ function getComposerJavaSourcePath(form) {
 	return `${basePath}/${getComposerJavaPackageName(form).replace(/\./g, '/')}/${getComposerJavaMainClass(form)}.java`;
 }
 
+function getComposerProjectLocationLabel(form) {
+	const location = String(form.projectLocation || '').trim();
+	return location || 'Default dashboard projects folder';
+}
+
+function getComposerProjectPathPreview(form) {
+	const projectName = String(form.name || '').trim() || 'project-name';
+	const location = String(form.projectLocation || '').trim();
+
+	if (!location) {
+		return `Default dashboard projects folder -> ${projectName}`;
+	}
+
+	const separator =
+		location.includes('/') && !location.includes('\\') ? '/' : '\\';
+
+	return `${location.replace(/[\\/]+$/, '')}${separator}${projectName}`;
+}
+
 function formatBytes(bytes) {
 	if (!Number.isFinite(bytes) || bytes <= 0) {
 		return '0 B';
@@ -856,6 +877,7 @@ function Overview({ mode = 'board' }) {
 	const [terminalOutput, setTerminalOutput] = useState([]);
 	const [isCreating, setIsCreating] = useState(false);
 	const [progress, setProgress] = useState(0);
+	const [folderPickerBusy, setFolderPickerBusy] = useState(false);
 	const [dashboardError, setDashboardError] = useState('');
 	const [composerMessage, setComposerMessage] = useState('');
 	const [pendingAction, setPendingAction] = useState('');
@@ -972,6 +994,28 @@ function Overview({ mode = 'board' }) {
 				returnToProjectComposerPath: '/composer',
 			},
 		});
+	};
+
+	const browseComposerProjectLocation = async () => {
+		setFolderPickerBusy(true);
+
+		try {
+			const response = await axios.post(`${API}/system/pick-folder`, {
+				initialPath: form.projectLocation,
+				title: 'Choose where the project should be created',
+			});
+
+			if (!response.data?.canceled && response.data?.path) {
+				updateForm((previous) => ({
+					...previous,
+					projectLocation: response.data.path,
+				}));
+			}
+		} catch (error) {
+			alert(error.response?.data?.error || 'Failed to open folder picker.');
+		} finally {
+			setFolderPickerBusy(false);
+		}
 	};
 
 	const createProject = async () => {
@@ -1240,6 +1284,8 @@ function Overview({ mode = 'board' }) {
 	const composerJavaArtifactId = getComposerJavaArtifactId(form);
 	const composerJavaExecClass = getComposerJavaExecClass(form);
 	const composerJavaSourcePath = getComposerJavaSourcePath(form);
+	const composerProjectLocationLabel = getComposerProjectLocationLabel(form);
+	const composerProjectPathPreview = getComposerProjectPathPreview(form);
 	const selectedWebsiteFamily =
 		WEBSITE_FAMILY_OPTIONS.find(
 			(option) => option.value === form.frontendFamily,
@@ -1574,19 +1620,57 @@ function Overview({ mode = 'board' }) {
 								</div>
 							</div>
 
-							<label className='field-group'>
-								<span>Project name</span>
-								<input
-									value={form.name}
-									onChange={(event) =>
-										updateForm((previous) => ({
-											...previous,
-											name: event.target.value,
-										}))
-									}
-									placeholder='project-name'
-								/>
-							</label>
+							<div className='composer-card-fields'>
+								<label className='field-group'>
+									<span>Project name</span>
+									<input
+										value={form.name}
+										onChange={(event) =>
+											updateForm((previous) => ({
+												...previous,
+												name: event.target.value,
+											}))
+										}
+										placeholder='project-name'
+									/>
+								</label>
+
+								<label className='field-group'>
+									<div className='field-label-row'>
+										<span>Create in folder</span>
+										<button
+											type='button'
+											className='inline-field-action'
+											onClick={browseComposerProjectLocation}
+											disabled={folderPickerBusy}>
+											<FolderRounded fontSize='inherit' />
+											{folderPickerBusy ? 'Opening...' : 'Browse'}
+										</button>
+									</div>
+									<input
+										value={form.projectLocation}
+										onChange={(event) =>
+											updateForm((previous) => ({
+												...previous,
+												projectLocation: event.target.value,
+											}))
+										}
+										placeholder='Leave blank for the default dashboard projects folder'
+									/>
+								</label>
+
+								<div className='field-group field-wide'>
+									<span>Project folder preview</span>
+									<div className='composer-selection-preview'>
+										<strong>{composerProjectPathPreview}</strong>
+										<span>
+											Type an absolute path or a path relative to the
+											dashboard projects folder. Clearing this field
+											uses the default location.
+										</span>
+									</div>
+								</div>
+							</div>
 						</section>
 
 						<section className='composer-stage-card composer-stage-card-blueprints'>
@@ -1923,6 +2007,10 @@ function Overview({ mode = 'board' }) {
 									<div className='composer-selection-chip'>
 										<strong>Mode</strong>
 										<span>{composerLaunchLabel}</span>
+									</div>
+									<div className='composer-selection-chip'>
+										<strong>Folder</strong>
+										<span>{composerProjectLocationLabel}</span>
 									</div>
 									<div className='composer-selection-chip'>
 										<strong>Port</strong>

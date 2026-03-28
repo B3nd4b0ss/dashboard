@@ -1,8 +1,8 @@
 const fs = require('fs-extra');
 const path = require('path');
-const { PROJECTS_DIR } = require('../config/constants');
 const { loadProjects } = require('../utils/fileOperations');
 const { findProject } = require('../utils/helpers');
+const { getProjectPath } = require('../utils/projectPaths');
 
 const HIDDEN_DIRECTORY_NAMES = new Set([
 	'.dashboard',
@@ -26,7 +26,7 @@ function getProjectRoot(projectName) {
 	const project = getProjectRecord(projectName);
 	return {
 		project,
-		rootPath: path.join(PROJECTS_DIR, project.name),
+		rootPath: getProjectPath(project),
 	};
 }
 

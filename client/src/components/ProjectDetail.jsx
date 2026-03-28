@@ -9,6 +9,7 @@ import TerminalRounded from '@mui/icons-material/TerminalRounded';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import PublicRounded from '@mui/icons-material/PublicRounded';
 import HubRounded from '@mui/icons-material/HubRounded';
+import FolderRounded from '@mui/icons-material/FolderRounded';
 import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
 import RestartAltRounded from '@mui/icons-material/RestartAltRounded';
 import MonitorHeartRounded from '@mui/icons-material/MonitorHeartRounded';
@@ -159,6 +160,7 @@ function buildEditableProject(project = {}) {
 
 	return {
 		name: project.name || '',
+		projectLocation: project.projectLocation || '',
 		frontendPort: project.frontendPort || '',
 		backendPort: project.backendPort || '',
 		description: scaffold.description || '',
@@ -190,6 +192,7 @@ function ProjectDetail() {
 	const [logsLoading, setLogsLoading] = useState(false);
 	const [logsError, setLogsError] = useState('');
 	const [selectedLogService, setSelectedLogService] = useState('');
+	const [folderPickerBusy, setFolderPickerBusy] = useState(false);
 
 	const getDefaultLogService = (nextProject = project) => {
 		if (nextProject?.frontend) {
@@ -302,7 +305,7 @@ function ProjectDetail() {
 
 					setProject(nextProject);
 					if (!editMode) {
-						setEdited(nextProject);
+						setEdited(buildEditableProject(nextProject));
 					}
 				},
 			});
@@ -346,6 +349,25 @@ function ProjectDetail() {
 
 	const handleChange = (field, value) => {
 		setEdited((previous) => ({ ...previous, [field]: value }));
+	};
+
+	const browseProjectLocation = async () => {
+		setFolderPickerBusy(true);
+
+		try {
+			const response = await axios.post(`${API}/system/pick-folder`, {
+				initialPath: edited.projectLocation || project?.projectLocation || '',
+				title: 'Choose the new parent folder for this project',
+			});
+
+			if (!response.data?.canceled && response.data?.path) {
+				handleChange('projectLocation', response.data.path);
+			}
+		} catch (error) {
+			alert(error.response?.data?.error || 'Failed to open folder picker.');
+		} finally {
+			setFolderPickerBusy(false);
+		}
 	};
 
 	const runAction = async (action, request) => {
@@ -409,6 +431,13 @@ function ProjectDetail() {
 
 			if (edited.description !== projectScaffold.description) {
 				updates.description = edited.description;
+			}
+
+			if (
+				String(edited.projectLocation || '').trim() !==
+				String(project.projectLocation || '').trim()
+			) {
+				updates.projectLocation = edited.projectLocation;
 			}
 
 			if (edited.version !== projectScaffold.version) {
@@ -1331,6 +1360,10 @@ function ProjectDetail() {
 							<strong>{scaffold.description}</strong>
 						</div>
 						<div className='info-row'>
+							<span>Project folder</span>
+							<strong>{project.projectPath}</strong>
+						</div>
+						<div className='info-row'>
 							<span>Frontend</span>
 							<strong>{getTemplateLabel(project.frontend)}</strong>
 						</div>
@@ -1490,6 +1523,34 @@ function ProjectDetail() {
 									}
 								/>
 							</label>
+							<label className='field-group field-group-wide'>
+								<div className='field-label-row'>
+									<span>Project location</span>
+									<button
+										type='button'
+										className='inline-field-action'
+										onClick={browseProjectLocation}
+										disabled={folderPickerBusy}>
+										<FolderRounded fontSize='inherit' />
+										{folderPickerBusy ? 'Opening...' : 'Browse'}
+									</button>
+								</div>
+								<input
+									value={edited.projectLocation || ''}
+									onChange={(event) =>
+										handleChange(
+											'projectLocation',
+											event.target.value,
+										)
+									}
+									placeholder='Leave blank to use the default dashboard projects folder'
+								/>
+								<small className='field-help'>
+									Edit this folder to move the project. The final
+									project path will use the project name as the last
+									segment.
+								</small>
+							</label>
 							<label className='field-group'>
 								<span>Version</span>
 								<input
@@ -1618,8 +1679,9 @@ function ProjectDetail() {
 					) : (
 						<p className='detail-copy'>
 							Enter edit mode when you need to rename the workspace, update
-							its description or version, or adjust Java and Maven scaffold
-							settings so the generated files stay aligned with the project.
+							its folder, description, or version, or adjust Java and Maven
+							scaffold settings so the generated files stay aligned with the
+							project.
 						</p>
 					)}
 				</article>
