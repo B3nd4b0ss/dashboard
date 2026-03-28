@@ -43,6 +43,8 @@ function Databases() {
 	const [createProgress, setCreateProgress] = useState(0);
 	const [isCreatingDatabase, setIsCreatingDatabase] = useState(false);
 	const projectComposerDraft = location.state?.projectComposerDraft || null;
+	const projectComposerReturnPath =
+		location.state?.returnToProjectComposerPath || '/composer';
 	const isProjectComposerFlow = Boolean(
 		location.state?.fromProjectComposer && projectComposerDraft,
 	);
@@ -207,7 +209,7 @@ function Databases() {
 						setIsCreatingDatabase(false);
 
 						if (isProjectComposerFlow && projectComposerDraft) {
-							navigate('/projects', {
+							navigate(projectComposerReturnPath, {
 								state: {
 									projectComposerDraft: {
 										...projectComposerDraft,
@@ -301,11 +303,11 @@ function Databases() {
 
 	const returnToProjectComposer = () => {
 		if (!projectComposerDraft) {
-			navigate('/projects');
+			navigate(projectComposerReturnPath);
 			return;
 		}
 
-		navigate('/projects', {
+		navigate(projectComposerReturnPath, {
 			state: {
 				projectComposerDraft,
 				composerMessage: 'Project draft restored.',
@@ -415,7 +417,7 @@ function Databases() {
 						<p>
 							This page opened from the project composer. As soon
 							as you create a database, you will be sent back to
-							`/projects` and it will already be selected.
+							`/composer` and it will already be selected.
 						</p>
 					</div>
 					<button

@@ -1,3 +1,9 @@
+const {
+	getFrontendTemplateDefinition,
+	getBackendTemplateDefinition,
+	templateHasManagedService,
+} = require('./projectTemplates');
+
 const processes = {};
 
 function isChildProcessAlive(proc) {
@@ -50,12 +56,14 @@ function getProjectRuntimeSnapshot(project) {
 	pruneRuntimeRegistry();
 
 	const runtime = processes[project.name] || {};
-	const frontendRunning =
-		Boolean(project.frontend) && isChildProcessAlive(runtime.frontend);
-	const backendRunning =
-		Boolean(project.backend) && isChildProcessAlive(runtime.backend);
+	const frontendDefinition = getFrontendTemplateDefinition(project.frontend);
+	const backendDefinition = getBackendTemplateDefinition(project.backend);
+	const frontendManaged = templateHasManagedService(frontendDefinition);
+	const backendManaged = templateHasManagedService(backendDefinition);
+	const frontendRunning = frontendManaged && isChildProcessAlive(runtime.frontend);
+	const backendRunning = backendManaged && isChildProcessAlive(runtime.backend);
 	const expectedServiceCount =
-		Number(Boolean(project.frontend)) + Number(Boolean(project.backend));
+		Number(frontendManaged) + Number(backendManaged);
 	const activeServiceCount = Number(frontendRunning) + Number(backendRunning);
 
 	let status = 'stopped';
@@ -74,7 +82,7 @@ function getProjectRuntimeSnapshot(project) {
 		frontendRunning,
 		backendRunning,
 		services: {
-			frontend: project.frontend
+			frontend: frontendManaged
 				? {
 						type: project.frontend,
 						port: project.frontendPort,
@@ -82,7 +90,7 @@ function getProjectRuntimeSnapshot(project) {
 						url: `http://localhost:${project.frontendPort}`,
 					}
 				: null,
-			backend: project.backend
+			backend: backendManaged
 				? {
 						type: project.backend,
 						port: project.backendPort,

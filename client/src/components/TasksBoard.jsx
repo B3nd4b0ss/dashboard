@@ -468,7 +468,7 @@ function TasksBoard() {
 			)}
 
 			<section className='tasks-hero'>
-				<div>
+				<div className='tasks-hero-copy'>
 					<span className='section-tag'>Task System</span>
 					<h2>
 						Manage project work with statuses, priorities, and due
@@ -503,7 +503,7 @@ function TasksBoard() {
 					<div className='task-metric-icon blue'>
 						<TaskAltRounded />
 					</div>
-					<div>
+					<div className='task-metric-copy'>
 						<span>Total tasks</span>
 						<strong>{totalTasks}</strong>
 					</div>
@@ -512,7 +512,7 @@ function TasksBoard() {
 					<div className='task-metric-icon green'>
 						<AssignmentTurnedInRounded />
 					</div>
-					<div>
+					<div className='task-metric-copy'>
 						<span>Completed</span>
 						<strong>{completedTasks}</strong>
 					</div>
@@ -521,7 +521,7 @@ function TasksBoard() {
 					<div className='task-metric-icon amber'>
 						<PendingActionsRounded />
 					</div>
-					<div>
+					<div className='task-metric-copy'>
 						<span>Pending</span>
 						<strong>{pendingTasks}</strong>
 					</div>
@@ -530,7 +530,7 @@ function TasksBoard() {
 					<div className='task-metric-icon danger'>
 						<WarningAmberRounded />
 					</div>
-					<div>
+					<div className='task-metric-copy'>
 						<span>Overdue</span>
 						<strong>{overdueTasks}</strong>
 					</div>
@@ -575,138 +575,149 @@ function TasksBoard() {
 				</div>
 			</section>
 
-			<section className='task-board'>
-				{STATUS_COLUMNS.map((column) => {
-					const columnTasks = visibleTasks.filter(
-						(task) => task.status === column.key,
-					);
+			<div className='task-board-shell'>
+				<section className='task-board'>
+					{STATUS_COLUMNS.map((column) => {
+						const columnTasks = visibleTasks.filter(
+							(task) => task.status === column.key,
+						);
 
-					return (
-						<div key={column.key} className='task-column'>
-							<div className='task-column-head'>
-								<div>
-									<strong>{column.label}</strong>
-									<p>{columnTasks.length} tasks</p>
+						return (
+							<div key={column.key} className='task-column'>
+								<div className='task-column-head'>
+									<div className='task-column-title'>
+										<span
+											className={`task-column-marker column-${column.key}`}
+										/>
+										<div>
+											<strong>{column.label}</strong>
+											<p>{columnTasks.length} tasks</p>
+										</div>
+									</div>
+									<span className='task-column-count'>
+										{columnTasks.length}
+									</span>
 								</div>
-								<span>{columnTasks.length}</span>
-							</div>
 
-							<div className='task-column-body'>
-								{columnTasks.length > 0 ? (
-									columnTasks.map((task) => (
-										<article
-											key={task.id}
-											className='task-card'>
-											<div className='task-card-head'>
-												<div>
-													<div className='task-chip-row'>
-														<span
-															className={`task-status-pill status-${task.status}`}>
-															{getStatusLabel(
-																task.status,
-															)}
-														</span>
-														<span
-															className={`task-priority-pill priority-${task.priority}`}>
-															{getPriorityLabel(
-																task.priority,
-															)}
+								<div className='task-column-body'>
+									{columnTasks.length > 0 ? (
+										columnTasks.map((task) => (
+											<article
+												key={task.id}
+												className='task-card'>
+												<div className='task-card-head'>
+													<div className='task-card-copy'>
+														<div className='task-chip-row'>
+															<span
+																className={`task-status-pill status-${task.status}`}>
+																{getStatusLabel(
+																	task.status,
+																)}
+															</span>
+															<span
+																className={`task-priority-pill priority-${task.priority}`}>
+																{getPriorityLabel(
+																	task.priority,
+																)}
+															</span>
+														</div>
+														<h3>{task.title}</h3>
+													</div>
+												</div>
+
+												{task.description && (
+													<p className='task-card-description'>
+														{task.description}
+													</p>
+												)}
+
+												<div className='task-meta-list'>
+													<div className='task-meta-item'>
+														<FolderRounded fontSize='inherit' />
+														{task.projectName ? (
+															<Link
+																to={`/projects/${encodeURIComponent(
+																	task.projectName,
+																)}`}>
+																{getProjectLabel(
+																	task,
+																)}
+															</Link>
+														) : (
+															<span>
+																{getProjectLabel(
+																	task,
+																)}
+															</span>
+														)}
+													</div>
+													<div
+														className={`task-meta-item ${
+															task.overdue
+																? 'overdue'
+																: ''
+														}`}>
+														<EventRounded fontSize='inherit' />
+														<span>
+															{task.dueDate ||
+																'No due date'}
 														</span>
 													</div>
-													<h3>{task.title}</h3>
 												</div>
-											</div>
 
-											{task.description && (
-												<p>{task.description}</p>
-											)}
-
-											<div className='task-meta-list'>
-												<div className='task-meta-item'>
-													<FolderRounded fontSize='inherit' />
-													{task.projectName ? (
-														<Link
-															to={`/projects/${encodeURIComponent(
-																task.projectName,
-															)}`}>
-															{getProjectLabel(
-																task,
-															)}
-														</Link>
-													) : (
-														<span>
-															{getProjectLabel(
-																task,
-															)}
-														</span>
-													)}
+												<div className='task-card-actions'>
+													<button
+														type='button'
+														className='ghost-button task-action-button'
+														onClick={() =>
+															openEditTask(task)
+														}>
+														<EditRounded fontSize='small' />
+														Edit
+													</button>
+													<button
+														type='button'
+														className='success-button task-action-button'
+														disabled={
+															busyAction ===
+															`toggle:${task.id}`
+														}
+														onClick={() =>
+															toggleTaskDone(task)
+														}>
+														<AssignmentTurnedInRounded fontSize='small' />
+														{task.status === 'done'
+															? 'Reopen'
+															: 'Mark done'}
+													</button>
+													<button
+														type='button'
+														className='text-button task-action-button task-action-button-danger'
+														disabled={
+															busyAction ===
+															`delete:${task.id}`
+														}
+														onClick={() =>
+															deleteTask(task.id)
+														}>
+														<DeleteOutlineRounded fontSize='small' />
+														Delete
+													</button>
 												</div>
-												<div
-													className={`task-meta-item ${
-														task.overdue
-															? 'overdue'
-															: ''
-													}`}>
-													<EventRounded fontSize='inherit' />
-													<span>
-														{task.dueDate ||
-															'No due date'}
-													</span>
-												</div>
-											</div>
-
-											<div className='task-card-actions'>
-												<button
-													type='button'
-													className='ghost-button'
-													onClick={() =>
-														openEditTask(task)
-													}>
-													<EditRounded fontSize='small' />
-													Edit
-												</button>
-												<button
-													type='button'
-													className='success-button'
-													disabled={
-														busyAction ===
-														`toggle:${task.id}`
-													}
-													onClick={() =>
-														toggleTaskDone(task)
-													}>
-													<AssignmentTurnedInRounded fontSize='small' />
-													{task.status === 'done'
-														? 'Reopen'
-														: 'Mark done'}
-												</button>
-												<button
-													type='button'
-													className='text-button'
-													disabled={
-														busyAction ===
-														`delete:${task.id}`
-													}
-													onClick={() =>
-														deleteTask(task.id)
-													}>
-													<DeleteOutlineRounded fontSize='small' />
-													Delete
-												</button>
-											</div>
-										</article>
-									))
-								) : (
-									<div className='task-column-empty'>
-										No tasks in {column.label.toLowerCase()}
-										.
-									</div>
-								)}
+											</article>
+										))
+									) : (
+										<div className='task-column-empty'>
+											No tasks in {column.label.toLowerCase()}
+											.
+										</div>
+									)}
+								</div>
 							</div>
-						</div>
-					);
-				})}
-			</section>
+						);
+					})}
+				</section>
+			</div>
 
 			<section className='tasks-footer-strip'>
 				<Link to='/projects' className='ghost-link'>

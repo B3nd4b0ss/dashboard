@@ -1,12 +1,12 @@
 .workspace-layout {
 	display: grid;
-	grid-template-columns: 288px minmax(0, 1fr);
+	grid-template-columns: 248px minmax(0, 1fr);
 	min-height: 100vh;
 	background: transparent;
 }
 
 .workspace-layout.sidebar-collapsed {
-	grid-template-columns: 96px minmax(0, 1fr);
+	grid-template-columns: 82px minmax(0, 1fr);
 }
 
 .workspace-sidebar {
@@ -15,9 +15,9 @@
 	z-index: 40;
 	display: flex;
 	flex-direction: column;
-	gap: 18px;
-	width: 288px;
-	padding: 24px 18px;
+	gap: 16px;
+	width: 248px;
+	padding: 20px 14px;
 	background:
 		radial-gradient(
 			circle at top left,
@@ -34,8 +34,8 @@
 }
 
 .workspace-layout.sidebar-collapsed .workspace-sidebar {
-	width: 96px;
-	padding-inline: 14px;
+	width: 82px;
+	padding-inline: 10px;
 }
 
 .sidebar-top,
@@ -61,7 +61,7 @@
 }
 
 .brand-cluster {
-	gap: 14px;
+	gap: 12px;
 }
 
 .brand-mark,
@@ -77,8 +77,8 @@
 }
 
 .brand-mark {
-	width: 50px;
-	height: 50px;
+	width: 44px;
+	height: 44px;
 	background: linear-gradient(
 		135deg,
 		rgba(103, 137, 255, 0.18),
@@ -101,15 +101,15 @@
 .brand-copy strong {
 	display: block;
 	margin-top: 6px;
-	font-size: 1.18rem;
+	font-size: 1.06rem;
 	letter-spacing: -0.03em;
 }
 
 .sidebar-icon-button,
 .topbar-menu-button,
 .topbar-icon-button {
-	width: 40px;
-	height: 40px;
+	width: 38px;
+	height: 38px;
 	border: 1px solid transparent;
 	background: rgba(255, 255, 255, 0.08);
 	color: inherit;
@@ -131,7 +131,7 @@
 .sidebar-group {
 	display: flex;
 	flex-direction: column;
-	gap: 10px;
+	gap: 8px;
 }
 
 .sidebar-group.secondary {
@@ -141,16 +141,16 @@
 .sidebar-nav {
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: 6px;
 }
 
 .sidebar-link {
 	display: flex;
 	align-items: center;
-	gap: 12px;
-	min-height: 50px;
-	padding: 0 14px;
-	border-radius: 18px;
+	gap: 10px;
+	min-height: 46px;
+	padding: 0 12px;
+	border-radius: 16px;
 	color: rgba(245, 247, 251, 0.8);
 	text-decoration: none;
 	transition:
@@ -177,13 +177,14 @@
 }
 
 .sidebar-link-icon {
-	width: 42px;
-	height: 42px;
+	width: 36px;
+	height: 36px;
 	background: rgba(255, 255, 255, 0.08);
 }
 
 .sidebar-link-label {
 	font-weight: 700;
+	font-size: 0.94rem;
 }
 
 .sidebar-footer-copy {
@@ -504,7 +505,7 @@
 
 .workspace-content {
 	min-width: 0;
-	padding: 28px 32px 44px;
+	padding: 26px 30px 42px;
 }
 
 .sidebar-overlay {
@@ -548,7 +549,7 @@
 
 	.workspace-sidebar {
 		transform: translateX(-100%);
-		width: 288px;
+		width: 248px;
 	}
 
 	.workspace-layout.mobile-open .workspace-sidebar {

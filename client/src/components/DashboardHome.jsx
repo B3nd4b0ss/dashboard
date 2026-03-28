@@ -159,7 +159,7 @@ function DashboardHome() {
 					<div>
 						<span>Tasks Completed</span>
 						<strong>
-							{completedTasks.toString().padStart(2, '0')}
+							{completedTasks.toString()}
 						</strong>
 						<p>Real completed work across all projects.</p>
 					</div>
@@ -171,7 +171,7 @@ function DashboardHome() {
 					<div>
 						<span>Tasks Pending</span>
 						<strong>
-							{pendingTasks.toString().padStart(2, '0')}
+							{pendingTasks.toString()}
 						</strong>
 						<p>Open work items still moving through delivery.</p>
 					</div>
@@ -183,7 +183,7 @@ function DashboardHome() {
 					<div>
 						<span>Live Services</span>
 						<strong>
-							{activeServices.toString().padStart(2, '0')}
+							{activeServices.toString()}
 						</strong>
 						<p>
 							{expectedServices || 0} tracked services across all

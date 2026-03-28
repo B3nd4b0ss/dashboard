@@ -18,19 +18,61 @@ import TerminalRounded from '@mui/icons-material/TerminalRounded';
 import FolderRounded from '@mui/icons-material/FolderRounded';
 import RocketLaunchRounded from '@mui/icons-material/RocketLaunchRounded';
 import TaskAltRounded from '@mui/icons-material/TaskAltRounded';
-import AssignmentTurnedInRounded from '@mui/icons-material/AssignmentTurnedInRounded';
+import MemoryRounded from '@mui/icons-material/MemoryRounded';
+import SpeedRounded from '@mui/icons-material/SpeedRounded';
+import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
+import MonitorHeartRounded from '@mui/icons-material/MonitorHeartRounded';
+import CodeRounded from '@mui/icons-material/CodeRounded';
 import SurfaceSelect from './SurfaceSelect';
+import {
+	getProjectCommandLabel,
+	getProjectLaunchLabel as getProjectLaunchLabelForDisplay,
+	getProjectPrimaryEntry,
+	getProjectRuntimeLabel,
+	getProjectScaffold,
+	hasOperationalMonitoring as hasProjectOperationalMonitoring,
+	hasWebsiteMonitoring as hasWebsiteProjectMonitoring,
+} from '../utils/projectPresentation';
 import './Overview.css';
 
 const API = 'http://localhost:4000';
 const REFRESH_INTERVAL_MS = 7000;
 const EMPTY_FORM = {
 	name: '',
+	frontendFamily: '',
+	frontendPreset: '',
 	frontend: '',
+	backendRuntime: '',
+	backendPreset: '',
 	backend: '',
 	databaseId: '',
 	frontendPort: '',
 	backendPort: '',
+	description: '',
+	version: '',
+	javaPackageName: '',
+	javaMainClass: '',
+	javaVersion: '',
+	javaGroupId: '',
+	javaArtifactId: '',
+};
+
+const TEMPLATE_LABELS = {
+	'vite-react': 'Vite + React',
+	'vite-vanilla': 'Vite + Vanilla JS',
+	'vite-react-ts': 'Vite + React TS',
+	'vite-vue': 'Vite + Vue',
+	'vite-vanilla-ts': 'Vite + Vanilla TS',
+	'plain-html': 'HTML + CSS + JS',
+	node: 'Node + Express',
+	fastify: 'Node + Fastify',
+	koa: 'Node + Koa',
+	python: 'Python HTTP Server',
+	'python-cli': 'Python CLI App',
+	php: 'PHP Built-in Server',
+	java: 'Java HTTP Server',
+	'java-console': 'Java Console App',
+	'java-maven': 'Java + Maven App',
 };
 
 const STATUS_FILTER_OPTIONS = [
@@ -56,29 +98,206 @@ const STATUS_FILTER_OPTIONS = [
 	},
 ];
 
-const FRONTEND_OPTIONS = [
+const FRONTEND_FAMILY_OPTIONS = [
 	{
 		value: '',
 		label: 'No frontend',
 		description: 'Skip the web app layer.',
+		keywords: ['none', 'skip', 'no ui'],
 	},
 	{
-		value: 'vite-react',
-		label: 'Vite + React',
-		description: 'Spin up a modern React frontend.',
+		value: 'vite',
+		label: 'Vite',
+		description: 'Pick a Vite preset like React, Vue, or plain Vanilla.',
+		keywords: ['vite react vue vanilla bundler'],
+	},
+	{
+		value: 'static',
+		label: 'HTML + CSS + JS',
+		description: 'Generate a simple static site starter with example files.',
+		keywords: ['plain html css javascript static'],
 	},
 ];
 
-const BACKEND_OPTIONS = [
+const FRONTEND_PRESET_OPTIONS = {
+	vite: [
+		{
+			value: 'vite-vanilla',
+			label: 'Vanilla JS',
+			description: 'Just Vite, no framework. This is the "only Vite" option.',
+			keywords: ['vite only javascript vanilla plain'],
+		},
+		{
+			value: 'vite-vanilla-ts',
+			label: 'Vanilla TS',
+			description: 'Vite with TypeScript and no UI framework.',
+			keywords: ['vite typescript vanilla ts'],
+		},
+		{
+			value: 'vite-react',
+			label: 'React',
+			description: 'Spin up a modern React frontend.',
+			keywords: ['react jsx'],
+		},
+		{
+			value: 'vite-react-ts',
+			label: 'React TS',
+			description: 'React with TypeScript and the Vite toolchain.',
+			keywords: ['react typescript tsx'],
+		},
+		{
+			value: 'vite-vue',
+			label: 'Vue',
+			description: 'Create a fast Vue frontend workspace.',
+			keywords: ['vue'],
+		},
+	],
+	static: [
+		{
+			value: 'plain-html',
+			label: 'Static starter',
+			description: 'Plain HTML, CSS, and JavaScript starter files.',
+			keywords: ['html css javascript static'],
+		},
+	],
+};
+
+const BACKEND_PRESET_OPTIONS = {
+	node: [
+		{
+			value: 'node',
+			label: 'Express',
+			description: 'Create an Express API service.',
+			keywords: ['express node'],
+		},
+		{
+			value: 'fastify',
+			label: 'Fastify',
+			description: 'A faster JSON API starter with Fastify.',
+			keywords: ['fastify node'],
+		},
+		{
+			value: 'koa',
+			label: 'Koa',
+			description: 'A minimal Koa backend for custom APIs.',
+			keywords: ['koa node'],
+		},
+	],
+	python: [
+		{
+			value: 'python-cli',
+			label: 'CLI app',
+			description: 'Package-style Python workspace with pyproject metadata and tests.',
+			keywords: ['python cli pyproject terminal app'],
+		},
+	],
+	php: [
+		{
+			value: 'php',
+			label: 'Built-in server',
+			description: 'Starter designed for php -S and a single index.php entrypoint.',
+			keywords: ['php built-in'],
+		},
+	],
+	java: [
+		{
+			value: 'java-console',
+			label: 'Console app',
+			description: 'Plain Java app you can compile with javac and run with java.',
+			keywords: ['java javac console cli'],
+		},
+		{
+			value: 'java-maven',
+			label: 'Maven app',
+			description: 'Real Maven project with pom.xml and a runnable main class.',
+			keywords: ['java maven pom'],
+		},
+	],
+};
+
+const WEBSITE_BACKEND_RUNTIME_OPTIONS = [
 	{
 		value: '',
 		label: 'No backend',
-		description: 'Frontend-only or database-only project.',
+		description: 'Keep this website frontend-only for now.',
 	},
 	{
 		value: 'node',
-		label: 'Node + Express',
-		description: 'Create an Express API service.',
+		label: 'Node.js',
+		description: 'Attach an Express, Fastify, or Koa service to the website.',
+	},
+	{
+		value: 'php',
+		label: 'PHP',
+		description: 'Use PHP with the built-in local server.',
+	},
+	{
+		value: 'python',
+		label: 'Python HTTP',
+		description: 'Use the Python HTTP starter as the website backend.',
+	},
+	{
+		value: 'java',
+		label: 'Java HTTP',
+		description: 'Use the Java HTTP starter as the website backend.',
+	},
+];
+
+const WEBSITE_BACKEND_PRESET_OPTIONS = {
+	node: BACKEND_PRESET_OPTIONS.node,
+	php: BACKEND_PRESET_OPTIONS.php,
+	python: [
+		{
+			value: 'python',
+			label: 'Standard HTTP server',
+			description: 'Zero-dependency starter using Python standard library modules.',
+			keywords: ['http server python'],
+		},
+	],
+	java: [
+		{
+			value: 'java',
+			label: 'HTTP server',
+			description: 'Minimal Java server using the JDK HTTP server classes.',
+			keywords: ['java jdk http'],
+		},
+	],
+};
+
+const CLI_BACKEND_TEMPLATES = ['python-cli', 'java-console', 'java-maven'];
+const MANAGED_APP_BACKEND_TEMPLATES = ['python', 'php', 'java'];
+
+const WEBSITE_FAMILY_OPTIONS = FRONTEND_FAMILY_OPTIONS.filter(
+	(option) => Boolean(option.value),
+);
+
+const COMPOSER_FAST_LANES = [
+	{
+		value: 'website',
+		label: 'Website',
+		summary: 'Web app + optional backend',
+		description:
+			'React, Vue, Vanilla, or plain HTML starters with the backend runtime you want.',
+		Icon: PublicRounded,
+		tone: 'blue',
+	},
+	{
+		value: 'python',
+		label: 'Python',
+		summary: 'CLI workspace',
+		description:
+			'Create a terminal-first Python project. Use Website when you want a Python HTTP backend.',
+		Icon: TerminalRounded,
+		tone: 'green',
+	},
+	{
+		value: 'java',
+		label: 'Java',
+		summary: 'Console or Maven',
+		description:
+			'Create a Java console app or Maven project. Use Website when you want a Java HTTP backend.',
+		Icon: RocketLaunchRounded,
+		tone: 'amber',
 	},
 ];
 
@@ -93,17 +312,152 @@ function getStatusLabel(status) {
 	}
 }
 
-function getProjectSummary(project) {
-	return [
-		project.frontend ? 'Frontend workspace' : 'No frontend',
-		project.backend ? 'Backend service' : 'No backend',
-		project.database ? `${project.database.type} linked` : 'No database',
-		project.taskSummary?.total
-			? `${project.taskSummary.total} tasks`
-			: 'No tasks yet',
-	]
-		.filter(Boolean)
-		.join(' | ');
+function getTemplateLabel(template) {
+	return TEMPLATE_LABELS[template] || template || 'None';
+}
+
+function isCliBackendTemplate(template) {
+	return CLI_BACKEND_TEMPLATES.includes(template);
+}
+
+function isManagedAppBackendTemplate(template) {
+	return MANAGED_APP_BACKEND_TEMPLATES.includes(template);
+}
+
+function getFrontendFamily(template) {
+	if (!template) {
+		return '';
+	}
+
+	if (template === 'plain-html') {
+		return 'static';
+	}
+
+	if (String(template).startsWith('vite-')) {
+		return 'vite';
+	}
+
+	return '';
+}
+
+function getBackendRuntime(template) {
+	if (!template) {
+		return '';
+	}
+
+	if (['node', 'fastify', 'koa'].includes(template)) {
+		return 'node';
+	}
+
+	if (['python', 'python-cli'].includes(template)) {
+		return 'python';
+	}
+
+	if (['java', 'java-console', 'java-maven'].includes(template)) {
+		return 'java';
+	}
+
+	return template;
+}
+
+function frontendTemplateRequiresPort(template) {
+	return Boolean(template);
+}
+
+function backendTemplateRequiresPort(template) {
+	return ['node', 'fastify', 'koa', 'python', 'php', 'java'].includes(
+		template,
+	);
+}
+
+function getFrontendPresetOptions(frontendFamily) {
+	return FRONTEND_PRESET_OPTIONS[frontendFamily] || [];
+}
+
+function getBackendPresetOptions(backendRuntime, composerLane = '') {
+	if (composerLane === 'website') {
+		return WEBSITE_BACKEND_PRESET_OPTIONS[backendRuntime] || [];
+	}
+
+	return BACKEND_PRESET_OPTIONS[backendRuntime] || [];
+}
+
+function getDefaultFrontendPreset(frontendFamily) {
+	return getFrontendPresetOptions(frontendFamily)[0]?.value || '';
+}
+
+function getDefaultBackendPreset(backendRuntime, composerLane = '') {
+	return getBackendPresetOptions(backendRuntime, composerLane)[0]?.value || '';
+}
+
+function getSuggestedBackendPort(template) {
+	switch (getBackendRuntime(template)) {
+		case 'node':
+			return '4000';
+		case 'python':
+		case 'php':
+			return '8000';
+		case 'java':
+			return '8080';
+		default:
+			return '';
+	}
+}
+
+function normalizeComposerForm(nextValue = {}) {
+	const frontend = nextValue.frontend || '';
+	const backend = nextValue.backend || '';
+	const frontendFamily =
+		nextValue.frontendFamily || getFrontendFamily(frontend);
+	const backendRuntime =
+		nextValue.backendRuntime || getBackendRuntime(backend);
+	const composerLane = frontend
+		? 'website'
+		: backendRuntime === 'python' || backendRuntime === 'java'
+			? backendRuntime
+			: '';
+	const frontendPresetOptions = getFrontendPresetOptions(frontendFamily);
+	const backendPresetOptions = getBackendPresetOptions(
+		backendRuntime,
+		composerLane,
+	);
+	const frontendPresetIsValid = frontendPresetOptions.some(
+		(option) => option.value === nextValue.frontendPreset,
+	);
+	const backendPresetIsValid = backendPresetOptions.some(
+		(option) => option.value === nextValue.backendPreset,
+	);
+	const frontendTemplateIsValid = frontendPresetOptions.some(
+		(option) => option.value === frontend,
+	);
+	const backendTemplateIsValid = backendPresetOptions.some(
+		(option) => option.value === backend,
+	);
+	const normalizedFrontendPreset = frontendFamily
+		? frontendPresetIsValid
+			? nextValue.frontendPreset
+			: frontendTemplateIsValid
+				? frontend
+				: getDefaultFrontendPreset(frontendFamily)
+		: '';
+	const normalizedBackendPreset = backendRuntime
+		? backendPresetIsValid
+			? nextValue.backendPreset
+			: backendTemplateIsValid
+				? backend
+				: getDefaultBackendPreset(backendRuntime, composerLane)
+		: '';
+
+	return {
+		...EMPTY_FORM,
+		...nextValue,
+		frontendFamily,
+		frontendPreset: normalizedFrontendPreset,
+		frontend: normalizedFrontendPreset,
+		backendRuntime,
+		backendPreset: normalizedBackendPreset,
+		backend: normalizedBackendPreset,
+	};
 }
 
 function getProjectSearchText(project) {
@@ -111,6 +465,8 @@ function getProjectSearchText(project) {
 		project.name,
 		project.frontend,
 		project.backend,
+		getTemplateLabel(project.frontend),
+		getTemplateLabel(project.backend),
 		project.database?.name,
 		project.database?.type,
 		project.status,
@@ -155,7 +511,13 @@ function getProjectCrew(project) {
 	}
 
 	if (project.backend) {
-		crew.push({ label: 'API', accent: 'green' });
+		if (isCliBackendTemplate(project.backend)) {
+			crew.push({ label: 'CLI', accent: 'slate' });
+		} else if (isManagedAppBackendTemplate(project.backend)) {
+			crew.push({ label: 'APP', accent: 'green' });
+		} else {
+			crew.push({ label: 'API', accent: 'green' });
+		}
 	}
 
 	if (project.database) {
@@ -169,6 +531,307 @@ function getProjectCrew(project) {
 	return crew;
 }
 
+function getProjectDescription(project) {
+	return getProjectScaffold(project).description;
+}
+
+function getProjectVersion(project) {
+	return getProjectScaffold(project).version;
+}
+
+function getProjectSummary(project) {
+	return [
+		getProjectLaunchLabelForDisplay(project),
+		getProjectVersion(project),
+		project.database ? `${project.database.type} linked` : 'No database',
+		project.taskSummary?.total
+			? `${project.taskSummary.total} tasks`
+			: 'No tasks yet',
+	]
+		.filter(Boolean)
+		.join(' | ');
+}
+
+function getBackendChipLabel(template) {
+	if (isCliBackendTemplate(template)) {
+		return 'CLI';
+	}
+
+	if (isManagedAppBackendTemplate(template)) {
+		return 'Service';
+	}
+
+	return template ? 'Backend' : 'None';
+}
+
+function getBackendPortLabel(template) {
+	return isManagedAppBackendTemplate(template) ? 'Service' : 'API';
+}
+
+function getComposerLaunchLabel(frontend, backend) {
+	const hasFrontend = frontendTemplateRequiresPort(frontend);
+	const hasManagedBackend = backendTemplateRequiresPort(backend);
+	const hasTerminalBackend = Boolean(backend && !hasManagedBackend);
+
+	if (hasFrontend && hasManagedBackend) {
+		return 'Web + service';
+	}
+
+	if (hasFrontend) {
+		return 'Frontend app';
+	}
+
+	if (hasManagedBackend) {
+		return 'Managed service';
+	}
+
+	if (hasTerminalBackend) {
+		return 'Editor terminal';
+	}
+
+	return 'Custom workspace';
+}
+
+function getComposerLaneFromForm(form) {
+	if (form.frontend) {
+		return 'website';
+	}
+
+	const runtime = form.backendRuntime || getBackendRuntime(form.backend);
+	if (runtime === 'python' || runtime === 'java') {
+		return runtime;
+	}
+
+	return '';
+}
+
+function buildFastLaneDraft(lane, previous = EMPTY_FORM) {
+	const baseDraft = {
+		...EMPTY_FORM,
+		name: previous.name,
+		databaseId: previous.databaseId,
+		description: previous.description,
+		version: previous.version,
+		javaPackageName: previous.javaPackageName,
+		javaMainClass: previous.javaMainClass,
+		javaVersion: previous.javaVersion,
+		javaGroupId: previous.javaGroupId,
+		javaArtifactId: previous.javaArtifactId,
+	};
+
+	if (lane === 'website') {
+		const previousWebsiteBackendRuntime =
+			getComposerLaneFromForm(previous) === 'website'
+				? getBackendRuntime(previous.backend)
+				: '';
+		const previousWebsiteBackendOptions = getBackendPresetOptions(
+			previousWebsiteBackendRuntime,
+			'website',
+		);
+		const hasCompatibleWebsiteBackend = previousWebsiteBackendOptions.some(
+			(option) => option.value === previous.backend,
+		);
+		const nextFrontendFamily =
+			getComposerLaneFromForm(previous) === 'website' && previous.frontendFamily
+				? previous.frontendFamily
+				: 'vite';
+		const nextFrontend =
+			getComposerLaneFromForm(previous) === 'website' && previous.frontend
+				? previous.frontend
+				: getDefaultFrontendPreset(nextFrontendFamily);
+
+		return {
+			...baseDraft,
+			frontendFamily: nextFrontendFamily,
+			frontendPreset: nextFrontend,
+			frontend: nextFrontend,
+			frontendPort: previous.frontendPort || '3000',
+			backendRuntime: hasCompatibleWebsiteBackend
+				? previousWebsiteBackendRuntime
+				: '',
+			backendPreset: hasCompatibleWebsiteBackend ? previous.backend : '',
+			backend: hasCompatibleWebsiteBackend ? previous.backend : '',
+			backendPort: hasCompatibleWebsiteBackend
+				? previous.backendPort || getSuggestedBackendPort(previous.backend)
+				: '',
+		};
+	}
+
+	if (lane === 'python') {
+		const nextBackend =
+			getBackendRuntime(previous.backend) === 'python' && previous.backend
+				? previous.backend
+				: 'python-cli';
+
+		return {
+			...baseDraft,
+			backendRuntime: 'python',
+			backendPreset: nextBackend,
+			backend: nextBackend,
+			backendPort: backendTemplateRequiresPort(nextBackend)
+				? previous.backendPort || '8000'
+				: '',
+		};
+	}
+
+	if (lane === 'java') {
+		const nextBackend =
+			getBackendRuntime(previous.backend) === 'java' && previous.backend
+				? previous.backend
+				: 'java-console';
+
+		return {
+			...baseDraft,
+			backendRuntime: 'java',
+			backendPreset: nextBackend,
+			backend: nextBackend,
+			backendPort: backendTemplateRequiresPort(nextBackend)
+				? previous.backendPort || '8080'
+				: '',
+		};
+	}
+
+	return baseDraft;
+}
+
+function getFastLaneTemplateLabel(lane, form) {
+	if (lane === 'website') {
+		const websiteLabel = form.frontend
+			? getTemplateLabel(form.frontend)
+			: 'Choose a website starter';
+
+		return form.backend
+			? `${websiteLabel} + ${getTemplateLabel(form.backend)}`
+			: websiteLabel;
+	}
+
+	if (lane === 'python' || lane === 'java') {
+		return form.backend ? getTemplateLabel(form.backend) : 'Choose a project style';
+	}
+
+	return 'Choose Website, Python, or Java';
+}
+
+function slugifyComposerToken(value, fallback = 'workspace-app') {
+	const normalized = String(value || fallback)
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '');
+
+	return normalized || fallback;
+}
+
+function getComposerVersion(form) {
+	return form.version || '0.1.0';
+}
+
+function getComposerJavaGroupId(form) {
+	return form.javaGroupId || 'com.dashboard';
+}
+
+function getComposerJavaPackageName(form) {
+	return form.javaPackageName || `${getComposerJavaGroupId(form)}.app`;
+}
+
+function getComposerJavaMainClass(form) {
+	return form.javaMainClass || 'App';
+}
+
+function getComposerJavaVersion(form) {
+	return form.javaVersion || '11';
+}
+
+function getComposerJavaArtifactId(form) {
+	return form.javaArtifactId || slugifyComposerToken(form.name || 'workspace-app');
+}
+
+function getComposerJavaExecClass(form) {
+	return `${getComposerJavaPackageName(form)}.${getComposerJavaMainClass(form)}`;
+}
+
+function getComposerJavaSourcePath(form) {
+	const basePath = form.backend === 'java-maven' ? 'src/main/java' : 'src';
+	return `${basePath}/${getComposerJavaPackageName(form).replace(/\./g, '/')}/${getComposerJavaMainClass(form)}.java`;
+}
+
+function formatBytes(bytes) {
+	if (!Number.isFinite(bytes) || bytes <= 0) {
+		return '0 B';
+	}
+
+	const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+	let value = bytes;
+	let unitIndex = 0;
+
+	while (value >= 1024 && unitIndex < units.length - 1) {
+		value /= 1024;
+		unitIndex += 1;
+	}
+
+	const digits = value >= 10 || unitIndex === 0 ? 0 : 1;
+	return `${value.toFixed(digits)} ${units[unitIndex]}`;
+}
+
+function formatPercent(value) {
+	if (!Number.isFinite(value) || value <= 0) {
+		return '0%';
+	}
+
+	return `${value >= 10 ? Math.round(value) : value.toFixed(1)}%`;
+}
+
+function formatLatency(value) {
+	if (!Number.isFinite(value) || value <= 0) {
+		return 'Waiting';
+	}
+
+	if (value >= 1000) {
+		return `${(value / 1000).toFixed(1)}s`;
+	}
+
+	return `${Math.round(value)} ms`;
+}
+
+function getProjectCpuPercent(project) {
+	return Number.isFinite(project.monitoring?.cpuPercent)
+		? project.monitoring.cpuPercent
+		: 0;
+}
+
+function getProjectMemoryBytes(project) {
+	return Number.isFinite(project.monitoring?.memoryBytes)
+		? project.monitoring.memoryBytes
+		: 0;
+}
+
+function getTopMetricProject(projects, selector) {
+	return projects.reduce(
+		(best, project) => {
+			const value = selector(project);
+
+			if (value > best.value) {
+				return { project, value };
+			}
+
+			return best;
+		},
+		{ project: null, value: 0 },
+	);
+}
+
+function getMonitoringStatusLabel(status) {
+	switch (status) {
+		case 'healthy':
+			return 'Healthy';
+		case 'degraded':
+			return 'Degraded';
+		case 'starting':
+			return 'Starting';
+		default:
+			return 'Offline';
+	}
+}
+
 function broadcastProjectAction(projectName, action) {
 	window.dispatchEvent(
 		new CustomEvent('dashboard:project-action', {
@@ -177,15 +840,18 @@ function broadcastProjectAction(projectName, action) {
 	);
 }
 
-function Overview() {
+function Overview({ mode = 'board' }) {
+	const isComposerPage = mode === 'composer';
 	const location = useLocation();
 	const navigate = useNavigate();
 	const [projects, setProjects] = useState([]);
 	const [databases, setDatabases] = useState([]);
 	const [query, setQuery] = useState('');
 	const [statusFilter, setStatusFilter] = useState('all');
-	const [form, setForm] = useState(EMPTY_FORM);
-	const [showComposer, setShowComposer] = useState(true);
+	const [form, setForm] = useState(() => normalizeComposerForm(EMPTY_FORM));
+	const [selectedLane, setSelectedLane] = useState(() =>
+		getComposerLaneFromForm(normalizeComposerForm(EMPTY_FORM)),
+	);
 	const [showTerminal, setShowTerminal] = useState(false);
 	const [terminalOutput, setTerminalOutput] = useState([]);
 	const [isCreating, setIsCreating] = useState(false);
@@ -194,6 +860,15 @@ function Overview() {
 	const [composerMessage, setComposerMessage] = useState('');
 	const [pendingAction, setPendingAction] = useState('');
 	const outputEndRef = useRef(null);
+	const updateForm = (nextValue) => {
+		setForm((previous) =>
+			normalizeComposerForm(
+				typeof nextValue === 'function'
+					? nextValue(previous)
+					: nextValue,
+			),
+		);
+	};
 
 	const loadProjects = async () => {
 		const res = await axios.get(`${API}/projects`);
@@ -242,11 +917,9 @@ function Overview() {
 		}
 
 		if (returnedDraft) {
-			setForm({
-				...EMPTY_FORM,
-				...returnedDraft,
-			});
-			setShowComposer(true);
+			const normalizedDraft = normalizeComposerForm(returnedDraft);
+			setForm(normalizedDraft);
+			setSelectedLane(getComposerLaneFromForm(normalizedDraft));
 		}
 
 		if (returnedMessage) {
@@ -257,14 +930,26 @@ function Overview() {
 	}, [location.pathname, location.state, navigate]);
 
 	const updateProgressFromLog = (message) => {
-		if (message.includes('Creating Vite project')) {
+		if (message.includes('Creating') && message.includes('frontend')) {
+			setProgress((previous) => Math.max(previous, 8));
+		} else if (
+			message.includes('Creating Vite project') ||
+			message.includes('Writing plain HTML starter files')
+		) {
 			setProgress(10);
-		} else if (message.includes('Installing npm dependencies')) {
+		} else if (
+			message.includes('Installing npm dependencies') ||
+			message.includes('Installing frontend dependencies')
+		) {
 			setProgress((previous) => Math.max(previous, 28));
 		} else if (message.includes('Frontend created')) {
 			setProgress(55);
-		} else if (message.includes('Creating Node.js backend')) {
+		} else if (message.includes('Creating') && message.includes('backend')) {
 			setProgress(68);
+		} else if (message.includes('Backend starter files are ready')) {
+			setProgress((previous) => Math.max(previous, 86));
+		} else if (message.includes('Installing backend dependencies')) {
+			setProgress((previous) => Math.max(previous, 82));
 		} else if (message.includes('Backend created')) {
 			setProgress(90);
 		} else if (message.includes('Project created successfully')) {
@@ -273,7 +958,8 @@ function Overview() {
 	};
 
 	const resetForm = () => {
-		setForm(EMPTY_FORM);
+		setForm(normalizeComposerForm(EMPTY_FORM));
+		setSelectedLane('');
 		setComposerMessage('');
 	};
 
@@ -283,36 +969,47 @@ function Overview() {
 			state: {
 				fromProjectComposer: true,
 				projectComposerDraft: form,
+				returnToProjectComposerPath: '/composer',
 			},
 		});
 	};
 
 	const createProject = async () => {
+		const composerLane = selectedLane || getComposerLaneFromForm(form);
+		const frontendNeedsPort = frontendTemplateRequiresPort(form.frontend);
+		const backendNeedsPort = backendTemplateRequiresPort(form.backend);
+
 		if (!form.name.trim()) {
 			alert('Please enter a project name.');
 			return;
 		}
 
-		if (!form.frontend && !form.backend && !form.databaseId) {
-			alert('Choose at least one service or link a database.');
+		if (!composerLane) {
+			alert('Choose Website, Python, or Java first.');
 			return;
 		}
 
-		if (form.frontend && !form.frontendPort) {
+		if (composerLane === 'website' && !form.frontend) {
+			alert('Choose a website starter.');
+			return;
+		}
+
+		if ((composerLane === 'python' || composerLane === 'java') && !form.backend) {
+			alert('Choose a project style for this lane.');
+			return;
+		}
+
+		if (frontendNeedsPort && !form.frontendPort) {
 			alert('Please enter a frontend port.');
 			return;
 		}
 
-		if (form.backend && !form.backendPort) {
+		if (backendNeedsPort && !form.backendPort) {
 			alert('Please enter a backend port.');
 			return;
 		}
 
-		if (
-			form.frontend &&
-			form.backend &&
-			form.frontendPort === form.backendPort
-		) {
+		if (frontendNeedsPort && backendNeedsPort && form.frontendPort === form.backendPort) {
 			alert('Frontend and backend ports must be different.');
 			return;
 		}
@@ -479,10 +1176,26 @@ function Overview() {
 		(total, project) => total + (project.taskSummary?.total || 0),
 		0,
 	);
-	const completedTaskCount = projects.reduce(
-		(total, project) => total + (project.taskSummary?.completed || 0),
+	const websiteProjectCount = projects.filter((project) => project.frontend).length;
+	const websiteMonitoringCount = projects.filter((project) =>
+		hasWebsiteProjectMonitoring(project),
+	).length;
+	const terminalProjectCount = projects.filter((project) =>
+		Boolean(project.backend && !hasProjectOperationalMonitoring(project)),
+	).length;
+	const linkedDatabaseCount = projects.filter(
+		(project) => Boolean(project.databaseId),
+	).length;
+	const totalCpuPercent = projects.reduce(
+		(total, project) => total + getProjectCpuPercent(project),
 		0,
 	);
+	const totalMemoryBytes = projects.reduce(
+		(total, project) => total + getProjectMemoryBytes(project),
+		0,
+	);
+	const topCpuProject = getTopMetricProject(projects, getProjectCpuPercent);
+	const topMemoryProject = getTopMetricProject(projects, getProjectMemoryBytes);
 	const databaseOptions = [
 		{
 			value: '',
@@ -495,6 +1208,110 @@ function Overview() {
 			description: `${database.type} on port ${database.port}`,
 		})),
 	];
+	const composerLane = selectedLane || getComposerLaneFromForm(form);
+	const frontendPresetOptions = getFrontendPresetOptions(form.frontendFamily);
+	const backendPresetOptions = getBackendPresetOptions(
+		form.backendRuntime,
+		composerLane,
+	);
+	const selectedFrontendPreset =
+		frontendPresetOptions.find(
+			(option) => option.value === form.frontendPreset,
+		) || null;
+	const selectedBackendPreset =
+		backendPresetOptions.find(
+			(option) => option.value === form.backendPreset,
+		) || null;
+	const showFrontendPresetSelect = frontendPresetOptions.length > 1;
+	const showBackendPresetSelect = backendPresetOptions.length > 1;
+	const selectedLaneOption =
+		COMPOSER_FAST_LANES.find((lane) => lane.value === composerLane) || null;
+	const backendPortRequired = backendTemplateRequiresPort(form.backend);
+	const composerLaunchLabel = getComposerLaunchLabel(
+		form.frontend,
+		form.backend,
+	);
+	const selectedBackendRuntime = getBackendRuntime(form.backend);
+	const composerVersion = getComposerVersion(form);
+	const composerJavaGroupId = getComposerJavaGroupId(form);
+	const composerJavaPackageName = getComposerJavaPackageName(form);
+	const composerJavaMainClass = getComposerJavaMainClass(form);
+	const composerJavaVersion = getComposerJavaVersion(form);
+	const composerJavaArtifactId = getComposerJavaArtifactId(form);
+	const composerJavaExecClass = getComposerJavaExecClass(form);
+	const composerJavaSourcePath = getComposerJavaSourcePath(form);
+	const selectedWebsiteFamily =
+		WEBSITE_FAMILY_OPTIONS.find(
+			(option) => option.value === form.frontendFamily,
+		) || null;
+	const handleFrontendFamilyChange = (nextValue) => {
+		updateForm((previous) => {
+			const compatibleOptions = getFrontendPresetOptions(nextValue);
+			const currentPresetStillValid = compatibleOptions.some(
+				(option) => option.value === previous.frontendPreset,
+			);
+			const nextPreset = nextValue
+				? currentPresetStillValid
+					? previous.frontendPreset
+					: getDefaultFrontendPreset(nextValue)
+				: '';
+
+			return {
+				...previous,
+				frontendFamily: nextValue,
+				frontendPreset: nextPreset,
+				frontend: nextPreset,
+				frontendPort: nextValue ? previous.frontendPort : '',
+			};
+		});
+	};
+	const handleFrontendPresetChange = (nextValue) => {
+		updateForm((previous) => ({
+			...previous,
+			frontendPreset: nextValue,
+			frontend: nextValue,
+		}));
+	};
+	const handleWebsiteBackendRuntimeChange = (nextValue) => {
+		updateForm((previous) => {
+			const compatibleOptions = getBackendPresetOptions(nextValue, 'website');
+			const currentPresetStillValid = compatibleOptions.some(
+				(option) => option.value === previous.backendPreset,
+			);
+			const nextPreset = nextValue
+				? currentPresetStillValid
+					? previous.backendPreset
+					: getDefaultBackendPreset(nextValue, 'website')
+				: '';
+
+			return {
+				...previous,
+				backendRuntime: nextValue,
+				backendPreset: nextPreset,
+				backend: nextPreset,
+				backendPort: nextPreset
+					? previous.backendPort || getSuggestedBackendPort(nextPreset)
+					: '',
+			};
+		});
+	};
+	const handleBackendPresetChange = (nextValue) => {
+		updateForm((previous) => ({
+			...previous,
+			backendPreset: nextValue,
+			backend: nextValue,
+			backendPort: backendTemplateRequiresPort(nextValue)
+				? previous.backendPort || getSuggestedBackendPort(nextValue)
+				: '',
+		}));
+	};
+	const applyFastLane = (lane) => {
+		setSelectedLane(lane.value);
+		updateForm((previous) => buildFastLaneDraft(lane.value, previous));
+		setComposerMessage(
+			`${lane.label} lane loaded. The composer now shows only the settings you can change for this project type.`,
+		);
+	};
 
 	return (
 		<div className='projects-page'>
@@ -538,77 +1355,154 @@ function Overview() {
 				</div>
 			)}
 
-			<section className='projects-toolbar-surface'>
-				<div>
-					<span className='section-tag'>Project Board</span>
-					<h2>
-						Launch, track, and shape each workspace from one clean
-						board.
-					</h2>
-					<p>
-						The project surface is now styled like a management
-						product while keeping your real runtime actions intact.
-						Tasks, runtime health, and databases all connect here
-						without extra team overhead.
-					</p>
-				</div>
+			{!isComposerPage ? (
+				<>
+					<section className='projects-toolbar-surface'>
+						<div>
+							<span className='section-tag'>Project Board</span>
+							<h2>
+								Launch, track, and shape websites, APIs, Java apps, and
+								Python workspaces from one clean board.
+							</h2>
+							<p>
+								The project surface keeps web apps, backend services,
+								CLI workspaces, runtime health, and linked databases in
+								one place without losing the real dev actions underneath.
+							</p>
+						</div>
 
-				<div className='projects-toolbar-actions'>
-					<button
-						type='button'
-						className='secondary-action'
-						onClick={() => refreshDashboard()}>
-						<RefreshRounded fontSize='small' />
-						Refresh
-					</button>
-					<button
-						type='button'
-						className='primary-action'
-						onClick={() => setShowComposer((value) => !value)}>
-						<AddRounded fontSize='small' />
-						{showComposer ? 'Hide composer' : 'New project'}
-					</button>
-				</div>
-			</section>
+						<div className='projects-toolbar-actions'>
+							<button
+								type='button'
+								className='secondary-action'
+								onClick={() => refreshDashboard()}>
+								<RefreshRounded fontSize='small' />
+								Refresh
+							</button>
+							<button
+								type='button'
+								className='primary-action'
+								onClick={() => navigate('/composer')}>
+								<AddRounded fontSize='small' />
+								Create project
+							</button>
+						</div>
+					</section>
 
-			<section className='project-meta-strip'>
-				<article className='meta-strip-card'>
-					<div className='meta-strip-icon blue'>
-						<FolderRounded />
-					</div>
+					<section className='project-meta-strip'>
+						<article className='meta-strip-card'>
+							<div className='meta-strip-icon blue'>
+								<FolderRounded />
+							</div>
+							<div>
+								<span>Total projects</span>
+								<strong>{projects.length}</strong>
+							</div>
+						</article>
+						<article className='meta-strip-card'>
+							<div className='meta-strip-icon green'>
+								<RocketLaunchRounded />
+							</div>
+							<div>
+								<span>Live services</span>
+								<strong>{activeProjects.length}</strong>
+							</div>
+						</article>
+						<article className='meta-strip-card'>
+							<div className='meta-strip-icon blue'>
+								<SpeedRounded />
+							</div>
+							<div>
+								<span>Total CPU</span>
+								<strong>{formatPercent(totalCpuPercent)}</strong>
+								<small className='meta-strip-note'>
+									{topCpuProject.project
+										? `${topCpuProject.project.name} is highest at ${formatPercent(topCpuProject.value)}`
+										: 'No active telemetry yet'}
+								</small>
+							</div>
+						</article>
+						<article className='meta-strip-card'>
+							<div className='meta-strip-icon amber'>
+								<MemoryRounded />
+							</div>
+							<div>
+								<span>Total RAM</span>
+								<strong>{formatBytes(totalMemoryBytes)}</strong>
+								<small className='meta-strip-note'>
+									{topMemoryProject.project
+										? `${topMemoryProject.project.name} is using ${formatBytes(topMemoryProject.value)}`
+										: 'No memory telemetry yet'}
+								</small>
+							</div>
+						</article>
+						<article className='meta-strip-card'>
+							<div className='meta-strip-icon blue'>
+								<PublicRounded />
+							</div>
+							<div>
+								<span>Web workspaces</span>
+								<strong>{websiteProjectCount}</strong>
+							</div>
+						</article>
+						<article className='meta-strip-card'>
+							<div className='meta-strip-icon amber'>
+								<TerminalRounded />
+							</div>
+							<div>
+								<span>Terminal-first apps</span>
+								<strong>{terminalProjectCount}</strong>
+							</div>
+						</article>
+						<article className='meta-strip-card'>
+							<div className='meta-strip-icon green'>
+								<MonitorHeartRounded />
+							</div>
+							<div>
+								<span>Website monitoring</span>
+								<strong>{websiteMonitoringCount}</strong>
+							</div>
+						</article>
+						<article className='meta-strip-card'>
+							<div className='meta-strip-icon amber'>
+								<StorageRounded />
+							</div>
+							<div>
+								<span>Linked databases</span>
+								<strong>{linkedDatabaseCount}</strong>
+							</div>
+						</article>
+						<article className='meta-strip-card'>
+							<div className='meta-strip-icon amber'>
+								<TaskAltRounded />
+							</div>
+							<div>
+								<span>Tracked tasks</span>
+								<strong>{totalTaskCount}</strong>
+							</div>
+						</article>
+					</section>
+				</>
+			) : (
+				<section className='projects-toolbar-surface composer-route-hero'>
 					<div>
-						<span>Total projects</span>
-						<strong>{projects.length}</strong>
+						<span className='section-tag'>Project Composer</span>
+						<h2>Build the next workspace in its own focused flow.</h2>
+						<p>
+							Choose Website, Python, or Java, shape the compatible
+							starter, and return to the project board when the draft is
+							ready.
+						</p>
 					</div>
-				</article>
-				<article className='meta-strip-card'>
-					<div className='meta-strip-icon green'>
-						<RocketLaunchRounded />
+
+					<div className='projects-toolbar-actions'>
+						<Link to='/projects' className='secondary-link'>
+							<FolderRounded fontSize='small' />
+							Back to projects
+						</Link>
 					</div>
-					<div>
-						<span>Live right now</span>
-						<strong>{activeProjects.length}</strong>
-					</div>
-				</article>
-				<article className='meta-strip-card'>
-					<div className='meta-strip-icon amber'>
-						<TaskAltRounded />
-					</div>
-					<div>
-						<span>Tracked tasks</span>
-						<strong>{totalTaskCount}</strong>
-					</div>
-				</article>
-				<article className='meta-strip-card'>
-					<div className='meta-strip-icon green'>
-						<AssignmentTurnedInRounded />
-					</div>
-					<div>
-						<span>Tasks done</span>
-						<strong>{completedTaskCount}</strong>
-					</div>
-				</article>
-			</section>
+				</section>
+			)}
 
 			{dashboardError && (
 				<div className='panel-error'>{dashboardError}</div>
@@ -617,43 +1511,45 @@ function Overview() {
 				<div className='panel-success'>{composerMessage}</div>
 			)}
 
-			<section className='project-control-band'>
-				<label className='board-search'>
-					<SearchRounded fontSize='small' />
-					<input
-						className='search-input'
-						placeholder='Search projects, runtimes, or databases'
-						value={query}
-						onChange={(event) => setQuery(event.target.value)}
-					/>
-				</label>
+			{!isComposerPage && (
+				<section className='project-control-band'>
+					<label className='board-search'>
+						<SearchRounded fontSize='small' />
+						<input
+							className='search-input'
+							placeholder='Search projects, runtimes, or databases'
+							value={query}
+							onChange={(event) => setQuery(event.target.value)}
+						/>
+					</label>
 
-				<div className='board-actions'>
-					<SurfaceSelect
-						value={statusFilter}
-						onChange={setStatusFilter}
-						options={STATUS_FILTER_OPTIONS}
-						variant='compact'
-						align='right'
-						className='board-surface-select'
-					/>
+					<div className='board-actions'>
+						<SurfaceSelect
+							value={statusFilter}
+							onChange={setStatusFilter}
+							options={STATUS_FILTER_OPTIONS}
+							variant='compact'
+							align='right'
+							className='board-surface-select'
+						/>
 
-					<Link to='/databases' className='ghost-link'>
-						<StorageRounded fontSize='small' />
-						Open databases
-					</Link>
-				</div>
-			</section>
+						<Link to='/databases' className='ghost-link'>
+							<StorageRounded fontSize='small' />
+							Open databases
+						</Link>
+					</div>
+				</section>
+			)}
 
-			{showComposer && (
+			{isComposerPage && (
 				<section className='composer-panel'>
 					<div className='panel-header panel-header-spread'>
 						<div>
 							<span className='section-tag muted'>Composer</span>
 							<h3>Create a new project</h3>
 							<p>
-								Spin up a new frontend, backend, or linked
-								database without leaving the board.
+								Create websites, APIs, CLI tools, and Java or
+								Python workspaces without leaving the board.
 							</p>
 						</div>
 						<div className='composer-note'>
@@ -665,106 +1561,602 @@ function Overview() {
 						</div>
 					</div>
 
-					<div className='form-grid'>
-						<label className='field-group field-wide'>
-							<span>Project name</span>
-							<input
-								value={form.name}
-								onChange={(event) =>
-									setForm((previous) => ({
-										...previous,
-										name: event.target.value,
-									}))
-								}
-								placeholder='project-name'
-							/>
-						</label>
-
-						<div className='field-group'>
-							<span>Frontend</span>
-							<SurfaceSelect
-								value={form.frontend}
-								onChange={(nextValue) =>
-									setForm((previous) => ({
-										...previous,
-										frontend: nextValue,
-									}))
-								}
-								options={FRONTEND_OPTIONS}
-							/>
-						</div>
-
-						<label className='field-group'>
-							<span>Frontend port</span>
-							<input
-								type='number'
-								value={form.frontendPort}
-								onChange={(event) =>
-									setForm((previous) => ({
-										...previous,
-										frontendPort: event.target.value,
-									}))
-								}
-								placeholder='3000'
-							/>
-						</label>
-
-						<div className='field-group'>
-							<span>Backend</span>
-							<SurfaceSelect
-								value={form.backend}
-								onChange={(nextValue) =>
-									setForm((previous) => ({
-										...previous,
-										backend: nextValue,
-									}))
-								}
-								options={BACKEND_OPTIONS}
-							/>
-						</div>
-
-						<label className='field-group'>
-							<span>Backend port</span>
-							<input
-								type='number'
-								value={form.backendPort}
-								onChange={(event) =>
-									setForm((previous) => ({
-										...previous,
-										backendPort: event.target.value,
-									}))
-								}
-								placeholder='5000'
-							/>
-						</label>
-
-						<div className='field-group field-wide'>
-							<div className='field-label-row'>
-								<span>Linked database</span>
-								<button
-									type='button'
-									className='inline-field-action'
-									onClick={openDatabaseCreation}>
-									<StorageRounded fontSize='inherit' />
-									Create new database
-								</button>
+					<div className='composer-flow'>
+						<section className='composer-stage-card composer-stage-card-name'>
+							<div className='composer-card-heading'>
+								<span className='composer-step-badge'>Step 1</span>
+								<div>
+									<strong>Name the workspace</strong>
+									<p>
+										Start with a clean project name. Everything
+										else builds on this base.
+									</p>
+								</div>
 							</div>
-							<SurfaceSelect
-								value={form.databaseId}
-								onChange={(nextValue) =>
-									setForm((previous) => ({
-										...previous,
-										databaseId: nextValue,
-									}))
-								}
-								options={databaseOptions}
-							/>
+
+							<label className='field-group'>
+								<span>Project name</span>
+								<input
+									value={form.name}
+									onChange={(event) =>
+										updateForm((previous) => ({
+											...previous,
+											name: event.target.value,
+										}))
+									}
+									placeholder='project-name'
+								/>
+							</label>
+						</section>
+
+						<section className='composer-stage-card composer-stage-card-blueprints'>
+							<div className='composer-card-heading'>
+								<span className='composer-step-badge'>Fast lane</span>
+								<div>
+									<strong>Choose the project family</strong>
+									<p>
+										Start with one lane, then the composer will narrow
+										itself to the controls that fit that type of
+										project.
+									</p>
+								</div>
+							</div>
+
+							<div className='composer-blueprint-grid'>
+								{COMPOSER_FAST_LANES.map((lane) => {
+									const LaneIcon = lane.Icon;
+									const isActive = composerLane === lane.value;
+
+									return (
+										<button
+											key={lane.value}
+											type='button'
+											className={`composer-blueprint-card tone-${lane.tone} ${
+												isActive ? 'active' : ''
+											}`}
+											onClick={() => applyFastLane(lane)}>
+											<span
+												className={`composer-blueprint-icon ${lane.tone}`}>
+												<LaneIcon fontSize='inherit' />
+											</span>
+											<div className='composer-blueprint-copy'>
+												<strong>{lane.label}</strong>
+												<span>{lane.summary}</span>
+												<p>{lane.description}</p>
+											</div>
+										</button>
+									);
+								})}
+							</div>
+
 							<p className='field-help'>
-								Need a fresh local database? Create it in the
-								databases workspace and come right back here
-								with it selected.
+								Website keeps website starters together and now lets you
+								attach an optional backend again. Python and Java stay
+								focused on their standalone app templates.
 							</p>
+						</section>
+
+						<div className='composer-stage-grid'>
+							<section className='composer-stage-card composer-stage-card-frontend'>
+								<div className='composer-card-heading'>
+									<span className='composer-step-badge'>Step 2</span>
+									<div>
+										<strong>
+											{composerLane === 'website'
+												? 'Shape the website'
+												: composerLane === 'python'
+													? 'Shape the Python project'
+													: composerLane === 'java'
+														? 'Shape the Java project'
+														: 'Open a lane to continue'}
+										</strong>
+										<p>
+											{composerLane === 'website'
+												? 'Pick the website stack, add an optional backend, and choose the ports you want.'
+												: composerLane === 'python'
+													? 'Choose the standalone Python project starter for terminal-first work.'
+													: composerLane === 'java'
+														? 'Choose whether this Java workspace starts as a console app or Maven project.'
+														: 'Select Website, Python, or Java above and this card will switch to the right controls.'}
+										</p>
+									</div>
+								</div>
+
+								<div className='composer-card-fields'>
+									{composerLane === 'website' ? (
+										<>
+											<div className='field-group'>
+												<span>Website type</span>
+												<SurfaceSelect
+													value={form.frontendFamily}
+													onChange={handleFrontendFamilyChange}
+													options={WEBSITE_FAMILY_OPTIONS}
+													searchable
+													searchPlaceholder='Search website types'
+												/>
+												<p className='field-help'>
+													Vite unlocks React, Vue, and Vanilla starters. Static gives you a plain HTML, CSS, and JavaScript project.
+												</p>
+											</div>
+
+											<div className='field-group'>
+												<span>Starter</span>
+												{showFrontendPresetSelect ? (
+													<SurfaceSelect
+														value={form.frontendPreset}
+														onChange={handleFrontendPresetChange}
+														options={frontendPresetOptions}
+														placeholder='Select a website starter'
+														searchable
+														searchPlaceholder='Search website starters'
+													/>
+												) : (
+													<div className='composer-selection-preview'>
+														<strong>
+															{selectedFrontendPreset?.label ||
+																getTemplateLabel(form.frontend)}
+														</strong>
+														<span>
+															{form.frontendFamily === 'static'
+																? 'Static sites already resolve to one compatible starter.'
+																: 'Choose a website type to unlock matching starters.'}
+														</span>
+													</div>
+												)}
+											</div>
+
+											<label className='field-group'>
+												<span>Website port</span>
+												<input
+													type='number'
+													value={form.frontendPort}
+													disabled={!form.frontend}
+													onChange={(event) =>
+														updateForm((previous) => ({
+															...previous,
+															frontendPort: event.target.value,
+														}))
+													}
+													placeholder={
+														form.frontend
+															? '3000'
+															: 'Select a website starter first'
+													}
+												/>
+											</label>
+
+											<div className='field-group'>
+												<span>Backend runtime</span>
+												<SurfaceSelect
+													value={form.backendRuntime}
+													onChange={handleWebsiteBackendRuntimeChange}
+													options={WEBSITE_BACKEND_RUNTIME_OPTIONS}
+													searchable
+													searchPlaceholder='Search website backends'
+												/>
+												<p className='field-help'>
+													Add a backend to the website when you want API routes or server logic. Python HTTP and Java HTTP live here now.
+												</p>
+											</div>
+
+											<div className='field-group'>
+												<span>Backend starter</span>
+												{form.backendRuntime ? (
+													showBackendPresetSelect ? (
+														<SurfaceSelect
+															value={form.backendPreset}
+															onChange={handleBackendPresetChange}
+															options={backendPresetOptions}
+															placeholder='Select a backend starter'
+															searchable
+															searchPlaceholder='Search backend starters'
+														/>
+													) : (
+														<div className='composer-selection-preview'>
+															<strong>
+																{selectedBackendPreset?.label ||
+																	getTemplateLabel(form.backend)}
+															</strong>
+															<span>
+																{form.backendRuntime === 'python'
+																	? 'Python HTTP has one matching website backend starter.'
+																	: form.backendRuntime === 'java'
+																		? 'Java HTTP has one matching website backend starter.'
+																		: 'This runtime already resolves to a compatible backend starter.'}
+															</span>
+														</div>
+													)
+												) : (
+													<div className='composer-selection-preview'>
+														<strong>No backend selected</strong>
+														<span>
+															Keep the website frontend-only or choose a backend runtime to attach an API service.
+														</span>
+													</div>
+												)}
+											</div>
+
+											{backendPortRequired ? (
+												<label className='field-group'>
+													<span>Backend port</span>
+													<input
+														type='number'
+														value={form.backendPort}
+														disabled={!form.backend}
+														onChange={(event) =>
+															updateForm((previous) => ({
+																...previous,
+																backendPort: event.target.value,
+															}))
+														}
+														placeholder={
+															form.backend
+																? getSuggestedBackendPort(form.backend)
+																: 'Choose a backend starter first'
+														}
+													/>
+												</label>
+											) : (
+												<div className='field-group'>
+													<span>Backend port</span>
+													<div className='composer-selection-preview'>
+														<strong>
+															{form.backend
+																? 'No backend port'
+																: 'Frontend-only website'}
+														</strong>
+														<span>
+															{form.backend
+																? 'This backend type does not need a persistent port.'
+																: 'Add a backend runtime if you want a service port next to the website.'}
+														</span>
+													</div>
+												</div>
+											)}
+										</>
+									) : null}
+
+									{composerLane === 'python' || composerLane === 'java' ? (
+										<>
+											<div className='field-group'>
+												<span>Project type</span>
+												<SurfaceSelect
+													value={form.backendPreset}
+													onChange={handleBackendPresetChange}
+													options={backendPresetOptions}
+													placeholder='Select a project type'
+													searchable={showBackendPresetSelect}
+													searchPlaceholder={`Search ${composerLane} project types`}
+												/>
+												<p className='field-help'>
+													{composerLane === 'python'
+														? 'Python stays focused on CLI work here. Use Website if you want the Python HTTP server behind a frontend.'
+														: 'Java stays focused on console and Maven work here. Use Website if you want the Java HTTP server behind a frontend.'}
+												</p>
+											</div>
+
+											{backendPortRequired ? (
+												<label className='field-group'>
+													<span>
+														{composerLane === 'python'
+															? 'Service port'
+															: 'Java service port'}
+													</span>
+													<input
+														type='number'
+														value={form.backendPort}
+														disabled={!form.backend}
+														onChange={(event) =>
+															updateForm((previous) => ({
+																...previous,
+																backendPort: event.target.value,
+															}))
+														}
+														placeholder={
+															form.backend
+																? composerLane === 'python'
+																	? '8000'
+																	: '8080'
+																: 'Select a project type first'
+														}
+													/>
+												</label>
+											) : (
+												<div className='field-group'>
+													<span>Service port</span>
+													<div className='composer-selection-preview'>
+														<strong>
+															{form.backend
+																? 'No port required'
+																: 'Choose a project type'}
+														</strong>
+														<span>
+															{form.backend
+																? 'This project launches from the editor terminal instead of a persistent web port.'
+																: 'Service-style projects ask for a port. Terminal-first projects do not.'}
+														</span>
+													</div>
+												</div>
+											)}
+										</>
+									) : null}
+
+									{!composerLane ? (
+										<div className='field-group'>
+											<span>Composer</span>
+											<div className='composer-selection-preview'>
+												<strong>Pick a fast lane first</strong>
+												<span>
+													Choose Website, Python, or Java above and the right fields will appear here automatically.
+												</span>
+											</div>
+										</div>
+									) : null}
+								</div>
+							</section>
+
+							<section className='composer-stage-card composer-stage-card-summary'>
+								<div className='composer-card-heading'>
+									<span className='composer-step-badge'>Step 3</span>
+									<div>
+										<strong>Compatibility summary</strong>
+										<p>
+											The dashboard resolves the actual starter before
+											it sends the creation request.
+										</p>
+									</div>
+								</div>
+
+								<div className='composer-selection-summary'>
+									<div className='composer-selection-chip'>
+										<strong>Fast lane</strong>
+										<span>
+											{selectedLaneOption
+												? selectedLaneOption.label
+												: 'Choose Website, Python, or Java'}
+										</span>
+									</div>
+									<div className='composer-selection-chip'>
+										<strong>Starter</strong>
+										<span>{getFastLaneTemplateLabel(composerLane, form)}</span>
+									</div>
+									<div className='composer-selection-chip'>
+										<strong>Mode</strong>
+										<span>{composerLaunchLabel}</span>
+									</div>
+									<div className='composer-selection-chip'>
+										<strong>Port</strong>
+										<span>
+											{composerLane === 'website'
+												? form.backend
+													? `Web ${form.frontendPort || '3000'} + ${getBackendPortLabel(form.backend)} ${form.backendPort || getSuggestedBackendPort(form.backend)}`
+													: `Web ${form.frontendPort || '3000'}`
+												: backendPortRequired
+													? form.backendPort ||
+														(composerLane === 'python'
+															? '8000'
+															: '8080')
+													: 'No web port'}
+										</span>
+									</div>
+								</div>
+								<p className='field-help'>
+									{composerLane === 'website'
+										? `${selectedWebsiteFamily?.label || 'Website'} starters stay grouped together and can now pair with the backend runtime you want.`
+										: composerLane === 'python'
+											? 'Python creation now stays inside standalone terminal-first templates. Choose Website when you need a Python HTTP backend.'
+											: composerLane === 'java'
+												? 'Java creation now stays inside console and Maven templates. Choose Website when you need a Java HTTP backend.'
+												: 'Once you pick a lane, the summary here will update with the exact starter and launch mode.'}
+								</p>
+							</section>
 						</div>
+
+						<section className='composer-stage-card composer-stage-card-advanced'>
+							<div className='composer-card-heading'>
+								<span className='composer-step-badge'>Step 4</span>
+								<div>
+									<strong>Advanced setup</strong>
+									<p>
+										Set the common project metadata once, then add
+										Java-specific scaffold details whenever the
+										selected project or backend uses Java.
+									</p>
+								</div>
+							</div>
+
+							<div className='composer-card-fields'>
+								<label className='field-group'>
+									<span>Description</span>
+									<input
+										value={form.description}
+										onChange={(event) =>
+											updateForm((previous) => ({
+												...previous,
+												description: event.target.value,
+											}))
+										}
+										placeholder={
+											form.name
+												? `${form.name} workspace generated by the dashboard.`
+												: 'Describe what this project is for'
+										}
+									/>
+								</label>
+
+								<label className='field-group'>
+									<span>Initial version</span>
+									<input
+										value={form.version}
+										onChange={(event) =>
+											updateForm((previous) => ({
+												...previous,
+												version: event.target.value,
+											}))
+										}
+										placeholder='0.1.0'
+									/>
+								</label>
+
+								{selectedBackendRuntime === 'java' ? (
+									<>
+										<label className='field-group'>
+											<span>Java package</span>
+											<input
+												value={form.javaPackageName}
+												onChange={(event) =>
+													updateForm((previous) => ({
+														...previous,
+														javaPackageName: event.target.value,
+													}))
+												}
+												placeholder={`${composerJavaGroupId}.app`}
+											/>
+										</label>
+
+										<label className='field-group'>
+											<span>Main class</span>
+											<input
+												value={form.javaMainClass}
+												onChange={(event) =>
+													updateForm((previous) => ({
+														...previous,
+														javaMainClass: event.target.value,
+													}))
+												}
+												placeholder='App'
+											/>
+										</label>
+
+										<label className='field-group'>
+											<span>Compiler release</span>
+											<input
+												value={form.javaVersion}
+												onChange={(event) =>
+													updateForm((previous) => ({
+														...previous,
+														javaVersion: event.target.value,
+													}))
+												}
+												placeholder='11'
+											/>
+										</label>
+
+										{form.backend === 'java-maven' ? (
+											<>
+												<label className='field-group'>
+													<span>Group ID</span>
+													<input
+														value={form.javaGroupId}
+														onChange={(event) =>
+															updateForm((previous) => ({
+																...previous,
+																javaGroupId: event.target.value,
+															}))
+														}
+														placeholder='com.dashboard'
+													/>
+												</label>
+
+												<label className='field-group'>
+													<span>Artifact ID</span>
+													<input
+														value={form.javaArtifactId}
+														onChange={(event) =>
+															updateForm((previous) => ({
+																...previous,
+																javaArtifactId: event.target.value,
+															}))
+														}
+														placeholder={slugifyComposerToken(
+															form.name || 'workspace-app',
+														)}
+													/>
+												</label>
+
+												<div className='field-group'>
+													<span>Exec main class</span>
+													<div className='composer-selection-preview'>
+														<strong>{composerJavaExecClass}</strong>
+														<span>
+															This value is written to
+															`exec.mainClass` in the generated
+															`pom.xml`.
+														</span>
+													</div>
+												</div>
+											</>
+										) : null}
+
+										<div className='field-group'>
+											<span>Java source path</span>
+											<div className='composer-selection-preview'>
+												<strong>{composerJavaSourcePath}</strong>
+												<span>
+													{form.backend === 'java-maven'
+														? `The generated pom uses ${composerJavaArtifactId} with Java ${composerJavaVersion}.`
+														: `The dashboard compiles ${composerJavaExecClass} with Java ${composerJavaVersion}.`}
+												</span>
+											</div>
+										</div>
+									</>
+								) : (
+									<div className='field-group'>
+										<span>Project metadata</span>
+										<div className='composer-selection-preview'>
+											<strong>{composerVersion}</strong>
+											<span>
+												Version and description are applied to generated
+												metadata files where the starter supports them.
+											</span>
+										</div>
+									</div>
+								)}
+							</div>
+						</section>
+
+						<section className='composer-stage-card composer-stage-card-database'>
+							<div className='composer-card-heading'>
+								<span className='composer-step-badge'>Optional</span>
+								<div>
+									<strong>Attach a database</strong>
+									<p>
+										Link infrastructure now or keep the project
+										app-only and add storage later.
+									</p>
+								</div>
+							</div>
+
+							<div className='field-group'>
+								<div className='field-label-row'>
+									<span>Linked database</span>
+									<button
+										type='button'
+										className='inline-field-action'
+										onClick={openDatabaseCreation}>
+										<StorageRounded fontSize='inherit' />
+										Create new database
+									</button>
+								</div>
+								<SurfaceSelect
+									value={form.databaseId}
+									onChange={(nextValue) =>
+										updateForm((previous) => ({
+											...previous,
+											databaseId: nextValue,
+										}))
+									}
+									options={databaseOptions}
+									searchable
+									searchPlaceholder='Search databases'
+								/>
+								<p className='field-help'>
+									Need a fresh local database? Create it in the
+									databases workspace and come right back here
+									with it selected.
+								</p>
+							</div>
+						</section>
 					</div>
 
 					<div className='form-actions'>
@@ -786,12 +2178,23 @@ function Overview() {
 				</section>
 			)}
 
-			<section className='project-grid-board'>
+			{!isComposerPage && (
+				<section className='project-grid-board'>
 				{visibleProjects.length > 0 ? (
 					visibleProjects.map((project) => {
 						const projectProgress = getProjectProgress(project);
 						const primaryUrl = getPrimaryProjectUrl(project);
 						const projectCrew = getProjectCrew(project);
+						const monitoring = project.monitoring || {};
+						const scaffold = getProjectScaffold(project);
+						const showMonitoring =
+							hasWebsiteProjectMonitoring(project);
+						const launchLabel =
+							getProjectLaunchLabelForDisplay(project);
+						const primaryEntry = getProjectPrimaryEntry(project);
+						const commandLabel = getProjectCommandLabel(project);
+						const projectDescription = getProjectDescription(project);
+						const runtimeLabel = getProjectRuntimeLabel(project);
 
 						return (
 							<article
@@ -815,6 +2218,9 @@ function Overview() {
 											className='project-link'>
 											<h3>{project.name}</h3>
 										</Link>
+										<p className='project-purpose-copy'>
+											{projectDescription}
+										</p>
 										<p>{getProjectSummary(project)}</p>
 									</div>
 
@@ -831,7 +2237,9 @@ function Overview() {
 										{project.backendPort && (
 											<span className='port-pill backend'>
 												<HubRounded fontSize='inherit' />
-												<span>API</span>
+												<span>
+													{getBackendPortLabel(project.backend)}
+												</span>
 												<strong>
 													:{project.backendPort}
 												</strong>
@@ -876,6 +2284,143 @@ function Overview() {
 									</div>
 								</div>
 
+								<div className='project-monitoring-grid'>
+									{showMonitoring ? (
+										<>
+											<div className='monitoring-stat'>
+												<span>
+													<SpeedRounded fontSize='inherit' />
+													CPU load
+												</span>
+												<strong>{formatPercent(monitoring.cpuPercent)}</strong>
+											</div>
+											<div className='monitoring-stat'>
+												<span>
+													<MemoryRounded fontSize='inherit' />
+													Memory
+												</span>
+												<strong>{formatBytes(monitoring.memoryBytes)}</strong>
+											</div>
+											<div className='monitoring-stat'>
+												<span>
+													<MonitorHeartRounded fontSize='inherit' />
+													Avg response
+												</span>
+												<strong>
+													{project.status === 'stopped'
+														? 'Offline'
+														: formatLatency(
+																monitoring.averageResponseTimeMs,
+															)}
+												</strong>
+											</div>
+											<div className='monitoring-stat'>
+												<span>
+													<WarningAmberRounded fontSize='inherit' />
+													Failed checks
+												</span>
+												<strong>{monitoring.failedRequestCount || 0}</strong>
+											</div>
+										</>
+									) : (
+										<>
+											<div className='monitoring-stat'>
+												<span>
+													<CodeRounded fontSize='inherit' />
+													Launch mode
+												</span>
+												<strong>{launchLabel}</strong>
+											</div>
+											<div className='monitoring-stat'>
+												<span>
+													<TerminalRounded fontSize='inherit' />
+													Primary entry
+												</span>
+												<strong>{primaryEntry}</strong>
+											</div>
+											{project.backend === 'java-maven' ? (
+												<>
+													<div className='monitoring-stat'>
+														<span>
+															<RocketLaunchRounded fontSize='inherit' />
+															Group ID
+														</span>
+														<strong>{scaffold.javaGroupId}</strong>
+													</div>
+													<div className='monitoring-stat'>
+														<span>
+															<ConstructionRounded fontSize='inherit' />
+															Artifact
+														</span>
+														<strong>{scaffold.javaArtifactId}</strong>
+													</div>
+												</>
+											) : (
+												<>
+													<div className='monitoring-stat'>
+														<span>
+															<TaskAltRounded fontSize='inherit' />
+															Version
+														</span>
+														<strong>{scaffold.version}</strong>
+													</div>
+													<div className='monitoring-stat'>
+														<span>
+															<FolderRounded fontSize='inherit' />
+															Command
+														</span>
+														<strong>{commandLabel}</strong>
+													</div>
+												</>
+											)}
+										</>
+									)}
+								</div>
+
+								<div className='project-health-row'>
+									{showMonitoring ? (
+										<>
+											<span
+												className={`health-pill ${
+													monitoring.status || 'offline'
+												}`}>
+												<MonitorHeartRounded fontSize='inherit' />
+												{getMonitoringStatusLabel(
+													monitoring.status,
+												)}
+											</span>
+											<span className='monitoring-hint'>
+												Response{' '}
+												{project.status === 'stopped'
+													? 'Offline'
+													: formatLatency(
+															monitoring.averageResponseTimeMs,
+														)}
+											</span>
+											<span className='monitoring-hint'>
+												Restarts {monitoring.restartCount || 0}
+											</span>
+											{monitoring.crashCount > 0 && (
+												<span className='monitoring-hint alert'>
+													Crashes {monitoring.crashCount}
+												</span>
+											)}
+										</>
+									) : (
+										<>
+											<span className='health-pill offline'>
+												<TerminalRounded fontSize='inherit' />
+												Terminal workflow
+											</span>
+											<span className='monitoring-hint'>{runtimeLabel}</span>
+											<span className='monitoring-hint'>
+												Workspace{' '}
+												{formatBytes(monitoring.workspaceSizeBytes)}
+											</span>
+										</>
+									)}
+								</div>
+
 								<div className='project-card-middle'>
 									<div className='avatar-group'>
 										{projectCrew.map((entry) => (
@@ -897,7 +2442,7 @@ function Overview() {
 										{project.backend && (
 											<span>
 												<HubRounded fontSize='inherit' />
-												Backend
+												{getBackendChipLabel(project.backend)}
 											</span>
 										)}
 										{project.database && (
@@ -916,6 +2461,13 @@ function Overview() {
 											className='ghost-link project-inline-action'>
 											<ArrowOutwardRounded fontSize='small' />
 											Open
+										</Link>
+
+										<Link
+											to={`/projects/${encodeURIComponent(project.name)}/editor`}
+											className='ghost-link project-inline-action'>
+											<CodeRounded fontSize='small' />
+											Editor
 										</Link>
 
 										<Link
@@ -938,40 +2490,49 @@ function Overview() {
 									</div>
 
 									<div className='project-card-runtime-row'>
-										{project.status === 'stopped' ? (
-											<button
-												type='button'
-												className='success-button project-inline-action'
-												disabled={
-													pendingAction ===
+										{project.hasManagedServices ? (
+											project.status === 'stopped' ? (
+												<button
+													type='button'
+													className='success-button project-inline-action'
+													disabled={
+														pendingAction ===
+														`start:${project.name}`
+													}
+													onClick={() =>
+														startProject(project.name)
+													}>
+													<PlayArrowRounded fontSize='small' />
+													{pendingAction ===
 													`start:${project.name}`
-												}
-												onClick={() =>
-													startProject(project.name)
-												}>
-												<PlayArrowRounded fontSize='small' />
-												{pendingAction ===
-												`start:${project.name}`
-													? 'Starting...'
-													: 'Start'}
-											</button>
-										) : (
-											<button
-												type='button'
-												className='danger-button project-inline-action'
-												disabled={
-													pendingAction ===
+														? 'Starting...'
+														: 'Start'}
+												</button>
+											) : (
+												<button
+													type='button'
+													className='danger-button project-inline-action'
+													disabled={
+														pendingAction ===
+														`stop:${project.name}`
+													}
+													onClick={() =>
+														stopProject(project.name)
+													}>
+													<StopRounded fontSize='small' />
+													{pendingAction ===
 													`stop:${project.name}`
-												}
-												onClick={() =>
-													stopProject(project.name)
-												}>
-												<StopRounded fontSize='small' />
-												{pendingAction ===
-												`stop:${project.name}`
-													? 'Stopping...'
-													: 'Stop'}
-											</button>
+														? 'Stopping...'
+														: 'Stop'}
+												</button>
+											)
+										) : (
+											<Link
+												to={`/projects/${encodeURIComponent(project.name)}/editor`}
+												className='success-button project-inline-action'>
+												<TerminalRounded fontSize='small' />
+												Run in editor
+											</Link>
 										)}
 
 										<button
@@ -1004,7 +2565,8 @@ function Overview() {
 						</p>
 					</div>
 				)}
-			</section>
+				</section>
+			)}
 		</div>
 	);
 }

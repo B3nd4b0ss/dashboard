@@ -1,7 +1,21 @@
 const express = require('express');
 const router = express.Router();
 const projectService = require('../services/projectService');
+const { readProjectRuntimeLogs } = require('../services/projectLogService');
 const { startProject, stopProject } = require('../services/projectLifecycle');
+const {
+	listProjectFiles,
+	readProjectFile,
+	saveProjectFile,
+	createProjectEntry,
+	deleteProjectEntry,
+} = require('../services/projectFileService');
+const {
+	runProjectCommand,
+	runProjectPreset,
+	getProjectExecution,
+	stopProjectExecution,
+} = require('../services/projectTerminalService');
 
 // Get all projects
 router.get('/', async (req, res) => {
@@ -18,6 +32,131 @@ router.get('/:name', async (req, res) => {
 	const project = await projectService.getProject(req.params.name);
 	if (!project) return res.sendStatus(404);
 	res.json(project);
+});
+
+// Get project runtime logs
+router.get('/:name/logs', async (req, res) => {
+	try {
+		const logs = await readProjectRuntimeLogs(req.params.name, {
+			serviceName: req.query.service || null,
+			lineLimit: req.query.limit,
+		});
+		res.json(logs);
+	} catch (err) {
+		res.status(400).json({ error: err.message });
+	}
+});
+
+// Get project file tree
+router.get('/:name/files', async (req, res) => {
+	try {
+		const workspace = await listProjectFiles(req.params.name);
+		res.json(workspace);
+	} catch (err) {
+		res.status(400).json({ error: err.message });
+	}
+});
+
+// Read a project file
+router.get('/:name/files/content', async (req, res) => {
+	try {
+		const file = await readProjectFile(req.params.name, req.query.path);
+		res.json(file);
+	} catch (err) {
+		const statusCode =
+			err.code === 'ENOENT' || err.code === 'ENOTDIR' ? 404 : 400;
+		res.status(statusCode).json({ error: err.message });
+	}
+});
+
+// Create a file or folder inside a project
+router.post('/:name/files', async (req, res) => {
+	try {
+		const entry = await createProjectEntry(
+			req.params.name,
+			req.body.path,
+			req.body.type,
+		);
+		res.json(entry);
+	} catch (err) {
+		const statusCode = err.code === 'EEXIST' ? 409 : 400;
+		res.status(statusCode).json({ error: err.message });
+	}
+});
+
+// Save a project file
+router.put('/:name/files/content', async (req, res) => {
+	try {
+		const file = await saveProjectFile(
+			req.params.name,
+			req.body.path,
+			req.body.content,
+		);
+		res.json(file);
+	} catch (err) {
+		res.status(400).json({ error: err.message });
+	}
+});
+
+// Delete a file or folder inside a project
+router.delete('/:name/files', async (req, res) => {
+	try {
+		const entry = await deleteProjectEntry(req.params.name, req.query.path);
+		res.json(entry);
+	} catch (err) {
+		const statusCode =
+			err.code === 'ENOENT' || err.code === 'ENOTDIR' ? 404 : 400;
+		res.status(statusCode).json({ error: err.message });
+	}
+});
+
+// Execute a project terminal command
+router.post('/:name/terminal/execute', async (req, res) => {
+	try {
+		const execution = runProjectCommand(req.params.name, req.body.command, {
+			cwd: req.body.cwd,
+			label: req.body.label,
+		});
+		res.json(execution);
+	} catch (err) {
+		res.status(400).json({ error: err.message });
+	}
+});
+
+// Execute a command preset
+router.post('/:name/terminal/presets/:presetId', async (req, res) => {
+	try {
+		const execution = runProjectPreset(req.params.name, req.params.presetId);
+		res.json(execution);
+	} catch (err) {
+		res.status(400).json({ error: err.message });
+	}
+});
+
+// Read a terminal execution snapshot
+router.get('/:name/terminal/:executionId', async (req, res) => {
+	try {
+		const execution = getProjectExecution(
+			req.params.name,
+			req.params.executionId,
+		);
+		res.json(execution);
+	} catch (err) {
+		res.status(404).json({ error: err.message });
+	}
+});
+
+// Stop a terminal execution
+router.post('/:name/terminal/:executionId/stop', async (req, res) => {
+	try {
+		const execution = await stopProjectExecution(
+			req.params.name,
+			req.params.executionId,
+		);
+		res.json(execution);
+	} catch (err) {
+		res.status(400).json({ error: err.message });
+	}
 });
 
 // Create project

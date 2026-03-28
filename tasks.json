@@ -1,1 +1,86 @@
-[]
+[
+  {
+    "id": "1774732188506d0l1947nr",
+    "title": "project git",
+    "description": "add for the created project a git repo for my git, it should make the initial commit and also create the gitignore",
+    "projectName": null,
+    "status": "backlog",
+    "priority": "medium",
+    "assigneeId": null,
+    "dueDate": null,
+    "createdAt": "2026-03-28T21:09:48.506Z",
+    "updatedAt": "2026-03-28T21:10:03.072Z"
+  },
+  {
+    "id": "1774732301941hfu4fv4dx",
+    "title": "css update",
+    "description": "in tasks i cant access high and urgent priority and also for the projects and statuses make it so i can acces everything probably scrollable",
+    "projectName": null,
+    "status": "backlog",
+    "priority": "medium",
+    "assigneeId": null,
+    "dueDate": null,
+    "createdAt": "2026-03-28T21:11:41.941Z",
+    "updatedAt": "2026-03-28T21:11:41.941Z"
+  },
+  {
+    "id": "1774732449677eajvyzs1h",
+    "title": "ticketing system",
+    "description": "make branches for git that link to my tasks i can also create branches for them, and also make the tickets called {projectname}-1 and define /bug /feature andso on. make ticketing maybe on other website or update the tasks for better desription, so it also doesnt look so cramped",
+    "projectName": null,
+    "status": "backlog",
+    "priority": "medium",
+    "assigneeId": null,
+    "dueDate": null,
+    "createdAt": "2026-03-28T21:14:09.677Z",
+    "updatedAt": "2026-03-28T21:15:29.201Z"
+  },
+  {
+    "id": "1774732632307b50ihwj8s",
+    "title": "add project move",
+    "description": "make it so i can choose where the project should be located and also so i can move them around on the computer",
+    "projectName": null,
+    "status": "backlog",
+    "priority": "medium",
+    "assigneeId": null,
+    "dueDate": null,
+    "createdAt": "2026-03-28T21:17:12.307Z",
+    "updatedAt": "2026-03-28T21:17:12.307Z"
+  },
+  {
+    "id": "1774732758594r71lythyi",
+    "title": "searchbar",
+    "description": "make the searchbar on the top nave functional",
+    "projectName": null,
+    "status": "backlog",
+    "priority": "medium",
+    "assigneeId": null,
+    "dueDate": null,
+    "createdAt": "2026-03-28T21:19:18.594Z",
+    "updatedAt": "2026-03-28T21:19:18.594Z"
+  },
+  {
+    "id": "1774733085305cc3ymn2h4",
+    "title": "total cpu ussage",
+    "description": "show total ussages of cpu ram harddsik andso on",
+    "projectName": null,
+    "status": "backlog",
+    "priority": "medium",
+    "assigneeId": null,
+    "dueDate": null,
+    "createdAt": "2026-03-28T21:24:45.305Z",
+    "updatedAt": "2026-03-28T21:24:45.305Z"
+  },
+  {
+    "id": "17747335669992kds0bkyp",
+    "title": "backend",
+    "description": "add backend and remove python / java from  fast lnae and add as backed for websites",
+    "projectName": null,
+    "status": "backlog",
+    "priority": "medium",
+    "assigneeId": null,
+    "dueDate": null,
+    "createdAt": "2026-03-28T21:32:46.999Z",
+    "updatedAt": "2026-03-28T21:32:46.999Z"
+  }
+]

@@ -4,6 +4,7 @@ import Layout from './components/Layout';
 import DashboardHome from './components/DashboardHome';
 import Overview from './components/Overview';
 import ProjectDetail from './components/ProjectDetail';
+import ProjectEditorPage from './components/ProjectEditorPage';
 import Databases from './components/Databases';
 import DockerHub from './components/DockerHub';
 import DockerStackDetail from './components/DockerStackDetail';
@@ -22,7 +23,15 @@ function App() {
 					/>
 					<Route path='dashboard' element={<DashboardHome />} />
 					<Route path='projects' element={<Overview />} />
+					<Route
+						path='composer'
+						element={<Overview mode='composer' />}
+					/>
 					<Route path='projects/:name' element={<ProjectDetail />} />
+					<Route
+						path='projects/:name/editor'
+						element={<ProjectEditorPage />}
+					/>
 					<Route path='databases' element={<Databases />} />
 					<Route path='docker' element={<DockerHub />} />
 					<Route

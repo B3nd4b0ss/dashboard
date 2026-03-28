@@ -5,6 +5,23 @@ import TaskAltRounded from '@mui/icons-material/TaskAltRounded';
 import GroupsRounded from '@mui/icons-material/GroupsRounded';
 import EventRounded from '@mui/icons-material/EventRounded';
 import ArrowOutwardRounded from '@mui/icons-material/ArrowOutwardRounded';
+import TerminalRounded from '@mui/icons-material/TerminalRounded';
+import RefreshRounded from '@mui/icons-material/RefreshRounded';
+import PublicRounded from '@mui/icons-material/PublicRounded';
+import HubRounded from '@mui/icons-material/HubRounded';
+import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
+import RestartAltRounded from '@mui/icons-material/RestartAltRounded';
+import MonitorHeartRounded from '@mui/icons-material/MonitorHeartRounded';
+import ScheduleRounded from '@mui/icons-material/ScheduleRounded';
+import {
+	getProjectCommandLabel,
+	getProjectLaunchLabel,
+	getProjectPrimaryEntry,
+	getProjectRuntimeLabel,
+	getProjectScaffold,
+	getTemplateLabel,
+	hasWebsiteMonitoring as hasWebsiteProjectMonitoring,
+} from '../utils/projectPresentation';
 import './ProjectDetail.css';
 
 const API = 'http://localhost:4000';
@@ -71,6 +88,89 @@ function getTaskStatusLabel(status) {
 	}
 }
 
+function formatBytes(bytes) {
+	if (!Number.isFinite(bytes) || bytes <= 0) {
+		return '0 B';
+	}
+
+	const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+	let value = bytes;
+	let unitIndex = 0;
+
+	while (value >= 1024 && unitIndex < units.length - 1) {
+		value /= 1024;
+		unitIndex += 1;
+	}
+
+	const digits = value >= 10 || unitIndex === 0 ? 0 : 1;
+	return `${value.toFixed(digits)} ${units[unitIndex]}`;
+}
+
+function formatLatency(value) {
+	if (!Number.isFinite(value) || value <= 0) {
+		return 'Waiting';
+	}
+
+	if (value >= 1000) {
+		return `${(value / 1000).toFixed(1)}s`;
+	}
+
+	return `${Math.round(value)} ms`;
+}
+
+function formatDuration(value) {
+	if (!Number.isFinite(value) || value <= 0) {
+		return 'Just started';
+	}
+
+	const totalSeconds = Math.floor(value / 1000);
+	const hours = Math.floor(totalSeconds / 3600);
+	const minutes = Math.floor((totalSeconds % 3600) / 60);
+	const seconds = totalSeconds % 60;
+
+	if (hours > 0) {
+		return `${hours}h ${minutes}m`;
+	}
+
+	if (minutes > 0) {
+		return `${minutes}m ${seconds}s`;
+	}
+
+	return `${seconds}s`;
+}
+
+function getMonitoringStatusLabel(status) {
+	switch (status) {
+		case 'healthy':
+			return 'Healthy';
+		case 'degraded':
+			return 'Degraded';
+		case 'starting':
+			return 'Starting';
+		case 'unknown':
+			return 'Checking';
+		default:
+			return 'Offline';
+	}
+}
+
+function buildEditableProject(project = {}) {
+	const scaffold = getProjectScaffold(project);
+
+	return {
+		name: project.name || '',
+		frontendPort: project.frontendPort || '',
+		backendPort: project.backendPort || '',
+		description: scaffold.description || '',
+		version: scaffold.version || '',
+		javaPackageName: scaffold.javaPackageName || '',
+		javaMainClass: scaffold.javaMainClass || '',
+		javaVersion: scaffold.javaVersion || '',
+		javaGroupId: scaffold.javaGroupId || '',
+		javaArtifactId: scaffold.javaArtifactId || '',
+	};
+}
+
 function ProjectDetail() {
 	const { name } = useParams();
 	const navigate = useNavigate();
@@ -81,8 +181,27 @@ function ProjectDetail() {
 	const [editMode, setEditMode] = useState(false);
 	const [edited, setEdited] = useState({});
 	const [showConnectionModal, setShowConnectionModal] = useState(false);
+	const [showLogModal, setShowLogModal] = useState(false);
 	const [copied, setCopied] = useState(false);
 	const [busyAction, setBusyAction] = useState('');
+	const [projectLogs, setProjectLogs] = useState({
+		services: { frontend: null, backend: null },
+	});
+	const [logsLoading, setLogsLoading] = useState(false);
+	const [logsError, setLogsError] = useState('');
+	const [selectedLogService, setSelectedLogService] = useState('');
+
+	const getDefaultLogService = (nextProject = project) => {
+		if (nextProject?.frontend) {
+			return 'frontend';
+		}
+
+		if (nextProject?.backend) {
+			return 'backend';
+		}
+
+		return '';
+	};
 
 	const fetchProject = async () => {
 		try {
@@ -93,7 +212,7 @@ function ProjectDetail() {
 				}),
 			]);
 			setProject(projectResponse.data);
-			setEdited(projectResponse.data);
+			setEdited(buildEditableProject(projectResponse.data));
 			setProjectTasks(tasksResponse.data);
 			setError('');
 		} catch (err) {
@@ -103,10 +222,127 @@ function ProjectDetail() {
 		}
 	};
 
+	const fetchProjectSnapshot = async ({ onData } = {}) => {
+		try {
+			const response = await axios.get(
+				`${API}/projects/${encodeURIComponent(name)}`,
+			);
+			if (typeof onData === 'function') {
+				onData(response.data);
+				return;
+			}
+			setProject(response.data);
+			if (!editMode) {
+				setEdited(buildEditableProject(response.data));
+			}
+		} catch (err) {
+			// Keep the last rendered project visible during transient polling failures.
+		}
+	};
+
+	const fetchLogs = async ({ preferredService = null, silent = false } = {}) => {
+		const fallbackService = preferredService || getDefaultLogService();
+		if (!fallbackService) {
+			return;
+		}
+
+		if (!silent) {
+			setLogsLoading(true);
+		}
+
+		try {
+			const response = await axios.get(
+				`${API}/projects/${encodeURIComponent(name)}/logs`,
+				{
+					params: { limit: 260 },
+				},
+			);
+
+			setProjectLogs(response.data);
+			setLogsError('');
+
+			if (!selectedLogService) {
+				setSelectedLogService(fallbackService);
+			}
+		} catch (err) {
+			if (!silent) {
+				setLogsError(
+					err.response?.data?.error || 'Failed to load runtime logs.',
+				);
+			}
+		} finally {
+			if (!silent) {
+				setLogsLoading(false);
+			}
+		}
+	};
+
 	useEffect(() => {
 		setLoading(true);
+		setShowLogModal(false);
+		setProjectLogs({ services: { frontend: null, backend: null } });
+		setLogsError('');
+		setSelectedLogService('');
 		fetchProject();
 	}, [name]);
+
+	useEffect(() => {
+		let active = true;
+
+		const refreshSnapshot = async () => {
+			if (!active) {
+				return;
+			}
+
+			await fetchProjectSnapshot({
+				onData: (nextProject) => {
+					if (!active) {
+						return;
+					}
+
+					setProject(nextProject);
+					if (!editMode) {
+						setEdited(nextProject);
+					}
+				},
+			});
+		};
+
+		const intervalId = window.setInterval(() => {
+			refreshSnapshot();
+		}, 6000);
+
+		return () => {
+			active = false;
+			window.clearInterval(intervalId);
+		};
+	}, [name, editMode]);
+
+	useEffect(() => {
+		if (!showLogModal) {
+			return undefined;
+		}
+
+		let active = true;
+
+		const refreshLogs = async (silent = false) => {
+			if (!active) {
+				return;
+			}
+
+			await fetchLogs({ silent });
+		};
+
+		refreshLogs();
+		const intervalId = window.setInterval(() => {
+			refreshLogs(true);
+		}, 4000);
+
+		return () => {
+			active = false;
+			window.clearInterval(intervalId);
+		};
+	}, [showLogModal, name, project?.frontend, project?.backend]);
 
 	const handleChange = (field, value) => {
 		setEdited((previous) => ({ ...previous, [field]: value }));
@@ -127,9 +363,23 @@ function ProjectDetail() {
 	};
 
 	const saveChanges = async () => {
+		const canEditFrontendPort = Boolean(services.frontend);
+		const canEditBackendPort = Boolean(services.backend);
+		const projectScaffold = getProjectScaffold(project);
+		const isJavaProject = ['java', 'java-console', 'java-maven'].includes(
+			project.backend,
+		);
+		const isMavenProject = project.backend === 'java-maven';
+		const nextName = String(edited.name || '').trim();
+
+		if (!nextName) {
+			alert('Project name is required.');
+			return;
+		}
+
 		if (
-			project.frontend &&
-			project.backend &&
+			canEditFrontendPort &&
+			canEditBackendPort &&
 			String(edited.frontendPort) === String(edited.backendPort)
 		) {
 			alert('Frontend and backend ports must be different.');
@@ -139,16 +389,54 @@ function ProjectDetail() {
 		try {
 			const updates = {};
 
-			if (edited.name !== project.name) {
-				updates.name = edited.name;
+			if (nextName !== project.name) {
+				updates.name = nextName;
 			}
 
-			if (String(edited.frontendPort) !== String(project.frontendPort)) {
+			if (
+				canEditFrontendPort &&
+				String(edited.frontendPort) !== String(project.frontendPort)
+			) {
 				updates.frontendPort = edited.frontendPort;
 			}
 
-			if (String(edited.backendPort) !== String(project.backendPort)) {
+			if (
+				canEditBackendPort &&
+				String(edited.backendPort) !== String(project.backendPort)
+			) {
 				updates.backendPort = edited.backendPort;
+			}
+
+			if (edited.description !== projectScaffold.description) {
+				updates.description = edited.description;
+			}
+
+			if (edited.version !== projectScaffold.version) {
+				updates.version = edited.version;
+			}
+
+			if (isJavaProject) {
+				if (edited.javaPackageName !== projectScaffold.javaPackageName) {
+					updates.javaPackageName = edited.javaPackageName;
+				}
+
+				if (edited.javaMainClass !== projectScaffold.javaMainClass) {
+					updates.javaMainClass = edited.javaMainClass;
+				}
+
+				if (edited.javaVersion !== projectScaffold.javaVersion) {
+					updates.javaVersion = edited.javaVersion;
+				}
+			}
+
+			if (isMavenProject) {
+				if (edited.javaGroupId !== projectScaffold.javaGroupId) {
+					updates.javaGroupId = edited.javaGroupId;
+				}
+
+				if (edited.javaArtifactId !== projectScaffold.javaArtifactId) {
+					updates.javaArtifactId = edited.javaArtifactId;
+				}
 			}
 
 			if (Object.keys(updates).length === 0) {
@@ -188,6 +476,27 @@ function ProjectDetail() {
 		}
 	};
 
+	const copyLogsToClipboard = async (content) => {
+		try {
+			await navigator.clipboard.writeText(content);
+		} catch (err) {
+			alert('Failed to copy logs to clipboard.');
+		}
+	};
+
+	const openLogs = async (preferredService = null) => {
+		const nextService =
+			preferredService || selectedLogService || getDefaultLogService();
+
+		if (!nextService) {
+			return;
+		}
+
+		setSelectedLogService(nextService);
+		setShowLogModal(true);
+		await fetchLogs({ preferredService: nextService });
+	};
+
 	if (loading) {
 		return <div className='project-detail-state'>Loading project...</div>;
 	}
@@ -199,9 +508,79 @@ function ProjectDetail() {
 	const connectionInfo = getConnectionInfo(project.database);
 	const runtime = project.runtime || {};
 	const services = runtime.services || {};
+	const monitoring = project.monitoring || { services: {} };
+	const monitoringServices = monitoring.services || {};
 	const taskSummary = project.taskSummary || {};
 	const isRunning = project.status === 'running';
 	const isPartial = project.status === 'partial';
+	const hasManagedServices =
+		project.hasManagedServices || (runtime.expectedServiceCount || 0) > 0;
+	const showMonitoring = hasWebsiteProjectMonitoring(project);
+	const scaffold = getProjectScaffold(project);
+	const launchLabel = getProjectLaunchLabel(project);
+	const primaryEntry = getProjectPrimaryEntry(project);
+	const primaryCommand = getProjectCommandLabel(project);
+	const runtimeLabel = getProjectRuntimeLabel(project);
+	const isJavaProject = ['java', 'java-console', 'java-maven'].includes(
+		project.backend,
+	);
+	const isMavenProject = project.backend === 'java-maven';
+	const summaryTiles = showMonitoring
+		? [
+				{ label: 'Launch mode', value: launchLabel },
+				{ label: 'Version', value: scaffold.version },
+				{
+					label: 'Project health',
+					value: getMonitoringStatusLabel(monitoring.status),
+				},
+				{
+					label: 'Services live',
+					value: `${runtime.activeServiceCount || 0}/${runtime.expectedServiceCount || 0}`,
+				},
+				{
+					label: 'Avg response',
+					value:
+						project.status === 'stopped'
+							? 'Offline'
+							: formatLatency(monitoring.averageResponseTimeMs),
+				},
+				{
+					label: 'Workspace size',
+					value: formatBytes(monitoring.workspaceSizeBytes),
+				},
+			]
+		: [
+				{ label: 'Launch mode', value: launchLabel },
+				{ label: 'Version', value: scaffold.version },
+				{ label: 'Primary entry', value: primaryEntry },
+				{ label: 'Run command', value: primaryCommand },
+				{ label: 'Runtime', value: runtimeLabel },
+				{
+					label: 'Workspace size',
+					value: formatBytes(monitoring.workspaceSizeBytes),
+				},
+			];
+	const logServiceOptions = [
+		services.frontend
+			? {
+					key: 'frontend',
+					label: 'Frontend',
+					Icon: PublicRounded,
+					running: services.frontend?.running,
+				}
+			: null,
+		services.backend
+			? {
+					key: 'backend',
+					label: 'Backend',
+					Icon: HubRounded,
+					running: services.backend?.running,
+				}
+			: null,
+	].filter(Boolean);
+	const selectedLog =
+		(selectedLogService && projectLogs.services?.[selectedLogService]) || null;
+	const canOpenLogs = logServiceOptions.length > 0;
 
 	return (
 		<div className='project-detail-page'>
@@ -242,6 +621,124 @@ function ProjectDetail() {
 					</div>
 				</div>
 			)}
+			{showLogModal && (
+				<div className='modal-overlay' onClick={() => setShowLogModal(false)}>
+					<div
+						className='modal-content log-modal-content'
+						onClick={(event) => event.stopPropagation()}>
+						<div className='modal-header log-modal-header'>
+							<div>
+								<span className='modal-label'>Runtime Logs</span>
+								<h3>{project.name}</h3>
+							</div>
+							<div className='log-modal-actions'>
+								<button
+									type='button'
+									className='ghost-button'
+									onClick={() =>
+										fetchLogs({
+											preferredService: selectedLogService,
+										})
+									}>
+									<RefreshRounded fontSize='small' />
+									Refresh
+								</button>
+								<button
+									type='button'
+									className='modal-close'
+									onClick={() => setShowLogModal(false)}>
+									X
+								</button>
+							</div>
+						</div>
+						<div className='modal-body log-modal-body'>
+							<div className='log-service-tabs'>
+								{logServiceOptions.map((option) => {
+									const TabIcon = option.Icon;
+									return (
+										<button
+											key={option.key}
+											type='button'
+											className={`log-service-tab ${
+												selectedLogService === option.key
+													? 'active'
+													: ''
+											}`}
+											onClick={() =>
+												setSelectedLogService(option.key)
+											}>
+											<TabIcon fontSize='small' />
+											<span>{option.label}</span>
+											<strong>
+												{option.running ? 'Live' : 'Stored'}
+											</strong>
+										</button>
+									);
+								})}
+							</div>
+
+							<div className='log-viewer-shell'>
+								<div className='log-viewer-toolbar'>
+									<div className='log-meta-stack'>
+										<span className='log-meta-label'>
+											{selectedLogService || 'service'} log
+										</span>
+										{selectedLog?.updatedAt ? (
+											<strong>
+												Last update{' '}
+												{new Date(
+													selectedLog.updatedAt,
+												).toLocaleString()}
+											</strong>
+										) : (
+											<strong>No captured output yet</strong>
+										)}
+										{selectedLog?.truncated && (
+											<span className='log-meta-note'>
+												Showing the newest tail of the log file.
+											</span>
+										)}
+									</div>
+
+									{selectedLog?.content && (
+										<button
+											type='button'
+											className='ghost-button'
+											onClick={() =>
+												copyLogsToClipboard(
+													selectedLog.content,
+												)
+											}>
+											Copy logs
+										</button>
+									)}
+								</div>
+
+								{logsLoading ? (
+									<div className='log-viewer-empty'>
+										Loading runtime logs...
+									</div>
+								) : logsError ? (
+									<div className='log-viewer-empty error'>
+										{logsError}
+									</div>
+								) : selectedLog?.content ? (
+									<pre className='log-console-output'>
+										{selectedLog.content}
+									</pre>
+								) : (
+									<div className='log-viewer-empty'>
+										No log lines have been captured for this
+										service yet. Start the project and any new
+										stdout, stderr, or crash markers will appear
+										here automatically.
+									</div>
+								)}
+							</div>
+						</div>
+					</div>
+				</div>
+			)}
 
 			<Link to='/projects' className='detail-back-link'>
 				Back to projects
@@ -253,50 +750,72 @@ function ProjectDetail() {
 						<span className={`status-pill ${project.status}`}>
 							{getStatusLabel(project.status)}
 						</span>
+						<span className='meta-pill'>{launchLabel}</span>
+						{project.frontend && (
+							<span className='meta-pill'>
+								{getTemplateLabel(project.frontend)}
+							</span>
+						)}
+						{project.backend && (
+							<span className='meta-pill'>
+								{getTemplateLabel(project.backend)}
+							</span>
+						)}
 						{project.database && (
 							<span className='meta-pill'>{project.database.type}</span>
 						)}
 					</div>
 					<h2>{project.name}</h2>
-					<p>{project.projectPath}</p>
+					<p className='detail-hero-description'>{scaffold.description}</p>
+					<p className='detail-hero-path'>{project.projectPath}</p>
 				</div>
 				<div className='detail-hero-actions'>
-					{isRunning ? (
-						<button
-							type='button'
-							className='danger-button'
-							disabled={busyAction === 'stop'}
-							onClick={() =>
-								runAction('stop', () =>
-									axios.post(
-										`${API}/projects/${encodeURIComponent(
-											project.name,
-										)}/stop`,
-									),
-								)
-							}>
-							{busyAction === 'stop' ? 'Stopping...' : 'Stop project'}
-						</button>
+					{hasManagedServices ? (
+						isRunning ? (
+							<button
+								type='button'
+								className='danger-button'
+								disabled={busyAction === 'stop'}
+								onClick={() =>
+									runAction('stop', () =>
+										axios.post(
+											`${API}/projects/${encodeURIComponent(
+												project.name,
+											)}/stop`,
+										),
+									)
+								}>
+								{busyAction === 'stop'
+									? 'Stopping...'
+									: 'Stop project'}
+							</button>
+						) : (
+							<button
+								type='button'
+								className='success-button'
+								disabled={busyAction === 'start'}
+								onClick={() =>
+									runAction('start', () =>
+										axios.post(
+											`${API}/projects/${encodeURIComponent(
+												project.name,
+											)}/start`,
+										),
+									)
+								}>
+								{busyAction === 'start'
+									? 'Starting...'
+									: isPartial
+										? 'Resume project'
+										: 'Start project'}
+							</button>
+						)
 					) : (
-						<button
-							type='button'
-							className='success-button'
-							disabled={busyAction === 'start'}
-							onClick={() =>
-								runAction('start', () =>
-									axios.post(
-										`${API}/projects/${encodeURIComponent(
-											project.name,
-										)}/start`,
-									),
-								)
-							}>
-							{busyAction === 'start'
-								? 'Starting...'
-								: isPartial
-									? 'Resume project'
-									: 'Start project'}
-						</button>
+						<Link
+							to={`/projects/${encodeURIComponent(project.name)}/editor`}
+							className='success-button'>
+							Run in editor
+						</Link>
 					)}
 
 					{project.frontendUrl && (
@@ -327,70 +846,254 @@ function ProjectDetail() {
 						}>
 						Open code
 					</button>
+
+					<Link
+						to={`/projects/${encodeURIComponent(project.name)}/editor`}
+						className='ghost-link'>
+						Open editor
+					</Link>
+
+					{canOpenLogs && (
+						<button
+							type='button'
+							className='ghost-button'
+							onClick={() => openLogs()}>
+							<TerminalRounded fontSize='small' />
+							Runtime logs
+						</button>
+					)}
 				</div>
 			</section>
 
 			<section className='detail-summary'>
-				<div className='summary-tile'>
-					<span>Running services</span>
-					<strong>
-						{runtime.activeServiceCount || 0}/{runtime.expectedServiceCount || 0}
-					</strong>
-				</div>
-				<div className='summary-tile'>
-					<span>Total tasks</span>
-					<strong>{taskSummary.total || 0}</strong>
-				</div>
-				<div className='summary-tile'>
-					<span>Tasks complete</span>
-					<strong>{taskSummary.completed || 0}</strong>
-				</div>
-				<div className='summary-tile'>
-					<span>Web app port</span>
-					<strong>{project.frontendPort || 'Not configured'}</strong>
-				</div>
-				<div className='summary-tile'>
-					<span>API port</span>
-					<strong>{project.backendPort || 'Not configured'}</strong>
-				</div>
-				<div className='summary-tile'>
-					<span>Linked database</span>
-					<strong>{project.database?.name || 'None'}</strong>
-				</div>
+				{summaryTiles.map((tile) => (
+					<div key={tile.label} className='summary-tile'>
+						<span>{tile.label}</span>
+						<strong>{tile.value}</strong>
+					</div>
+				))}
 			</section>
 
 			<section className='detail-grid'>
-				<article className='detail-card'>
+				<article className='detail-card detail-card-wide'>
 					<div className='card-heading'>
 						<span className='card-label'>Runtime</span>
-						<h3>Services and health</h3>
+						<h3>
+							{showMonitoring
+								? 'Services and workspace'
+								: 'Workspace and launch flow'}
+						</h3>
 					</div>
 					<div className='service-grid'>
-						{project.frontend && (
+						{services.frontend && (
 							<div className='service-card'>
 								<span className='service-kind'>Frontend</span>
-								<strong>{project.frontend}</strong>
+								<strong>{getTemplateLabel(project.frontend)}</strong>
 								<p>Port {project.frontendPort}</p>
-								<span
-									className={`service-state ${
-										services.frontend?.running ? 'running' : 'stopped'
-									}`}>
-									{services.frontend?.running ? 'Live' : 'Stopped'}
-								</span>
+								<div className='service-status-row'>
+									<span
+										className={`service-state ${
+											services.frontend?.running
+												? 'running'
+												: 'stopped'
+										}`}>
+										{services.frontend?.running ? 'Live' : 'Stopped'}
+									</span>
+									<span
+										className={`health-state ${
+											monitoringServices.frontend
+												?.healthStatus || 'offline'
+										}`}>
+										<MonitorHeartRounded fontSize='inherit' />
+										{getMonitoringStatusLabel(
+											monitoringServices.frontend
+												?.healthStatus,
+										)}
+									</span>
+								</div>
+								<div className='service-metric-list'>
+									<div className='service-metric-item'>
+										<span>
+											<ScheduleRounded fontSize='inherit' />
+											Uptime
+										</span>
+										<strong>
+											{formatDuration(
+												monitoringServices.frontend
+													?.uptimeMs,
+											)}
+										</strong>
+									</div>
+									<div className='service-metric-item'>
+										<span>
+											<MonitorHeartRounded fontSize='inherit' />
+											Response
+										</span>
+										<strong>
+											{formatLatency(
+												monitoringServices.frontend
+													?.responseTimeMs,
+											)}
+										</strong>
+									</div>
+									<div className='service-metric-item'>
+										<span>
+											<RestartAltRounded fontSize='inherit' />
+											Restarts
+										</span>
+										<strong>
+											{monitoringServices.frontend
+												?.restartCount || 0}
+										</strong>
+									</div>
+									<div className='service-metric-item'>
+										<span>
+											<WarningAmberRounded fontSize='inherit' />
+											Failed checks
+										</span>
+										<strong>
+											{monitoringServices.frontend
+												?.failedRequestCount || 0}
+										</strong>
+									</div>
+								</div>
+								{monitoringServices.frontend?.healthStatus ===
+									'degraded' &&
+									monitoringServices.frontend?.lastError && (
+										<p className='service-health-error'>
+											{monitoringServices.frontend.lastError}
+										</p>
+									)}
+								<div className='service-card-actions'>
+									<button
+										type='button'
+										className='ghost-button'
+										onClick={() => openLogs('frontend')}>
+										<TerminalRounded fontSize='small' />
+										View logs
+									</button>
+								</div>
 							</div>
 						)}
 
-						{project.backend && (
+						{services.backend && (
 							<div className='service-card'>
 								<span className='service-kind'>Backend</span>
-								<strong>{project.backend}</strong>
+								<strong>{getTemplateLabel(project.backend)}</strong>
 								<p>Port {project.backendPort}</p>
-								<span
-									className={`service-state ${
-										services.backend?.running ? 'running' : 'stopped'
-									}`}>
-									{services.backend?.running ? 'Live' : 'Stopped'}
-								</span>
+								<div className='service-status-row'>
+									<span
+										className={`service-state ${
+											services.backend?.running
+												? 'running'
+												: 'stopped'
+										}`}>
+										{services.backend?.running ? 'Live' : 'Stopped'}
+									</span>
+									{showMonitoring ? (
+										<span
+											className={`health-state ${
+												monitoringServices.backend
+													?.healthStatus || 'offline'
+											}`}>
+											<MonitorHeartRounded fontSize='inherit' />
+											{getMonitoringStatusLabel(
+												monitoringServices.backend
+													?.healthStatus,
+											)}
+										</span>
+									) : (
+										<span className='service-state neutral'>
+											{runtimeLabel}
+										</span>
+									)}
+								</div>
+								<div className='service-metric-list'>
+									{showMonitoring ? (
+										<>
+											<div className='service-metric-item'>
+												<span>
+													<ScheduleRounded fontSize='inherit' />
+													Uptime
+												</span>
+												<strong>
+													{formatDuration(
+														monitoringServices.backend
+															?.uptimeMs,
+													)}
+												</strong>
+											</div>
+											<div className='service-metric-item'>
+												<span>
+													<MonitorHeartRounded fontSize='inherit' />
+													Response
+												</span>
+												<strong>
+													{formatLatency(
+														monitoringServices.backend
+															?.responseTimeMs,
+													)}
+												</strong>
+											</div>
+											<div className='service-metric-item'>
+												<span>
+													<RestartAltRounded fontSize='inherit' />
+													Restarts
+												</span>
+												<strong>
+													{monitoringServices.backend
+														?.restartCount || 0}
+												</strong>
+											</div>
+											<div className='service-metric-item'>
+												<span>
+													<WarningAmberRounded fontSize='inherit' />
+													Failed checks
+												</span>
+												<strong>
+													{monitoringServices.backend
+														?.failedRequestCount || 0}
+												</strong>
+											</div>
+										</>
+									) : (
+										<>
+											<div className='service-metric-item'>
+												<span>Primary entry</span>
+												<strong>{primaryEntry}</strong>
+											</div>
+											<div className='service-metric-item'>
+												<span>Default command</span>
+												<strong>{primaryCommand}</strong>
+											</div>
+											<div className='service-metric-item'>
+												<span>Runtime</span>
+												<strong>{runtimeLabel}</strong>
+											</div>
+											<div className='service-metric-item'>
+												<span>Version</span>
+												<strong>{scaffold.version}</strong>
+											</div>
+										</>
+									)}
+								</div>
+								{showMonitoring &&
+									monitoringServices.backend?.healthStatus ===
+									'degraded' &&
+									monitoringServices.backend?.lastError && (
+										<p className='service-health-error'>
+											{monitoringServices.backend.lastError}
+										</p>
+									)}
+								<div className='service-card-actions'>
+									<button
+										type='button'
+										className='ghost-button'
+										onClick={() => openLogs('backend')}>
+										<TerminalRounded fontSize='small' />
+										View logs
+									</button>
+								</div>
 							</div>
 						)}
 
@@ -403,6 +1106,130 @@ function ProjectDetail() {
 									Port {project.database.port}
 								</span>
 							</div>
+						)}
+
+						<div className='service-card'>
+							<span className='service-kind'>Workspace</span>
+							<strong>{launchLabel}</strong>
+							<p>
+								{showMonitoring
+									? 'Dashboard-managed services cover the long-running parts while the editor stays ready for build, test, and setup commands.'
+									: 'This project is designed to be launched from the editor when you need a build, run, or one-off executable.'}
+							</p>
+							<span className='service-state neutral'>
+								{project.commandPresets?.length
+									? `${project.commandPresets.length} quick actions`
+									: 'Editor terminal ready'}
+							</span>
+							<div className='service-metric-list'>
+								<div className='service-metric-item'>
+									<span>
+										<TerminalRounded fontSize='inherit' />
+										Primary entry
+									</span>
+									<strong>{primaryEntry}</strong>
+								</div>
+								<div className='service-metric-item'>
+									<span>Default command</span>
+									<strong>{primaryCommand}</strong>
+								</div>
+								<div className='service-metric-item'>
+									<span>Runtime</span>
+									<strong>{runtimeLabel}</strong>
+								</div>
+								<div className='service-metric-item'>
+									<span>Version</span>
+									<strong>{scaffold.version}</strong>
+								</div>
+							</div>
+							<div className='service-card-actions'>
+								<Link
+									to={`/projects/${encodeURIComponent(project.name)}/editor`}
+									className='ghost-link'>
+									<TerminalRounded fontSize='small' />
+									Open editor terminal
+								</Link>
+							</div>
+						</div>
+					</div>
+				</article>
+
+				<article className='detail-card detail-card-wide'>
+					<div className='card-heading'>
+						<span className='card-label'>
+							{showMonitoring ? 'Monitoring' : 'Workspace'}
+						</span>
+						<h3>
+							{showMonitoring
+								? 'Service health'
+								: 'How this project runs'}
+						</h3>
+					</div>
+					<div className='detail-info-list'>
+						<div className='info-row'>
+							<span>Launch mode</span>
+							<strong>{launchLabel}</strong>
+						</div>
+						{showMonitoring ? (
+							<>
+								<div className='info-row'>
+									<span>Project health</span>
+									<strong>
+										{getMonitoringStatusLabel(monitoring.status)}
+									</strong>
+								</div>
+								<div className='info-row'>
+									<span>Average response</span>
+									<strong>
+										{project.status === 'stopped'
+											? 'Offline'
+											: formatLatency(
+													monitoring.averageResponseTimeMs,
+												)}
+									</strong>
+								</div>
+								<div className='info-row'>
+									<span>Total restarts</span>
+									<strong>{monitoring.restartCount || 0}</strong>
+								</div>
+								<div className='info-row'>
+									<span>Crash count</span>
+									<strong>{monitoring.crashCount || 0}</strong>
+								</div>
+								<div className='info-row'>
+									<span>Workspace size</span>
+									<strong>{formatBytes(monitoring.workspaceSizeBytes)}</strong>
+								</div>
+								<div className='info-row'>
+									<span>Last health check</span>
+									<strong>
+										{monitoring.lastCheckedAt
+											? new Date(
+													monitoring.lastCheckedAt,
+												).toLocaleString()
+											: 'No checks yet'}
+									</strong>
+								</div>
+							</>
+						) : (
+							<>
+								<div className='info-row'>
+									<span>Primary entry</span>
+									<strong>{primaryEntry}</strong>
+								</div>
+								<div className='info-row'>
+									<span>Default command</span>
+									<strong>{primaryCommand}</strong>
+								</div>
+								<div className='info-row'>
+									<span>Runtime</span>
+									<strong>{runtimeLabel}</strong>
+								</div>
+								<div className='info-row'>
+									<span>Workspace size</span>
+									<strong>{formatBytes(monitoring.workspaceSizeBytes)}</strong>
+								</div>
+							</>
 						)}
 					</div>
 				</article>
@@ -491,7 +1318,7 @@ function ProjectDetail() {
 
 				<article className='detail-card'>
 					<div className='card-heading'>
-						<span className='card-label'>Metadata</span>
+						<span className='card-label'>Overview</span>
 						<h3>Project overview</h3>
 					</div>
 					<div className='detail-info-list'>
@@ -500,15 +1327,27 @@ function ProjectDetail() {
 							<strong>{project.name}</strong>
 						</div>
 						<div className='info-row'>
+							<span>Description</span>
+							<strong>{scaffold.description}</strong>
+						</div>
+						<div className='info-row'>
 							<span>Frontend</span>
-							<strong>{project.frontend || 'None'}</strong>
+							<strong>{getTemplateLabel(project.frontend)}</strong>
 						</div>
 						<div className='info-row'>
 							<span>Backend</span>
-							<strong>{project.backend || 'None'}</strong>
+							<strong>{getTemplateLabel(project.backend)}</strong>
 						</div>
 						<div className='info-row'>
-							<span>Database type</span>
+							<span>Launch mode</span>
+							<strong>{launchLabel}</strong>
+						</div>
+						<div className='info-row'>
+							<span>Version</span>
+							<strong>{scaffold.version}</strong>
+						</div>
+						<div className='info-row'>
+							<span>Database</span>
 							<strong>{project.database?.type || 'None'}</strong>
 						</div>
 						<div className='info-row'>
@@ -517,6 +1356,45 @@ function ProjectDetail() {
 						</div>
 					</div>
 				</article>
+
+				{isJavaProject && (
+					<article className='detail-card'>
+						<div className='card-heading'>
+							<span className='card-label'>Java</span>
+							<h3>Compiler and package setup</h3>
+						</div>
+						<div className='detail-info-list'>
+							<div className='info-row'>
+								<span>Main class</span>
+								<strong>{scaffold.javaMainClass}</strong>
+							</div>
+							<div className='info-row'>
+								<span>Package</span>
+								<strong>{scaffold.javaPackageName}</strong>
+							</div>
+							<div className='info-row'>
+								<span>Qualified class</span>
+								<strong>{scaffold.javaQualifiedMainClass}</strong>
+							</div>
+							<div className='info-row'>
+								<span>Compiler release</span>
+								<strong>Java {scaffold.javaVersion}</strong>
+							</div>
+							{isMavenProject && (
+								<>
+									<div className='info-row'>
+										<span>Group ID</span>
+										<strong>{scaffold.javaGroupId}</strong>
+									</div>
+									<div className='info-row'>
+										<span>Artifact ID</span>
+										<strong>{scaffold.javaArtifactId}</strong>
+									</div>
+								</>
+							)}
+						</div>
+					</article>
+				)}
 
 				{project.database && project.database.credentials && (
 					<article className='detail-card'>
@@ -570,7 +1448,7 @@ function ProjectDetail() {
 					<div className='card-heading card-heading-spread'>
 						<div>
 							<span className='card-label'>Edit</span>
-							<h3>Rename and reassign ports</h3>
+							<h3>Project settings</h3>
 						</div>
 
 						{!editMode ? (
@@ -592,7 +1470,7 @@ function ProjectDetail() {
 									type='button'
 									className='ghost-button'
 									onClick={() => {
-										setEdited(project);
+										setEdited(buildEditableProject(project));
 										setEditMode(false);
 									}}>
 									Cancel
@@ -612,7 +1490,28 @@ function ProjectDetail() {
 									}
 								/>
 							</label>
-							{project.frontend && (
+							<label className='field-group'>
+								<span>Version</span>
+								<input
+									value={edited.version || ''}
+									onChange={(event) =>
+										handleChange('version', event.target.value)
+									}
+									placeholder='0.1.0'
+								/>
+							</label>
+							<label className='field-group field-group-wide'>
+								<span>Description</span>
+								<textarea
+									value={edited.description || ''}
+									onChange={(event) =>
+										handleChange('description', event.target.value)
+									}
+									rows={4}
+									placeholder='Describe what this project is for and what it does.'
+								/>
+							</label>
+							{services.frontend && (
 								<label className='field-group'>
 									<span>Frontend port</span>
 									<input
@@ -627,7 +1526,7 @@ function ProjectDetail() {
 									/>
 								</label>
 							)}
-							{project.backend && (
+							{services.backend && (
 								<label className='field-group'>
 									<span>Backend port</span>
 									<input
@@ -642,11 +1541,85 @@ function ProjectDetail() {
 									/>
 								</label>
 							)}
+							{isJavaProject && (
+								<>
+									<label className='field-group'>
+										<span>Java package</span>
+										<input
+											value={edited.javaPackageName || ''}
+											onChange={(event) =>
+												handleChange(
+													'javaPackageName',
+													event.target.value,
+												)
+											}
+											placeholder='com.dashboard.app'
+										/>
+									</label>
+									<label className='field-group'>
+										<span>Main class</span>
+										<input
+											value={edited.javaMainClass || ''}
+											onChange={(event) =>
+												handleChange(
+													'javaMainClass',
+													event.target.value,
+												)
+											}
+											placeholder='App'
+										/>
+									</label>
+									<label className='field-group'>
+										<span>Compiler release</span>
+										<input
+											value={edited.javaVersion || ''}
+											onChange={(event) =>
+												handleChange(
+													'javaVersion',
+													event.target.value,
+												)
+											}
+											placeholder='11'
+										/>
+									</label>
+								</>
+							)}
+							{isMavenProject && (
+								<>
+									<label className='field-group'>
+										<span>Group ID</span>
+										<input
+											value={edited.javaGroupId || ''}
+											onChange={(event) =>
+												handleChange(
+													'javaGroupId',
+													event.target.value,
+												)
+											}
+											placeholder='com.dashboard'
+										/>
+									</label>
+									<label className='field-group'>
+										<span>Artifact ID</span>
+										<input
+											value={edited.javaArtifactId || ''}
+											onChange={(event) =>
+												handleChange(
+													'javaArtifactId',
+													event.target.value,
+												)
+											}
+											placeholder='workspace-app'
+										/>
+									</label>
+								</>
+							)}
 						</div>
 					) : (
 						<p className='detail-copy'>
-							Enter edit mode when you need to rename this workspace or move
-							its frontend and backend to new ports.
+							Enter edit mode when you need to rename the workspace, update
+							its description or version, or adjust Java and Maven scaffold
+							settings so the generated files stay aligned with the project.
 						</p>
 					)}
 				</article>

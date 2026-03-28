@@ -63,6 +63,16 @@ const SECONDARY_NAV = [
 ];
 
 function getSectionMeta(pathname) {
+	if (pathname.startsWith('/projects/') && pathname.endsWith('/editor')) {
+		return {
+			label: 'Project Center',
+			title: 'Project Editor',
+			description:
+				'Browse the workspace tree, edit files inline, and manage project code without leaving the dashboard.',
+			searchPlaceholder: 'Search files, folders, or paths',
+		};
+	}
+
 	if (pathname.startsWith('/projects/')) {
 		return {
 			label: 'Project Center',
@@ -99,6 +109,14 @@ function getSectionMeta(pathname) {
 				description:
 					'Launch, stop, and shape each project from a polished runtime board.',
 				searchPlaceholder: 'Search projects and environments',
+			};
+		case '/composer':
+			return {
+				label: 'Composer',
+				title: 'New Project',
+				description:
+					'Create a website, Python workspace, or Java project in a focused flow.',
+				searchPlaceholder: 'Search starters and templates',
 			};
 		case '/tasks':
 			return {
@@ -311,7 +329,7 @@ function Layout() {
 							buildNotification(
 								'crash',
 								`${project.name} needs attention`,
-								'One or more services stopped unexpectedly while the project was running.',
+								'One or more services stopped unexpectedly while the project was running. Open the project runtime logs to inspect what failed.',
 							),
 						);
 						continue;
@@ -341,7 +359,7 @@ function Layout() {
 							buildNotification(
 								'crash',
 								`${project.name} stopped unexpectedly`,
-								'The runtime went offline without a manual stop action from the dashboard.',
+								'The runtime went offline without a manual stop action from the dashboard. Open the project runtime logs to see the last captured output.',
 							),
 						);
 					}

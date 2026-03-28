@@ -6,10 +6,19 @@ const dockerRouter = require('./routes/docker');
 const tasksRouter = require('./routes/tasks');
 const membersRouter = require('./routes/members');
 const { PORT } = require('./config/constants');
+const { configureProcessToolEnvironment } = require('./services/developmentToolchain');
+
+const detectedToolchain = configureProcessToolEnvironment();
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '4mb' }));
+
+if (detectedToolchain.javaHome || detectedToolchain.mavenHome) {
+	console.log(
+		`Dev toolchain ready: java=${detectedToolchain.javaHome || 'missing'}, maven=${detectedToolchain.mavenHome || 'missing'}`,
+	);
+}
 
 // Routes
 app.use('/projects', projectsRouter);
