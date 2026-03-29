@@ -156,7 +156,7 @@ function getSectionMeta(pathname) {
 				label: 'Controls',
 				title: 'Settings',
 				description:
-					'Personal preferences and runtime defaults can plug in here next.',
+					'Set GitHub publishing defaults and other workspace-wide behavior.',
 				searchPlaceholder: 'Search settings and preferences',
 			};
 		default:

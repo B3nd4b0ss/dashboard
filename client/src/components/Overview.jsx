@@ -66,6 +66,14 @@ const EMPTY_FORM = {
 	javaGroupId: '',
 	javaArtifactId: '',
 };
+const DEFAULT_SYSTEM_SETTINGS = {
+	github: {
+		autoCreateRepo: true,
+		owner: '',
+		visibility: 'private',
+		hasToken: false,
+	},
+};
 
 const TEMPLATE_LABELS = {
 	'vite-react': 'Vite + React',
@@ -479,6 +487,9 @@ function getProjectSearchText(project) {
 		getTemplateLabel(project.backend),
 		project.database?.name,
 		project.database?.type,
+		project.repository?.owner,
+		project.repository?.name,
+		project.repository?.status,
 		project.status,
 	]
 		.filter(Boolean)
@@ -880,6 +891,7 @@ function Overview({ mode = 'board' }) {
 	const query = getSearchParamValue(searchParams, 'q');
 	const [statusFilter, setStatusFilter] = useState('all');
 	const [form, setForm] = useState(() => normalizeComposerForm(EMPTY_FORM));
+	const [systemSettings, setSystemSettings] = useState(DEFAULT_SYSTEM_SETTINGS);
 	const [selectedLane, setSelectedLane] = useState(() =>
 		getComposerLaneFromForm(normalizeComposerForm(EMPTY_FORM)),
 	);
@@ -918,9 +930,14 @@ function Overview({ mode = 'board' }) {
 		setDatabases(res.data);
 	};
 
+	const loadSystemSettings = async () => {
+		const res = await axios.get(`${API}/system/settings`);
+		setSystemSettings(res.data || DEFAULT_SYSTEM_SETTINGS);
+	};
+
 	const refreshDashboard = async ({ silent = false } = {}) => {
 		try {
-			await Promise.all([loadProjects(), loadDatabases()]);
+			await Promise.all([loadProjects(), loadDatabases(), loadSystemSettings()]);
 			setDashboardError('');
 		} catch (error) {
 			if (!silent) {
@@ -990,6 +1007,14 @@ function Overview({ mode = 'board' }) {
 			setProgress((previous) => Math.max(previous, 82));
 		} else if (message.includes('Backend created')) {
 			setProgress(90);
+		} else if (message.includes('Initializing git repository')) {
+			setProgress((previous) => Math.max(previous, 94));
+		} else if (message.includes('Creating first commit')) {
+			setProgress((previous) => Math.max(previous, 96));
+		} else if (message.includes('Pushing first commit to GitHub')) {
+			setProgress((previous) => Math.max(previous, 98));
+		} else if (message.includes('GitHub remote connected')) {
+			setProgress(100);
 		} else if (message.includes('Project created successfully')) {
 			setProgress(100);
 		}
@@ -1302,6 +1327,16 @@ function Overview({ mode = 'board' }) {
 	const composerJavaSourcePath = getComposerJavaSourcePath(form);
 	const composerProjectLocationLabel = getComposerProjectLocationLabel(form);
 	const composerProjectPathPreview = getComposerProjectPathPreview(form);
+	const githubSettings = systemSettings.github || DEFAULT_SYSTEM_SETTINGS.github;
+	const githubRepositoryName = slugifyComposerToken(form.name || 'project-name');
+	const githubOwnerLabel = githubSettings.owner || 'token owner';
+	const githubPublishConfigured =
+		githubSettings.autoCreateRepo && githubSettings.hasToken;
+	const githubPublishTarget = githubPublishConfigured
+		? `${githubOwnerLabel}/${githubRepositoryName}`
+		: githubSettings.autoCreateRepo
+			? 'Add a saved token in Settings'
+			: 'Auto-publish is off';
 	const selectedWebsiteFamily =
 		WEBSITE_FAMILY_OPTIONS.find(
 			(option) => option.value === form.frontendFamily,
@@ -2054,6 +2089,55 @@ function Overview({ mode = 'board' }) {
 												: 'Once you pick a lane, the summary here will update with the exact starter and launch mode.'}
 								</p>
 							</section>
+
+							<section className='composer-stage-card composer-stage-card-summary'>
+								<div className='composer-card-heading'>
+									<span className='composer-step-badge'>Git</span>
+									<div>
+										<strong>Repository setup</strong>
+										<p>
+											New projects always create a root{' '}
+											<code>README.md</code>, run{' '}
+											<code>git init</code>, prepare the{' '}
+											<code>origin</code> remote, make the
+											first commit, and then push when your
+											saved GitHub settings are ready.
+										</p>
+									</div>
+								</div>
+
+								<div className='composer-selection-summary'>
+									<div className='composer-selection-chip'>
+										<strong>Local repo</strong>
+										<span>README + git init + first commit</span>
+									</div>
+									<div className='composer-selection-chip'>
+										<strong>GitHub</strong>
+										<span>{githubPublishTarget}</span>
+									</div>
+									<div className='composer-selection-chip'>
+										<strong>Visibility</strong>
+										<span>
+											{githubSettings.visibility === 'public'
+												? 'Public'
+												: 'Private'}
+										</span>
+									</div>
+								</div>
+								<p className='field-help'>
+									{githubPublishConfigured
+										? `The dashboard will create ${githubPublishTarget} and push the first commit automatically.`
+										: githubSettings.autoCreateRepo
+											? 'GitHub publishing is enabled in principle, but you still need to save a token in Settings before the dashboard can create repos for you.'
+											: 'Auto-publish is currently off, so new projects will stop after local git initialization.'}
+								</p>
+								<div className='composer-settings-link-row'>
+									<Link to='/settings' className='ghost-link'>
+										<ArrowOutwardRounded fontSize='small' />
+										Open GitHub settings
+									</Link>
+								</div>
+							</section>
 						</div>
 
 						<section className='composer-stage-card composer-stage-card-advanced'>
@@ -2589,6 +2673,17 @@ function Overview({ mode = 'board' }) {
 												className='secondary-link project-inline-action'>
 												<LanRounded fontSize='small' />
 												Preview
+											</a>
+										)}
+
+										{project.repository?.url && (
+											<a
+												href={project.repository.url}
+												target='_blank'
+												rel='noopener noreferrer'
+												className='ghost-link project-inline-action'>
+												<ArrowOutwardRounded fontSize='small' />
+												GitHub
 											</a>
 										)}
 									</div>

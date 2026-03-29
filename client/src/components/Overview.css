@@ -759,6 +759,12 @@
 	gap: 14px;
 }
 
+.composer-settings-link-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 12px;
+}
+
 .composer-stage-card-summary .composer-selection-chip:first-child {
 	border-color: rgba(48, 184, 136, 0.16);
 	background:

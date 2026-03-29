@@ -8,6 +8,7 @@ router.get('/', (req, res) => {
 			projectName: req.query.projectName,
 			status: req.query.status,
 			assigneeId: req.query.assigneeId,
+			type: req.query.type,
 		});
 		res.json(tasks);
 	} catch (err) {
@@ -36,6 +37,16 @@ router.post('/', (req, res) => {
 router.patch('/:id', (req, res) => {
 	try {
 		const task = taskService.updateTask(req.params.id, req.body);
+		res.json(task);
+	} catch (err) {
+		const statusCode = err.message === 'Task not found' ? 404 : 400;
+		res.status(statusCode).json({ error: err.message });
+	}
+});
+
+router.post('/:id/branch', async (req, res) => {
+	try {
+		const task = await taskService.createBranchForTask(req.params.id);
 		res.json(task);
 	} catch (err) {
 		const statusCode = err.message === 'Task not found' ? 404 : 400;

@@ -4,6 +4,7 @@ const {
 	DATABASES_FILE,
 	TASKS_FILE,
 	MEMBERS_FILE,
+	SETTINGS_FILE,
 } = require('../config/constants');
 
 function loadProjects() {
@@ -42,6 +43,15 @@ function saveMembers(members) {
 	fs.writeJsonSync(MEMBERS_FILE, members, { spaces: 2 });
 }
 
+function loadSettings() {
+	if (!fs.existsSync(SETTINGS_FILE)) return {};
+	return fs.readJsonSync(SETTINGS_FILE);
+}
+
+function saveSettings(settings) {
+	fs.writeJsonSync(SETTINGS_FILE, settings, { spaces: 2 });
+}
+
 module.exports = {
 	loadProjects,
 	saveProjects,
@@ -51,4 +61,6 @@ module.exports = {
 	saveTasks,
 	loadMembers,
 	saveMembers,
+	loadSettings,
+	saveSettings,
 };

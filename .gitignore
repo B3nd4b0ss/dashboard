@@ -10,6 +10,7 @@ projects/
 data.json
 databases.json
 tasks.json
+settings.json
 
 # Build outputs
 dist/

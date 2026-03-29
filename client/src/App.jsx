@@ -1,5 +1,4 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import SettingsRounded from '@mui/icons-material/SettingsRounded';
 import Layout from './components/Layout';
 import DashboardHome from './components/DashboardHome';
 import Overview from './components/Overview';
@@ -9,7 +8,7 @@ import Databases from './components/Databases';
 import DockerHub from './components/DockerHub';
 import DockerStackDetail from './components/DockerStackDetail';
 import TasksBoard from './components/TasksBoard';
-import Placeholder from './components/Placeholder';
+import SettingsPage from './components/SettingsPage';
 import './App.css';
 
 function App() {
@@ -43,23 +42,7 @@ function App() {
 						path='team'
 						element={<Navigate to='/dashboard' replace />}
 					/>
-					<Route
-						path='settings'
-						element={
-							<Placeholder
-								title='Workspace Settings'
-								eyebrow='Control Surface'
-								description='Global preferences, workspace defaults, notifications, and automation rules can live here next. The settings page is already styled with grouped rows and action states.'
-								icon={SettingsRounded}
-								preview='settings'
-								highlights={[
-									'Grouped controls are prepared for preferences and access rules.',
-									'Form rows, toggles, and secondary actions already match the new shell.',
-									'Good place for future theme, notifications, and workspace defaults.',
-								]}
-							/>
-						}
-					/>
+					<Route path='settings' element={<SettingsPage />} />
 				</Route>
 			</Routes>
 		</BrowserRouter>

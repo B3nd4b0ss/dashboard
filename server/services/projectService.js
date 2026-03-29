@@ -39,6 +39,9 @@ const {
 	resolveProjectScaffold,
 } = require('./projectScaffold');
 const {
+	initializeProjectRepository,
+} = require('./projectRepositoryService');
+const {
 	buildProjectPath,
 	getProjectLocation,
 	getProjectPath,
@@ -374,6 +377,11 @@ async function createProject(data) {
 		throw error;
 	}
 
+	newProject.repository = await initializeProjectRepository(newProject, {
+		projectPath,
+	});
+	saveProjects(projects);
+
 	return newProject;
 }
 
@@ -639,6 +647,12 @@ async function createProjectWithStreamSafe(data, eventEmitter) {
 		);
 		throw error;
 	}
+
+	newProject.repository = await initializeProjectRepository(newProject, {
+		projectPath,
+		onLog: (message) => eventEmitter.emit('log', message),
+	});
+	saveProjects(projects);
 
 	eventEmitter.emit('log', 'Project created successfully!');
 	eventEmitter.emit('complete', decorateProject(newProject));

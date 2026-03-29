@@ -4,11 +4,13 @@ import axios from 'axios';
 import AddRounded from '@mui/icons-material/AddRounded';
 import ArrowOutwardRounded from '@mui/icons-material/ArrowOutwardRounded';
 import AssignmentTurnedInRounded from '@mui/icons-material/AssignmentTurnedInRounded';
+import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded';
 import DeleteOutlineRounded from '@mui/icons-material/DeleteOutlineRounded';
 import EditRounded from '@mui/icons-material/EditRounded';
 import EventRounded from '@mui/icons-material/EventRounded';
 import FilterListRounded from '@mui/icons-material/FilterListRounded';
 import FolderRounded from '@mui/icons-material/FolderRounded';
+import HubRounded from '@mui/icons-material/HubRounded';
 import PendingActionsRounded from '@mui/icons-material/PendingActionsRounded';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
@@ -29,7 +31,6 @@ const STATUS_COLUMNS = [
 	{ key: 'review', label: 'Review' },
 	{ key: 'done', label: 'Done' },
 ];
-
 const TASK_STATUS_OPTIONS = [
 	{
 		value: 'backlog',
@@ -52,7 +53,6 @@ const TASK_STATUS_OPTIONS = [
 		description: 'Finished work items.',
 	},
 ];
-
 const PRIORITY_OPTIONS = [
 	{
 		value: 'low',
@@ -75,13 +75,45 @@ const PRIORITY_OPTIONS = [
 		description: 'Needs attention as soon as possible.',
 	},
 ];
-
+const TASK_TYPE_OPTIONS = [
+	{
+		value: 'task',
+		label: 'Task',
+		description: 'General implementation or follow-up work.',
+	},
+	{
+		value: 'feature',
+		label: 'Feature',
+		description: 'A user-facing improvement or product addition.',
+	},
+	{
+		value: 'bug',
+		label: 'Bug',
+		description: 'A defect, regression, or broken behavior to fix.',
+	},
+	{
+		value: 'chore',
+		label: 'Chore',
+		description: 'Maintenance, setup, or operational cleanup.',
+	},
+	{
+		value: 'docs',
+		label: 'Docs',
+		description: 'Documentation changes and content updates.',
+	},
+	{
+		value: 'refactor',
+		label: 'Refactor',
+		description: 'Internal structure work without user-facing scope change.',
+	},
+];
 const EMPTY_TASK_FORM = {
 	title: '',
 	description: '',
 	projectName: '',
 	status: 'backlog',
 	priority: 'medium',
+	type: 'task',
 	dueDate: '',
 };
 
@@ -111,8 +143,105 @@ function getPriorityLabel(priority) {
 	}
 }
 
+function getTaskTypeLabel(type) {
+	const option = TASK_TYPE_OPTIONS.find((entry) => entry.value === type);
+	return option?.label || 'Task';
+}
+
+function slugifyTaskToken(value, fallback = 'general') {
+	const normalized = String(value || fallback)
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '');
+
+	return normalized || fallback;
+}
+
+function buildTaskKeyPrefix(projectName) {
+	return slugifyTaskToken(projectName || 'general');
+}
+
+function getNextTicketNumberPreview(tasks, projectName, editingTask = null) {
+	const prefix = buildTaskKeyPrefix(projectName);
+	if (
+		editingTask &&
+		buildTaskKeyPrefix(editingTask.projectName) === prefix &&
+		Number.isInteger(Number(editingTask.ticketNumber))
+	) {
+		return Number(editingTask.ticketNumber);
+	}
+
+	const usedNumbers = new Set(
+		tasks
+			.filter(
+				(task) =>
+					task.id !== editingTask?.id &&
+					buildTaskKeyPrefix(task.projectName) === prefix,
+			)
+			.map((task) => Number(task.ticketNumber))
+			.filter((value) => Number.isInteger(value) && value > 0),
+	);
+	let nextNumber = 1;
+
+	while (usedNumbers.has(nextNumber)) {
+		nextNumber += 1;
+	}
+
+	return nextNumber;
+}
+
+function buildTaskKeyPreview(tasks, projectName, editingTask = null) {
+	const prefix = buildTaskKeyPrefix(projectName);
+	return `${prefix}-${getNextTicketNumberPreview(tasks, projectName, editingTask)}`;
+}
+
+function buildBranchPreview(type, ticketKey, title, existingBranchName = '') {
+	if (existingBranchName) {
+		return existingBranchName;
+	}
+
+	const typeSegment = slugifyTaskToken(type || 'task', 'task');
+	const keySegment = slugifyTaskToken(ticketKey || 'task', 'task');
+	const titleSegment = slugifyTaskToken(title || '', '');
+
+	return titleSegment
+		? `${typeSegment}/${keySegment}-${titleSegment}`
+		: `${typeSegment}/${keySegment}`;
+}
+
 function getProjectLabel(task) {
 	return task.projectName || 'General';
+}
+
+function getBranchActionLabel(task) {
+	if (!task.projectName) {
+		return 'Link project first';
+	}
+
+	if (!task.branch?.name) {
+		return 'Create branch';
+	}
+
+	return task.branch.status === 'pushed' ? 'Sync branch' : 'Push branch';
+}
+
+function getBranchStatusCopy(task) {
+	if (!task.projectName) {
+		return 'Link the task to a project before creating its branch.';
+	}
+
+	if (!task.branch?.name) {
+		return 'No branch yet. Create one when you start the task.';
+	}
+
+	if (task.branch.lastError) {
+		return `Branch exists locally. Push needs attention: ${task.branch.lastError}`;
+	}
+
+	return task.branch.status === 'pushed'
+		? 'Branch exists locally and on origin.'
+		: 'Branch exists locally.';
 }
 
 function TasksBoard() {
@@ -123,10 +252,12 @@ function TasksBoard() {
 	const query = getSearchParamValue(searchParams, 'q');
 	const [projectFilter, setProjectFilter] = useState(initialProjectFilter);
 	const [priorityFilter, setPriorityFilter] = useState('all');
+	const [typeFilter, setTypeFilter] = useState('all');
 	const [showEditor, setShowEditor] = useState(false);
 	const [editingTask, setEditingTask] = useState(null);
 	const [taskForm, setTaskForm] = useState(EMPTY_TASK_FORM);
 	const [pageError, setPageError] = useState('');
+	const [pageNotice, setPageNotice] = useState('');
 	const [savingTask, setSavingTask] = useState(false);
 	const [busyAction, setBusyAction] = useState('');
 
@@ -185,6 +316,7 @@ function TasksBoard() {
 			projectName: task.projectName || '',
 			status: task.status || 'backlog',
 			priority: task.priority || 'medium',
+			type: task.type || 'task',
 			dueDate: task.dueDate || '',
 		});
 		setShowEditor(true);
@@ -213,8 +345,10 @@ function TasksBoard() {
 
 			if (editingTask) {
 				await axios.patch(`${API}/tasks/${editingTask.id}`, payload);
+				setPageNotice('Task updated.');
 			} else {
 				await axios.post(`${API}/tasks`, payload);
+				setPageNotice('Task created.');
 			}
 
 			await refreshBoard();
@@ -235,6 +369,7 @@ function TasksBoard() {
 
 		try {
 			await axios.delete(`${API}/tasks/${taskId}`);
+			setPageNotice('Task deleted.');
 			await refreshBoard();
 		} catch (error) {
 			alert(error.response?.data?.error || 'Failed to delete task.');
@@ -251,11 +386,51 @@ function TasksBoard() {
 			await axios.patch(`${API}/tasks/${task.id}`, {
 				status: nextStatus,
 			});
+			setPageNotice(
+				nextStatus === 'done' ? 'Task marked done.' : 'Task reopened.',
+			);
 			await refreshBoard();
 		} catch (error) {
 			alert(error.response?.data?.error || 'Failed to update task.');
 		} finally {
 			setBusyAction('');
+		}
+	};
+
+	const createTaskBranch = async (task) => {
+		setBusyAction(`branch:${task.id}`);
+
+		try {
+			const response = await axios.post(`${API}/tasks/${task.id}/branch`);
+			const updatedTask = response.data;
+			const branch = updatedTask.branch;
+			setPageNotice(
+				branch?.lastError
+					? `${branch.name} created, but push needs attention: ${branch.lastError}`
+					: branch?.status === 'pushed'
+						? `${branch.name} created and pushed.`
+						: `${branch?.name || 'Branch'} created locally.`,
+			);
+			await refreshBoard();
+		} catch (error) {
+			alert(
+				error.response?.data?.error || 'Failed to create task branch.',
+			);
+		} finally {
+			setBusyAction('');
+		}
+	};
+
+	const copyBranchName = async (branchName) => {
+		if (!branchName) {
+			return;
+		}
+
+		try {
+			await navigator.clipboard.writeText(branchName);
+			setPageNotice(`Copied ${branchName} to the clipboard.`);
+		} catch (error) {
+			alert('Failed to copy the branch name.');
 		}
 	};
 
@@ -278,16 +453,18 @@ function TasksBoard() {
 
 	const visibleTasks = tasks.filter((task) => {
 		const matchesQuery = [
+			task.ticketKey,
 			task.title,
 			task.description,
 			task.projectName,
 			task.priority,
+			task.type,
+			task.branch?.name,
 		]
 			.filter(Boolean)
 			.join(' ')
 			.toLowerCase()
 			.includes(query.trim().toLowerCase());
-
 		const matchesProject =
 			projectFilter === 'all'
 				? true
@@ -296,8 +473,10 @@ function TasksBoard() {
 					: task.projectName === projectFilter;
 		const matchesPriority =
 			priorityFilter === 'all' || task.priority === priorityFilter;
+		const matchesType =
+			typeFilter === 'all' || task.type === typeFilter;
 
-		return matchesQuery && matchesProject && matchesPriority;
+		return matchesQuery && matchesProject && matchesPriority && matchesType;
 	});
 
 	const totalTasks = tasks.length;
@@ -315,7 +494,7 @@ function TasksBoard() {
 		...projects.map((project) => ({
 			value: project.name,
 			label: project.name,
-			description: getStatusLabel(project.status),
+			description: `${project.taskSummary?.total || 0} tracked tasks`,
 		})),
 	];
 	const projectFilterOptions = [
@@ -343,6 +522,25 @@ function TasksBoard() {
 		},
 		...PRIORITY_OPTIONS,
 	];
+	const typeFilterOptions = [
+		{
+			value: 'all',
+			label: 'All types',
+			description: 'Show every ticket type.',
+		},
+		...TASK_TYPE_OPTIONS,
+	];
+	const ticketKeyPreview = buildTaskKeyPreview(
+		tasks,
+		taskForm.projectName,
+		editingTask,
+	);
+	const branchPreview = buildBranchPreview(
+		taskForm.type,
+		ticketKeyPreview,
+		taskForm.title,
+		editingTask?.branch?.name || '',
+	);
 
 	return (
 		<div className='tasks-page'>
@@ -354,14 +552,15 @@ function TasksBoard() {
 						<div className='task-modal-header'>
 							<div>
 								<span className='section-tag muted'>
-									Task Editor
+									Ticket Editor
 								</span>
 								<h3>
-									{editingTask ? 'Edit task' : 'Create task'}
+									{editingTask ? 'Edit ticket' : 'Create ticket'}
 								</h3>
 								<p>
-									Link work to a project and keep the next
-									step clearly visible.
+									Each ticket gets its own key, type, and
+									branch-ready naming so you can move from
+									planning into Git without extra setup.
 								</p>
 							</div>
 							<button
@@ -370,6 +569,27 @@ function TasksBoard() {
 								onClick={closeEditor}>
 								Close
 							</button>
+						</div>
+
+						<div className='task-ticket-preview-grid'>
+							<div className='task-ticket-preview-card'>
+								<span>Ticket key</span>
+								<strong>{editingTask?.ticketKey || ticketKeyPreview}</strong>
+								<p>
+									{taskForm.projectName
+										? 'Uses the linked project name as the ticket prefix.'
+										: 'General tickets stay unlinked until you attach them to a project.'}
+								</p>
+							</div>
+							<div className='task-ticket-preview-card'>
+								<span>Branch preview</span>
+								<strong>{branchPreview}</strong>
+								<p>
+									{taskForm.projectName
+										? 'Creating a branch from this ticket will use this path automatically.'
+										: 'Link a project if you want the dashboard to create a real Git branch for this ticket.'}
+								</p>
+							</div>
 						</div>
 
 						<div className='task-form-grid'>
@@ -383,6 +603,7 @@ function TasksBoard() {
 											title: event.target.value,
 										}))
 									}
+									placeholder='Summarize the work in one clear line'
 								/>
 							</label>
 
@@ -396,7 +617,8 @@ function TasksBoard() {
 											description: event.target.value,
 										}))
 									}
-									rows={5}
+									rows={7}
+									placeholder='Add context, expected behavior, acceptance notes, or implementation details.'
 								/>
 							</label>
 
@@ -411,6 +633,20 @@ function TasksBoard() {
 										}))
 									}
 									options={projectOptions}
+								/>
+							</label>
+
+							<label className='field-group'>
+								<span>Type</span>
+								<SurfaceSelect
+									value={taskForm.type}
+									onChange={(nextValue) =>
+										setTaskForm((previous) => ({
+											...previous,
+											type: nextValue,
+										}))
+									}
+									options={TASK_TYPE_OPTIONS}
 								/>
 							</label>
 
@@ -472,8 +708,8 @@ function TasksBoard() {
 								{savingTask
 									? 'Saving...'
 									: editingTask
-										? 'Save task'
-										: 'Create task'}
+										? 'Save ticket'
+										: 'Create ticket'}
 							</button>
 						</div>
 					</div>
@@ -482,15 +718,15 @@ function TasksBoard() {
 
 			<section className='tasks-hero'>
 				<div className='tasks-hero-copy'>
-					<span className='section-tag'>Task System</span>
+					<span className='section-tag'>Ticketing</span>
 					<h2>
-						Manage project work with statuses, priorities, and due
-						dates.
+						Track project work with ticket keys, task types, and Git-ready branches.
 					</h2>
 					<p>
-						Tasks now connect directly to your projects so progress
-						bars and delivery summaries stay current without manual
-						bookkeeping.
+						Every ticket can now follow a project-style key like
+						<code> project-name-1</code>, carry a clear type such as
+						feature or bug, and generate a matching branch when you
+						are ready to work on it.
 					</p>
 				</div>
 				<div className='tasks-hero-actions'>
@@ -506,7 +742,7 @@ function TasksBoard() {
 						className='primary-action'
 						onClick={openCreateTask}>
 						<AddRounded fontSize='small' />
-						New task
+						New ticket
 					</button>
 				</div>
 			</section>
@@ -517,7 +753,7 @@ function TasksBoard() {
 						<TaskAltRounded />
 					</div>
 					<div className='task-metric-copy'>
-						<span>Total tasks</span>
+						<span>Total tickets</span>
 						<strong>{totalTasks}</strong>
 					</div>
 				</article>
@@ -551,13 +787,14 @@ function TasksBoard() {
 			</section>
 
 			{pageError && <div className='panel-error'>{pageError}</div>}
+			{pageNotice && <div className='panel-success'>{pageNotice}</div>}
 
 			<section className='tasks-filter-bar'>
 				<label className='board-search'>
 					<SearchRounded fontSize='small' />
 					<input
 						className='search-input'
-						placeholder='Search tasks, descriptions, projects, or priorities'
+						placeholder='Search ticket keys, titles, descriptions, projects, or branch names'
 						value={query}
 						onChange={handleQueryChange}
 					/>
@@ -570,6 +807,17 @@ function TasksBoard() {
 							value={projectFilter}
 							onChange={handleProjectFilterChange}
 							options={projectFilterOptions}
+							variant='compact'
+							align='right'
+						/>
+					</div>
+
+					<div className='filter-chip'>
+						<TaskAltRounded fontSize='small' />
+						<SurfaceSelect
+							value={typeFilter}
+							onChange={setTypeFilter}
+							options={typeFilterOptions}
 							variant='compact'
 							align='right'
 						/>
@@ -604,7 +852,7 @@ function TasksBoard() {
 										/>
 										<div>
 											<strong>{column.label}</strong>
-											<p>{columnTasks.length} tasks</p>
+											<p>{columnTasks.length} tickets</p>
 										</div>
 									</div>
 									<span className='task-column-count'>
@@ -619,21 +867,20 @@ function TasksBoard() {
 												key={task.id}
 												className='task-card'>
 												<div className='task-card-head'>
+													<div className='task-ticket-row'>
+														<span className='task-ticket-key'>
+															{task.ticketKey}
+														</span>
+														<span
+															className={`task-type-pill type-${task.type}`}>
+															{getTaskTypeLabel(task.type)}
+														</span>
+														<span
+															className={`task-priority-pill priority-${task.priority}`}>
+															{getPriorityLabel(task.priority)}
+														</span>
+													</div>
 													<div className='task-card-copy'>
-														<div className='task-chip-row'>
-															<span
-																className={`task-status-pill status-${task.status}`}>
-																{getStatusLabel(
-																	task.status,
-																)}
-															</span>
-															<span
-																className={`task-priority-pill priority-${task.priority}`}>
-																{getPriorityLabel(
-																	task.priority,
-																)}
-															</span>
-														</div>
 														<h3>{task.title}</h3>
 													</div>
 												</div>
@@ -644,37 +891,78 @@ function TasksBoard() {
 													</p>
 												)}
 
-												<div className='task-meta-list'>
-													<div className='task-meta-item'>
-														<FolderRounded fontSize='inherit' />
-														{task.projectName ? (
-															<Link
-																to={`/projects/${encodeURIComponent(
-																	task.projectName,
-																)}`}>
-																{getProjectLabel(
-																	task,
-																)}
-															</Link>
-														) : (
-															<span>
-																{getProjectLabel(
-																	task,
-																)}
-															</span>
-														)}
+												<div className='task-meta-grid'>
+													<div className='task-meta-panel'>
+														<span>Project</span>
+														<strong>
+															{task.projectName ? (
+																<Link
+																	to={`/projects/${encodeURIComponent(
+																		task.projectName,
+																	)}`}>
+																	{getProjectLabel(task)}
+																</Link>
+															) : (
+																getProjectLabel(task)
+															)}
+														</strong>
 													</div>
 													<div
-														className={`task-meta-item ${
-															task.overdue
-																? 'overdue'
-																: ''
+														className={`task-meta-panel ${
+															task.overdue ? 'overdue' : ''
 														}`}>
-														<EventRounded fontSize='inherit' />
-														<span>
-															{task.dueDate ||
-																'No due date'}
-														</span>
+														<span>Due date</span>
+														<strong>
+															{task.dueDate || 'No due date'}
+														</strong>
+													</div>
+												</div>
+
+												<div className='task-branch-strip'>
+													<div className='task-branch-copy'>
+														<div className='task-branch-heading'>
+															<HubRounded fontSize='small' />
+															<span>Git branch</span>
+														</div>
+														<strong>
+															{task.branch?.name ||
+																buildBranchPreview(
+																	task.type,
+																	task.ticketKey,
+																	task.title,
+																)}
+														</strong>
+														<p>{getBranchStatusCopy(task)}</p>
+													</div>
+													<div className='task-branch-actions'>
+														<button
+															type='button'
+															className='ghost-button task-action-button'
+															disabled={
+																!task.projectName ||
+																busyAction === `branch:${task.id}`
+															}
+															onClick={() =>
+																createTaskBranch(task)
+															}>
+															<HubRounded fontSize='small' />
+															{busyAction === `branch:${task.id}`
+																? 'Working...'
+																: getBranchActionLabel(task)}
+														</button>
+														{task.branch?.name && (
+															<button
+																type='button'
+																className='ghost-button task-action-button'
+																onClick={() =>
+																	copyBranchName(
+																		task.branch.name,
+																	)
+																}>
+																<ContentCopyRounded fontSize='small' />
+																Copy
+															</button>
+														)}
 													</div>
 												</div>
 
@@ -692,8 +980,7 @@ function TasksBoard() {
 														type='button'
 														className='success-button task-action-button'
 														disabled={
-															busyAction ===
-															`toggle:${task.id}`
+															busyAction === `toggle:${task.id}`
 														}
 														onClick={() =>
 															toggleTaskDone(task)
@@ -707,8 +994,7 @@ function TasksBoard() {
 														type='button'
 														className='text-button task-action-button task-action-button-danger'
 														disabled={
-															busyAction ===
-															`delete:${task.id}`
+															busyAction === `delete:${task.id}`
 														}
 														onClick={() =>
 															deleteTask(task.id)
@@ -721,8 +1007,7 @@ function TasksBoard() {
 										))
 									) : (
 										<div className='task-column-empty'>
-											No tasks in {column.label.toLowerCase()}
-											.
+											No tickets in {column.label.toLowerCase()}.
 										</div>
 									)}
 								</div>

@@ -5,9 +5,21 @@ const {
 	saveTasks,
 } = require('../utils/fileOperations');
 const { findProject, generateId } = require('../utils/helpers');
+const {
+	createTaskBranch,
+} = require('./projectRepositoryService');
 
 const TASK_STATUS_ORDER = ['backlog', 'in_progress', 'review', 'done'];
 const TASK_PRIORITY_ORDER = ['low', 'medium', 'high', 'urgent'];
+const TASK_TYPE_ORDER = [
+	'task',
+	'feature',
+	'bug',
+	'chore',
+	'docs',
+	'refactor',
+];
+const GENERAL_TASK_PREFIX = 'general';
 
 function normalizeOptionalText(value) {
 	if (value === null || typeof value === 'undefined') {
@@ -16,6 +28,24 @@ function normalizeOptionalText(value) {
 
 	const trimmed = String(value).trim();
 	return trimmed || null;
+}
+
+function slugifyTaskToken(value, fallback = GENERAL_TASK_PREFIX) {
+	const normalized = String(value || fallback)
+		.trim()
+		.toLowerCase()
+		.replace(/[^a-z0-9]+/g, '-')
+		.replace(/^-+|-+$/g, '');
+
+	return normalized || fallback;
+}
+
+function buildTaskKeyPrefix(projectName) {
+	return slugifyTaskToken(projectName || GENERAL_TASK_PREFIX);
+}
+
+function buildTaskKey(projectName, ticketNumber) {
+	return `${buildTaskKeyPrefix(projectName)}-${ticketNumber}`;
 }
 
 function normalizeTaskStatus(status) {
@@ -48,6 +78,30 @@ function normalizeTaskPriority(priority) {
 	}
 
 	return normalizedPriority;
+}
+
+function normalizeTaskType(type) {
+	const normalizedType = normalizeOptionalText(type)?.toLowerCase();
+
+	if (!normalizedType) {
+		return 'task';
+	}
+
+	if (!TASK_TYPE_ORDER.includes(normalizedType)) {
+		throw new Error(
+			`Task type must be one of: ${TASK_TYPE_ORDER.join(', ')}`,
+		);
+	}
+
+	return normalizedType;
+}
+
+function normalizeStoredTaskType(type) {
+	try {
+		return normalizeTaskType(type);
+	} catch (error) {
+		return 'task';
+	}
 }
 
 function normalizeDueDate(value) {
@@ -101,6 +155,31 @@ function normalizeAssigneeId(assigneeId) {
 	return member.id;
 }
 
+function normalizeTaskBranch(branch) {
+	if (!branch || typeof branch !== 'object') {
+		return null;
+	}
+
+	const name = normalizeOptionalText(branch.name);
+	if (!name) {
+		return null;
+	}
+
+	return {
+		name,
+		baseBranch: normalizeOptionalText(branch.baseBranch),
+		remoteName: normalizeOptionalText(branch.remoteName),
+		remoteUrl: normalizeOptionalText(branch.remoteUrl),
+		status:
+			normalizeOptionalText(branch.status)?.toLowerCase() === 'pushed'
+				? 'pushed'
+				: 'local',
+		createdAt: normalizeOptionalText(branch.createdAt),
+		pushedAt: normalizeOptionalText(branch.pushedAt),
+		lastError: normalizeOptionalText(branch.lastError),
+	};
+}
+
 function getDueDateTimestamp(dueDate) {
 	return dueDate
 		? new Date(`${dueDate}T00:00:00`).getTime()
@@ -138,6 +217,12 @@ function sortTasks(tasks) {
 			getDueDateTimestamp(right.dueDate);
 		if (dueDateDelta !== 0) {
 			return dueDateDelta;
+		}
+
+		const ticketDelta =
+			Number(left.ticketNumber || 0) - Number(right.ticketNumber || 0);
+		if (ticketDelta !== 0) {
+			return ticketDelta;
 		}
 
 		return (
@@ -201,11 +286,105 @@ function decorateTask(task, members = loadMembers()) {
 	};
 }
 
+function getNextTicketNumber(tasks, projectName, excludeTaskId = null) {
+	const prefix = buildTaskKeyPrefix(projectName);
+	const usedNumbers = new Set(
+		tasks
+			.filter(
+				(task) =>
+					task.id !== excludeTaskId &&
+					buildTaskKeyPrefix(task.projectName) === prefix,
+			)
+			.map((task) => Number(task.ticketNumber))
+			.filter((value) => Number.isInteger(value) && value > 0),
+	);
+	let nextNumber = 1;
+
+	while (usedNumbers.has(nextNumber)) {
+		nextNumber += 1;
+	}
+
+	return nextNumber;
+}
+
+function normalizePersistedTasks(tasks) {
+	const sourceTasks = Array.isArray(tasks) ? tasks : [];
+	const normalizedTasks = [];
+	const changedTasks = [];
+
+	for (const sourceTask of sourceTasks) {
+		const nextTask = {
+			...sourceTask,
+			description: normalizeOptionalText(sourceTask.description),
+			projectName: normalizeOptionalText(sourceTask.projectName),
+			status: normalizeTaskStatus(sourceTask.status),
+			priority: normalizeTaskPriority(sourceTask.priority),
+			type: normalizeStoredTaskType(sourceTask.type),
+			assigneeId: normalizeOptionalText(sourceTask.assigneeId),
+			dueDate: normalizeDueDate(sourceTask.dueDate),
+			branch: normalizeTaskBranch(sourceTask.branch),
+		};
+		const preferredNumber = Number(sourceTask.ticketNumber);
+		const preferredKey = buildTaskKey(nextTask.projectName, preferredNumber);
+		const hasValidPreferredNumber =
+			Number.isInteger(preferredNumber) &&
+			preferredNumber > 0 &&
+			!normalizedTasks.some(
+				(task) =>
+					task.ticketKey === preferredKey &&
+					task.id !== sourceTask.id,
+				);
+		const ticketNumber = hasValidPreferredNumber
+			? preferredNumber
+			: getNextTicketNumber(
+					normalizedTasks,
+					nextTask.projectName,
+					sourceTask.id,
+				);
+
+		nextTask.ticketNumber = ticketNumber;
+		nextTask.ticketKey = buildTaskKey(nextTask.projectName, ticketNumber);
+		normalizedTasks.push(nextTask);
+
+		const hasChanged =
+			nextTask.description !== sourceTask.description ||
+			nextTask.projectName !== sourceTask.projectName ||
+			nextTask.status !== sourceTask.status ||
+			nextTask.priority !== sourceTask.priority ||
+			nextTask.type !== sourceTask.type ||
+			nextTask.assigneeId !== sourceTask.assigneeId ||
+			nextTask.dueDate !== sourceTask.dueDate ||
+			nextTask.ticketNumber !== sourceTask.ticketNumber ||
+			nextTask.ticketKey !== sourceTask.ticketKey ||
+			JSON.stringify(nextTask.branch || null) !==
+				JSON.stringify(sourceTask.branch || null);
+
+		if (hasChanged) {
+			changedTasks.push(nextTask);
+		}
+	}
+
+	return {
+		tasks: normalizedTasks,
+		changed: changedTasks.length > 0 || normalizedTasks.length !== sourceTasks.length,
+	};
+}
+
+function loadTasksWithMigration() {
+	const { tasks, changed } = normalizePersistedTasks(loadTasks());
+	if (changed) {
+		saveTasks(tasks);
+	}
+
+	return tasks;
+}
+
 function getAllTasks(filters = {}) {
 	const {
 		projectName = null,
 		status = null,
 		assigneeId = null,
+		type = null,
 		includeUnassigned = true,
 	} = filters;
 	const normalizedProjectName = projectName
@@ -215,9 +394,10 @@ function getAllTasks(filters = {}) {
 	const normalizedAssigneeId = assigneeId
 		? normalizeAssigneeId(assigneeId)
 		: null;
+	const normalizedType = type ? normalizeTaskType(type) : null;
 	const members = loadMembers();
 
-	const filteredTasks = loadTasks().filter((task) => {
+	const filteredTasks = loadTasksWithMigration().filter((task) => {
 		if (
 			normalizedProjectName &&
 			task.projectName?.toLowerCase() !==
@@ -234,6 +414,10 @@ function getAllTasks(filters = {}) {
 			return false;
 		}
 
+		if (normalizedType && task.type !== normalizedType) {
+			return false;
+		}
+
 		if (!includeUnassigned && !task.assigneeId) {
 			return false;
 		}
@@ -245,13 +429,13 @@ function getAllTasks(filters = {}) {
 }
 
 function getTaskById(id) {
-	const task = loadTasks().find((entry) => entry.id === id);
+	const task = loadTasksWithMigration().find((entry) => entry.id === id);
 	return task ? decorateTask(task) : null;
 }
 
 function getProjectTaskSummary(projectName) {
 	return buildTaskSummary(
-		loadTasks().filter(
+		loadTasksWithMigration().filter(
 			(task) =>
 				task.projectName?.toLowerCase() === projectName.toLowerCase(),
 		),
@@ -260,7 +444,7 @@ function getProjectTaskSummary(projectName) {
 
 function getProjectTaskSummaryMap() {
 	const summaryMap = new Map();
-	const tasks = loadTasks();
+	const tasks = loadTasksWithMigration();
 
 	for (const task of tasks) {
 		if (!task.projectName) {
@@ -288,28 +472,34 @@ function createTask(data) {
 		throw new Error('Task title required');
 	}
 
+	const tasks = loadTasksWithMigration();
+	const projectName = normalizeProjectName(data.projectName);
+	const ticketNumber = getNextTicketNumber(tasks, projectName);
 	const now = new Date().toISOString();
 	const newTask = {
 		id: generateId(),
+		ticketNumber,
+		ticketKey: buildTaskKey(projectName, ticketNumber),
 		title,
 		description: normalizeOptionalText(data.description),
-		projectName: normalizeProjectName(data.projectName),
+		projectName,
 		status: normalizeTaskStatus(data.status),
 		priority: normalizeTaskPriority(data.priority),
+		type: normalizeTaskType(data.type),
 		assigneeId: normalizeAssigneeId(data.assigneeId),
 		dueDate: normalizeDueDate(data.dueDate),
+		branch: null,
 		createdAt: now,
 		updatedAt: now,
 	};
 
-	const tasks = loadTasks();
 	tasks.push(newTask);
 	saveTasks(tasks);
 	return decorateTask(newTask);
 }
 
 function updateTask(id, updates) {
-	const tasks = loadTasks();
+	const tasks = loadTasksWithMigration();
 	const taskIndex = tasks.findIndex((entry) => entry.id === id);
 
 	if (taskIndex === -1) {
@@ -317,6 +507,7 @@ function updateTask(id, updates) {
 	}
 
 	const task = tasks[taskIndex];
+	const previousProjectName = task.projectName;
 
 	if (Object.prototype.hasOwnProperty.call(updates, 'title')) {
 		const normalizedTitle = normalizeOptionalText(updates.title);
@@ -343,6 +534,10 @@ function updateTask(id, updates) {
 		task.priority = normalizeTaskPriority(updates.priority);
 	}
 
+	if (Object.prototype.hasOwnProperty.call(updates, 'type')) {
+		task.type = normalizeTaskType(updates.type);
+	}
+
 	if (Object.prototype.hasOwnProperty.call(updates, 'assigneeId')) {
 		task.assigneeId = normalizeAssigneeId(updates.assigneeId);
 	}
@@ -351,6 +546,47 @@ function updateTask(id, updates) {
 		task.dueDate = normalizeDueDate(updates.dueDate);
 	}
 
+	if (previousProjectName !== task.projectName) {
+		task.ticketNumber = getNextTicketNumber(tasks, task.projectName, task.id);
+		task.ticketKey = buildTaskKey(task.projectName, task.ticketNumber);
+		task.branch = null;
+	}
+
+	task.updatedAt = new Date().toISOString();
+	tasks[taskIndex] = task;
+	saveTasks(tasks);
+	return decorateTask(task);
+}
+
+async function createBranchForTask(id) {
+	const tasks = loadTasksWithMigration();
+	const taskIndex = tasks.findIndex((entry) => entry.id === id);
+
+	if (taskIndex === -1) {
+		throw new Error('Task not found');
+	}
+
+	const task = tasks[taskIndex];
+	if (!task.projectName) {
+		throw new Error('Link this task to a project before creating a branch');
+	}
+
+	const project = findProject(loadProjects(), task.projectName);
+	if (!project) {
+		throw new Error('Linked project not found');
+	}
+
+	const branch = await createTaskBranch(project, task);
+	task.branch = {
+		name: branch.name,
+		baseBranch: branch.baseBranch,
+		remoteName: branch.remoteName,
+		remoteUrl: branch.remoteUrl,
+		status: branch.status,
+		createdAt: task.branch?.createdAt || branch.createdAt,
+		pushedAt: branch.pushedAt || task.branch?.pushedAt || null,
+		lastError: branch.lastError || null,
+	};
 	task.updatedAt = new Date().toISOString();
 	tasks[taskIndex] = task;
 	saveTasks(tasks);
@@ -358,7 +594,7 @@ function updateTask(id, updates) {
 }
 
 function deleteTask(id) {
-	const tasks = loadTasks();
+	const tasks = loadTasksWithMigration();
 	const taskIndex = tasks.findIndex((entry) => entry.id === id);
 
 	if (taskIndex === -1) {
@@ -371,12 +607,13 @@ function deleteTask(id) {
 }
 
 function renameProjectTasks(oldProjectName, newProjectName) {
-	const tasks = loadTasks();
+	const tasks = loadTasksWithMigration();
 	let changed = false;
 
 	for (const task of tasks) {
 		if (task.projectName?.toLowerCase() === oldProjectName.toLowerCase()) {
 			task.projectName = newProjectName;
+			task.ticketKey = buildTaskKey(newProjectName, task.ticketNumber);
 			task.updatedAt = new Date().toISOString();
 			changed = true;
 		}
@@ -388,7 +625,7 @@ function renameProjectTasks(oldProjectName, newProjectName) {
 }
 
 function deleteTasksForProject(projectName) {
-	const tasks = loadTasks();
+	const tasks = loadTasksWithMigration();
 	const remainingTasks = tasks.filter(
 		(task) => task.projectName?.toLowerCase() !== projectName.toLowerCase(),
 	);
@@ -399,7 +636,7 @@ function deleteTasksForProject(projectName) {
 }
 
 function unassignTasksForMember(memberId) {
-	const tasks = loadTasks();
+	const tasks = loadTasksWithMigration();
 	let changed = false;
 
 	for (const task of tasks) {
@@ -418,6 +655,8 @@ function unassignTasksForMember(memberId) {
 module.exports = {
 	TASK_STATUS_ORDER,
 	TASK_PRIORITY_ORDER,
+	TASK_TYPE_ORDER,
+	buildTaskKey,
 	buildTaskSummary,
 	getAllTasks,
 	getTaskById,
@@ -425,6 +664,7 @@ module.exports = {
 	getProjectTaskSummaryMap,
 	createTask,
 	updateTask,
+	createBranchForTask,
 	deleteTask,
 	renameProjectTasks,
 	deleteTasksForProject,

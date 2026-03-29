@@ -89,6 +89,23 @@ function getTaskStatusLabel(status) {
 	}
 }
 
+function getTaskTypeLabel(type) {
+	switch (type) {
+		case 'feature':
+			return 'Feature';
+		case 'bug':
+			return 'Bug';
+		case 'chore':
+			return 'Chore';
+		case 'docs':
+			return 'Docs';
+		case 'refactor':
+			return 'Refactor';
+		default:
+			return 'Task';
+	}
+}
+
 function formatBytes(bytes) {
 	if (!Number.isFinite(bytes) || bytes <= 0) {
 		return '0 B';
@@ -540,6 +557,7 @@ function ProjectDetail() {
 	const monitoring = project.monitoring || { services: {} };
 	const monitoringServices = monitoring.services || {};
 	const taskSummary = project.taskSummary || {};
+	const repository = project.repository || null;
 	const isRunning = project.status === 'running';
 	const isPartial = project.status === 'partial';
 	const hasManagedServices =
@@ -1303,6 +1321,15 @@ function ProjectDetail() {
 									<div key={task.id} className='detail-task-item'>
 										<div className='detail-task-copy'>
 											<div className='task-chip-row'>
+												<span className='detail-task-ticket-key'>
+													{task.ticketKey || task.id}
+												</span>
+												<span
+													className={`detail-task-type-pill type-${
+														task.type || 'task'
+													}`}>
+													{getTaskTypeLabel(task.type)}
+												</span>
 												<span
 													className={`task-status-pill status-${task.status}`}>
 													{getTaskStatusLabel(task.status)}
@@ -1332,6 +1359,12 @@ function ProjectDetail() {
 												<EventRounded fontSize='inherit' />
 												<span>{task.dueDate || 'No due date'}</span>
 											</div>
+											{task.branch?.name && (
+												<div className='detail-task-meta-item'>
+													<HubRounded fontSize='inherit' />
+													<span>{task.branch.name}</span>
+												</div>
+											)}
 										</div>
 									</div>
 								))}
@@ -1362,6 +1395,25 @@ function ProjectDetail() {
 						<div className='info-row'>
 							<span>Project folder</span>
 							<strong>{project.projectPath}</strong>
+						</div>
+						<div className='info-row'>
+							<span>Repository</span>
+							<strong>
+								{repository?.url ? (
+									<a
+										href={repository.url}
+										target='_blank'
+										rel='noopener noreferrer'>
+										{`${repository.owner || 'github'}/${repository.name || 'repo'}`}
+									</a>
+								) : repository?.status === 'local-only' ? (
+									'Local git repository'
+								) : repository?.status === 'failed' ? (
+									repository.lastError || 'Repository setup needs attention'
+								) : (
+									'Not configured yet'
+								)}
+							</strong>
 						</div>
 						<div className='info-row'>
 							<span>Frontend</span>
