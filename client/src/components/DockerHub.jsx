@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import HubRounded from '@mui/icons-material/HubRounded';
@@ -17,6 +17,10 @@ import SearchRounded from '@mui/icons-material/SearchRounded';
 import FolderRounded from '@mui/icons-material/FolderRounded';
 import ArrowOutwardRounded from '@mui/icons-material/ArrowOutwardRounded';
 import SurfaceSelect from './SurfaceSelect';
+import {
+	buildNextTextSearchParams,
+	getSearchParamValue,
+} from '../utils/searchParams';
 import './DockerHub.css';
 
 const API = 'http://localhost:4000';
@@ -131,10 +135,11 @@ function matchesRuntimeFilter(state, managedByDashboard, filter) {
 }
 
 function DockerHub() {
+	const [searchParams, setSearchParams] = useSearchParams();
 	const [overview, setOverview] = useState(null);
 	const [loading, setLoading] = useState(true);
 	const [pageError, setPageError] = useState('');
-	const [query, setQuery] = useState('');
+	const query = getSearchParamValue(searchParams, 'q');
 	const [stateFilter, setStateFilter] = useState('all');
 	const [busyAction, setBusyAction] = useState('');
 	const [logsOpen, setLogsOpen] = useState(false);
@@ -208,6 +213,13 @@ function DockerHub() {
 		} finally {
 			setLogsLoading(false);
 		}
+	};
+
+	const handleQueryChange = (event) => {
+		setSearchParams(
+			buildNextTextSearchParams(searchParams, 'q', event.target.value),
+			{ replace: true },
+		);
 	};
 
 	const visibleStacks = useMemo(() => {
@@ -466,9 +478,7 @@ function DockerHub() {
 											className='search-input'
 											placeholder='Search folders, files, or services'
 											value={query}
-											onChange={(event) =>
-												setQuery(event.target.value)
-											}
+											onChange={handleQueryChange}
 										/>
 									</label>
 									<SurfaceSelect

@@ -228,6 +228,16 @@ body.dark .database-toggle-row strong {
 	gap: 20px;
 }
 
+.database-empty-state {
+	grid-column: 1 / -1;
+	padding: 28px;
+	border-radius: 16px;
+	background: #fff;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+	color: #636e72;
+	text-align: center;
+}
+
 /* Database card */
 .database-card {
 	background: #fff;
@@ -247,6 +257,12 @@ body.dark .database-toggle-row strong {
 body.dark .database-card {
 	background: #2f3640;
 	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+body.dark .database-empty-state {
+	background: #2f3640;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+	color: #b2bec3;
 }
 
 .database-card h3 {

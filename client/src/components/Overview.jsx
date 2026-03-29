@@ -1,5 +1,10 @@
 ﻿import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import {
+	Link,
+	useLocation,
+	useNavigate,
+	useSearchParams,
+} from 'react-router-dom';
 import axios from 'axios';
 import AddRounded from '@mui/icons-material/AddRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
@@ -33,6 +38,10 @@ import {
 	hasOperationalMonitoring as hasProjectOperationalMonitoring,
 	hasWebsiteMonitoring as hasWebsiteProjectMonitoring,
 } from '../utils/projectPresentation';
+import {
+	buildNextTextSearchParams,
+	getSearchParamValue,
+} from '../utils/searchParams';
 import './Overview.css';
 
 const API = 'http://localhost:4000';
@@ -865,9 +874,10 @@ function Overview({ mode = 'board' }) {
 	const isComposerPage = mode === 'composer';
 	const location = useLocation();
 	const navigate = useNavigate();
+	const [searchParams, setSearchParams] = useSearchParams();
 	const [projects, setProjects] = useState([]);
 	const [databases, setDatabases] = useState([]);
-	const [query, setQuery] = useState('');
+	const query = getSearchParamValue(searchParams, 'q');
 	const [statusFilter, setStatusFilter] = useState('all');
 	const [form, setForm] = useState(() => normalizeComposerForm(EMPTY_FORM));
 	const [selectedLane, setSelectedLane] = useState(() =>
@@ -889,6 +899,12 @@ function Overview({ mode = 'board' }) {
 					? nextValue(previous)
 					: nextValue,
 			),
+		);
+	};
+	const handleQueryChange = (event) => {
+		setSearchParams(
+			buildNextTextSearchParams(searchParams, 'q', event.target.value),
+			{ replace: true },
 		);
 	};
 
@@ -1565,7 +1581,7 @@ function Overview({ mode = 'board' }) {
 							className='search-input'
 							placeholder='Search projects, runtimes, or databases'
 							value={query}
-							onChange={(event) => setQuery(event.target.value)}
+							onChange={handleQueryChange}
 						/>
 					</label>
 

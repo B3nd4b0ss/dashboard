@@ -1,6 +1,11 @@
 import './Layout.css';
 import { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
+import {
+	NavLink,
+	Outlet,
+	useLocation,
+	useSearchParams,
+} from 'react-router-dom';
 import AutoAwesomeRounded from '@mui/icons-material/AutoAwesomeRounded';
 import SpaceDashboardRounded from '@mui/icons-material/SpaceDashboardRounded';
 import FolderRounded from '@mui/icons-material/FolderRounded';
@@ -20,6 +25,10 @@ import InfoRounded from '@mui/icons-material/InfoRounded';
 import DeleteSweepRounded from '@mui/icons-material/DeleteSweepRounded';
 import DarkModeRounded from '@mui/icons-material/DarkModeRounded';
 import LightModeRounded from '@mui/icons-material/LightModeRounded';
+import {
+	buildNextTextSearchParams,
+	getSearchParamValue,
+} from '../utils/searchParams';
 
 const API = 'http://localhost:4000';
 const NOTIFICATION_STORAGE_KEY = 'dashboard-notifications';
@@ -193,8 +202,27 @@ function getNotificationTime(createdAt) {
 	});
 }
 
+function isTypingElement(target) {
+	return (
+		target instanceof HTMLElement &&
+		(target.isContentEditable ||
+			['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+	);
+}
+
+function supportsInlineTopbarSearch(pathname) {
+	if (pathname.startsWith('/projects/') && pathname.endsWith('/editor')) {
+		return true;
+	}
+
+	return ['/dashboard', '/projects', '/tasks', '/databases', '/docker'].includes(
+		pathname,
+	);
+}
+
 function Layout() {
 	const location = useLocation();
+	const [searchParams, setSearchParams] = useSearchParams();
 	const sectionMeta = getSectionMeta(location.pathname);
 	const [darkMode, setDarkMode] = useState(() => {
 		return window.localStorage.getItem('dashboard-theme') === 'dark';
@@ -210,6 +238,9 @@ function Layout() {
 	const notificationsReadyRef = useRef(false);
 	const notificationsErrorRef = useRef(false);
 	const introNoticeRef = useRef(false);
+	const topbarSearchInputRef = useRef(null);
+	const topbarQuery = getSearchParamValue(searchParams, 'q');
+	const usesInlineTopbarSearch = supportsInlineTopbarSearch(location.pathname);
 
 	useEffect(() => {
 		document.body.classList.toggle('dark', darkMode);
@@ -283,6 +314,31 @@ function Layout() {
 			markNotificationsRead();
 		}
 	}, [notificationsOpen]);
+
+	useEffect(() => {
+		const handleGlobalSearchShortcut = (event) => {
+			const key = event.key.toLowerCase();
+
+			if ((event.metaKey || event.ctrlKey) && key === 'k') {
+				event.preventDefault();
+				topbarSearchInputRef.current?.focus();
+				topbarSearchInputRef.current?.select();
+				return;
+			}
+
+			if (!isTypingElement(event.target) && key === '/') {
+				event.preventDefault();
+				topbarSearchInputRef.current?.focus();
+				topbarSearchInputRef.current?.select();
+			}
+		};
+
+		window.addEventListener('keydown', handleGlobalSearchShortcut);
+
+		return () => {
+			window.removeEventListener('keydown', handleGlobalSearchShortcut);
+		};
+	}, []);
 
 	useEffect(() => {
 		let active = true;
@@ -435,6 +491,35 @@ function Layout() {
 		setNotifications([]);
 	};
 
+	const updateTopbarSearch = (nextValue) => {
+		setSearchParams(
+			buildNextTextSearchParams(searchParams, 'q', nextValue),
+			{ replace: true },
+		);
+	};
+
+	const handleTopbarSearchSubmit = (event) => {
+		event.preventDefault();
+
+		if (usesInlineTopbarSearch || !topbarQuery.trim()) {
+			return;
+		}
+
+		topbarSearchInputRef.current?.blur();
+
+		if (typeof window.find === 'function') {
+			window.find(
+				topbarQuery.trim(),
+				false,
+				false,
+				true,
+				false,
+				false,
+				false,
+			);
+		}
+	};
+
 	const renderNavItems = (items) =>
 		items.map((item) => {
 			const Icon = item.icon;
@@ -567,12 +652,34 @@ function Layout() {
 					</div>
 
 					<div className='topbar-actions'>
-						<label className='topbar-search'>
+						<form
+							className='topbar-search'
+							role='search'
+							onSubmit={handleTopbarSearchSubmit}>
 							<SearchRounded fontSize='small' />
 							<input
+								ref={topbarSearchInputRef}
+								type='search'
 								placeholder={sectionMeta.searchPlaceholder}
+								value={topbarQuery}
+								onChange={(event) =>
+									updateTopbarSearch(event.target.value)
+								}
+								onKeyDown={(event) => {
+									if (event.key === 'Escape' && topbarQuery) {
+										event.preventDefault();
+										updateTopbarSearch('');
+									}
+								}}
+								autoComplete='off'
+								aria-label={sectionMeta.searchPlaceholder}
+								title={
+									usesInlineTopbarSearch
+										? 'Filter the visible content on this page'
+										: 'Press Enter to search the visible text on this page'
+								}
 							/>
-						</label>
+						</form>
 
 						<div
 							className={`notification-shell ${notificationsOpen ? 'open' : ''}`}>

@@ -15,6 +15,11 @@ import SearchRounded from '@mui/icons-material/SearchRounded';
 import TaskAltRounded from '@mui/icons-material/TaskAltRounded';
 import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
 import SurfaceSelect from './SurfaceSelect';
+import {
+	buildNextSearchParams,
+	buildNextTextSearchParams,
+	getSearchParamValue,
+} from '../utils/searchParams';
 import './TasksBoard.css';
 
 const API = 'http://localhost:4000';
@@ -115,7 +120,7 @@ function TasksBoard() {
 	const initialProjectFilter = searchParams.get('project') || 'all';
 	const [tasks, setTasks] = useState([]);
 	const [projects, setProjects] = useState([]);
-	const [query, setQuery] = useState('');
+	const query = getSearchParamValue(searchParams, 'q');
 	const [projectFilter, setProjectFilter] = useState(initialProjectFilter);
 	const [priorityFilter, setPriorityFilter] = useState('all');
 	const [showEditor, setShowEditor] = useState(false);
@@ -256,11 +261,19 @@ function TasksBoard() {
 
 	const handleProjectFilterChange = (value) => {
 		setProjectFilter(value);
-		if (value && value !== 'all') {
-			setSearchParams({ project: value });
-		} else {
-			setSearchParams({});
-		}
+		setSearchParams(
+			buildNextSearchParams(searchParams, {
+				project: value === 'all' ? null : value,
+			}),
+			{ replace: true },
+		);
+	};
+
+	const handleQueryChange = (event) => {
+		setSearchParams(
+			buildNextTextSearchParams(searchParams, 'q', event.target.value),
+			{ replace: true },
+		);
 	};
 
 	const visibleTasks = tasks.filter((task) => {
@@ -546,7 +559,7 @@ function TasksBoard() {
 						className='search-input'
 						placeholder='Search tasks, descriptions, projects, or priorities'
 						value={query}
-						onChange={(event) => setQuery(event.target.value)}
+						onChange={handleQueryChange}
 					/>
 				</label>
 

@@ -1,7 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import { useLocation, useNavigate } from 'react-router-dom';
+import {
+	useLocation,
+	useNavigate,
+	useSearchParams,
+} from 'react-router-dom';
 import SurfaceSelect from './SurfaceSelect';
+import { getSearchParamValue } from '../utils/searchParams';
 import './Databases.css';
 
 const API = 'http://localhost:4000';
@@ -23,9 +28,26 @@ const DATABASE_TYPE_OPTIONS = [
 	},
 ];
 
+function getDatabaseSearchText(database) {
+	return [
+		database.name,
+		database.type,
+		database.port,
+		database.clientPort,
+		database.containerName,
+		database.credentials?.host,
+		database.credentials?.database,
+		database.credentials?.user,
+	]
+		.filter(Boolean)
+		.join(' ')
+		.toLowerCase();
+}
+
 function Databases() {
 	const location = useLocation();
 	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
 	const [databases, setDatabases] = useState([]);
 	const [showCreateForm, setShowCreateForm] = useState(false);
 	const [newDb, setNewDb] = useState({
@@ -49,6 +71,14 @@ function Databases() {
 		location.state?.fromProjectComposer && projectComposerDraft,
 	);
 	const createOutputEndRef = useRef(null);
+	const normalizedQuery = getSearchParamValue(searchParams, 'q')
+		.trim()
+		.toLowerCase();
+	const visibleDatabases = normalizedQuery
+		? databases.filter((database) =>
+				getDatabaseSearchText(database).includes(normalizedQuery),
+			)
+		: databases;
 
 	useEffect(() => {
 		loadDatabases();
@@ -500,7 +530,8 @@ function Databases() {
 			)}
 
 			<div className='database-list'>
-				{databases.map((db) => (
+				{visibleDatabases.length > 0 ? (
+					visibleDatabases.map((db) => (
 					<div key={db.id} className='database-card'>
 						<h3>
 							{db.clientPort ? (
@@ -569,7 +600,14 @@ function Databases() {
 							</button>
 						</div>
 					</div>
-				))}
+					))
+				) : (
+					<div className='database-empty-state'>
+						{normalizedQuery
+							? 'No databases match the current search.'
+							: 'Create a database to get started.'}
+					</div>
+				)}
 			</div>
 
 			{/* Connection String Modal */}

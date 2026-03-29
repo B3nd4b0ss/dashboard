@@ -1,5 +1,5 @@
 ﻿import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import ArrowOutwardRounded from '@mui/icons-material/ArrowOutwardRounded';
 import FolderRounded from '@mui/icons-material/FolderRounded';
@@ -9,6 +9,7 @@ import StorageRounded from '@mui/icons-material/StorageRounded';
 import ViewKanbanRounded from '@mui/icons-material/ViewKanbanRounded';
 import BoltRounded from '@mui/icons-material/BoltRounded';
 import AssignmentLateRounded from '@mui/icons-material/AssignmentLateRounded';
+import { getSearchParamValue } from '../utils/searchParams';
 import './DashboardHome.css';
 
 const API = 'http://localhost:4000';
@@ -52,11 +53,57 @@ function getStatusLabel(status) {
 	}
 }
 
+function getDashboardProjectSearchText(project) {
+	return [
+		project.name,
+		project.status,
+		project.database?.name,
+		project.runtime?.label,
+		project.runtime?.activeServiceCount,
+		project.runtime?.expectedServiceCount,
+	]
+		.filter(Boolean)
+		.join(' ')
+		.toLowerCase();
+}
+
+function getDashboardTaskSearchText(task) {
+	return [
+		task.title,
+		task.description,
+		task.projectName,
+		task.priority,
+		task.status,
+		task.dueDate,
+	]
+		.filter(Boolean)
+		.join(' ')
+		.toLowerCase();
+}
+
+function getDashboardDatabaseSearchText(database) {
+	return [
+		database.name,
+		database.type,
+		database.port,
+		database.clientPort,
+		database.containerName,
+	]
+		.filter(Boolean)
+		.join(' ')
+		.toLowerCase();
+}
+
 function DashboardHome() {
+	const [searchParams] = useSearchParams();
 	const [projects, setProjects] = useState([]);
 	const [databases, setDatabases] = useState([]);
 	const [tasks, setTasks] = useState([]);
 	const [error, setError] = useState('');
+	const normalizedQuery = getSearchParamValue(searchParams, 'q')
+		.trim()
+		.toLowerCase();
+	const hasSearchQuery = Boolean(normalizedQuery);
 
 	useEffect(() => {
 		const loadDashboard = async () => {
@@ -82,30 +129,47 @@ function DashboardHome() {
 		loadDashboard();
 	}, []);
 
-	const activeProjects = projects.filter(
+	const filteredProjects = normalizedQuery
+		? projects.filter((project) =>
+				getDashboardProjectSearchText(project).includes(normalizedQuery),
+			)
+		: projects;
+	const filteredTasks = normalizedQuery
+		? tasks.filter((task) =>
+				getDashboardTaskSearchText(task).includes(normalizedQuery),
+			)
+		: tasks;
+	const filteredDatabases = normalizedQuery
+		? databases.filter((database) =>
+				getDashboardDatabaseSearchText(database).includes(normalizedQuery),
+			)
+		: databases;
+	const activeProjects = filteredProjects.filter(
 		(project) => project.status !== 'stopped',
 	);
-	const previewProjects = [...projects]
+	const previewProjects = [...filteredProjects]
 		.sort(
 			(left, right) =>
 				getProjectProgress(right) - getProjectProgress(left),
 		)
 		.slice(0, 4);
-	const completedTasks = tasks.filter(
+	const completedTasks = filteredTasks.filter(
 		(task) => task.status === 'done',
 	).length;
-	const pendingTasks = tasks.filter((task) => task.status !== 'done').length;
-	const overdueTasks = tasks.filter((task) => task.overdue).length;
-	const activeServices = projects.reduce(
+	const pendingTasks = filteredTasks.filter(
+		(task) => task.status !== 'done',
+	).length;
+	const overdueTasks = filteredTasks.filter((task) => task.overdue).length;
+	const activeServices = filteredProjects.reduce(
 		(total, project) => total + (project.runtime?.activeServiceCount || 0),
 		0,
 	);
-	const expectedServices = projects.reduce(
+	const expectedServices = filteredProjects.reduce(
 		(total, project) =>
 			total + (project.runtime?.expectedServiceCount || 0),
 		0,
 	);
-	const previewDatabases = databases.slice(0, 3);
+	const previewDatabases = filteredDatabases.slice(0, 3);
 
 	return (
 		<div className='dashboard-page'>
@@ -145,7 +209,7 @@ function DashboardHome() {
 					</div>
 					<div>
 						<span>Total Projects</span>
-						<strong>{projects.length}</strong>
+						<strong>{filteredProjects.length}</strong>
 						<p>
 							Launchable workspaces currently tracked in the
 							dashboard.
@@ -256,8 +320,9 @@ function DashboardHome() {
 							})
 						) : (
 							<div className='dashboard-empty'>
-								Create your first project to populate this
-								dashboard lane.
+								{hasSearchQuery
+									? 'No projects match the current search.'
+									: 'Create your first project to populate this dashboard lane.'}
 							</div>
 						)}
 					</div>
@@ -294,7 +359,7 @@ function DashboardHome() {
 								<StorageRounded />
 							</div>
 							<div>
-								<h4>{databases.length} tracked databases</h4>
+								<h4>{filteredDatabases.length} tracked databases</h4>
 								<p>
 									Keep local infrastructure linked to projects
 									without leaving the dashboard.
@@ -345,7 +410,7 @@ function DashboardHome() {
 					</div>
 					<div className='kanban-preview'>
 						{TASK_COLUMNS.map((column) => {
-							const columnTasks = tasks
+							const columnTasks = filteredTasks
 								.filter((task) => task.status === column.key)
 								.slice(0, 3);
 
@@ -379,11 +444,14 @@ function DashboardHome() {
 										) : (
 											<div className='kanban-card empty'>
 												<strong>
-													No tasks here yet
+													{hasSearchQuery
+														? 'No matching tasks here'
+														: 'No tasks here yet'}
 												</strong>
 												<p>
-													New work in this lane will
-													appear automatically.
+													{hasSearchQuery
+														? 'Try a different search to surface work in this lane.'
+														: 'New work in this lane will appear automatically.'}
 												</p>
 											</div>
 										)}
@@ -436,15 +504,17 @@ function DashboardHome() {
 							))
 						) : (
 							<div className='dashboard-empty'>
-								Create a database service to keep infrastructure
-								visible here.
+								{hasSearchQuery
+									? 'No databases match the current search.'
+									: 'Create a database service to keep infrastructure visible here.'}
 							</div>
 						)}
 					</div>
 
 					<div className='directory-footer'>
 						<span>
-							{databases.length} infrastructure services tracked
+							{filteredDatabases.length} infrastructure services
+							tracked
 						</span>
 						<span>
 							{activeServices} of {expectedServices || 0} local

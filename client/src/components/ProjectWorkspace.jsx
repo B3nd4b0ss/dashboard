@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
+import { useSearchParams } from 'react-router-dom';
 import DescriptionRounded from '@mui/icons-material/DescriptionRounded';
 import CodeRounded from '@mui/icons-material/CodeRounded';
 import DataObjectRounded from '@mui/icons-material/DataObjectRounded';
@@ -17,6 +18,7 @@ import StopRounded from '@mui/icons-material/StopRounded';
 import TerminalRounded from '@mui/icons-material/TerminalRounded';
 import ArrowOutwardRounded from '@mui/icons-material/ArrowOutwardRounded';
 import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded';
+import { getSearchParamValue } from '../utils/searchParams';
 import './ProjectWorkspace.css';
 
 const API = 'http://localhost:4000';
@@ -82,6 +84,64 @@ function collectDefaultExpandedPaths(entries) {
 	return entries
 		.filter((entry) => entry.type === 'directory')
 		.map((entry) => entry.path);
+}
+
+function collectNestedDirectoryPaths(entries) {
+	return entries.flatMap((entry) => {
+		if (entry.type !== 'directory') {
+			return [];
+		}
+
+		return [
+			entry.path,
+			...(entry.children?.length
+				? collectNestedDirectoryPaths(entry.children)
+				: []),
+		];
+	});
+}
+
+function countTreeEntries(entries) {
+	return entries.reduce((total, entry) => {
+		if (entry.type === 'directory' && entry.children?.length) {
+			return total + 1 + countTreeEntries(entry.children);
+		}
+
+		return total + 1;
+	}, 0);
+}
+
+function filterTreeEntries(entries, normalizedQuery) {
+	if (!normalizedQuery) {
+		return entries;
+	}
+
+	return entries.reduce((visibleEntries, entry) => {
+		const matchesEntry = [entry.name, entry.path]
+			.filter(Boolean)
+			.join(' ')
+			.toLowerCase()
+			.includes(normalizedQuery);
+		const filteredChildren =
+			entry.type === 'directory' && entry.children?.length
+				? matchesEntry
+					? entry.children
+					: filterTreeEntries(entry.children, normalizedQuery)
+				: [];
+
+		if (
+			matchesEntry ||
+			(entry.type === 'directory' && filteredChildren.length > 0)
+		) {
+			visibleEntries.push(
+				entry.type === 'directory'
+					? { ...entry, children: filteredChildren }
+					: entry,
+			);
+		}
+
+		return visibleEntries;
+	}, []);
 }
 
 function getParentPath(entryPath) {
@@ -154,6 +214,7 @@ function getEntryIcon(entry) {
 }
 
 function ProjectWorkspace({ projectName, standalone = false }) {
+	const [searchParams] = useSearchParams();
 	const [workspace, setWorkspace] = useState({
 		entries: [],
 		entryCount: 0,
@@ -185,6 +246,21 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 	const lineNumbersRef = useRef(null);
 	const scrollSyncRef = useRef(false);
 	const terminalOutputRef = useRef(null);
+	const treeSearchQuery = getSearchParamValue(searchParams, 'q')
+		.trim()
+		.toLowerCase();
+	const hasTreeSearch = Boolean(treeSearchQuery);
+	const visibleEntries = useMemo(
+		() => filterTreeEntries(workspace.entries, treeSearchQuery),
+		[treeSearchQuery, workspace.entries],
+	);
+	const visibleEntryCount = useMemo(
+		() => countTreeEntries(visibleEntries),
+		[visibleEntries],
+	);
+	const effectiveExpandedPaths = hasTreeSearch
+		? collectNestedDirectoryPaths(visibleEntries)
+		: expandedPaths;
 
 	const syncScrollPositions = ({ top, left = 0 } = {}) => {
 		scrollSyncRef.current = true;
@@ -567,7 +643,7 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 		entries.map((entry) => {
 			const EntryIcon = getEntryIcon(entry);
 			const isDirectory = entry.type === 'directory';
-			const isExpanded = expandedPaths.includes(entry.path);
+			const isExpanded = effectiveExpandedPaths.includes(entry.path);
 			const isSelected =
 				selectedEntry?.path === entry.path || selectedFile?.path === entry.path;
 
@@ -842,8 +918,11 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 			<div className='workspace-meta-bar'>
 				<span>{workspace.rootPath || 'Loading workspace path...'}</span>
 				<strong>
-					{workspace.entryCount} visible items
-					{workspace.truncated ? ' (trimmed)' : ''}
+					{hasTreeSearch
+						? `${visibleEntryCount} matching items`
+						: `${workspace.entryCount} visible items${
+								workspace.truncated ? ' (trimmed)' : ''
+							}`}
 				</strong>
 			</div>
 
@@ -913,11 +992,13 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 							<div className='workspace-empty-state'>
 								Loading project files...
 							</div>
-						) : workspace.entries.length > 0 ? (
-							renderTree(workspace.entries)
+						) : visibleEntries.length > 0 ? (
+							renderTree(visibleEntries)
 						) : (
 							<div className='workspace-empty-state'>
-								This project does not have any editable files yet.
+								{hasTreeSearch
+									? 'No files or folders match the current search.'
+									: 'This project does not have any editable files yet.'}
 							</div>
 						)}
 					</div>
