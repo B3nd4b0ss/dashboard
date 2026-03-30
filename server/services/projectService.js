@@ -40,6 +40,8 @@ const {
 } = require('./projectScaffold');
 const {
 	initializeProjectRepository,
+	deleteProjectRepository,
+	publishProjectRepository,
 } = require('./projectRepositoryService');
 const {
 	buildProjectPath,
@@ -294,6 +296,8 @@ async function createProject(data) {
 		frontendPort,
 		backendPort,
 		projectLocation,
+		autoCreateRepo,
+		visibility,
 	} = data;
 	const projects = loadProjects();
 	const trimmedName = String(name || '').trim();
@@ -378,7 +382,9 @@ async function createProject(data) {
 	}
 
 	newProject.repository = await initializeProjectRepository(newProject, {
+		autoCreateRepo,
 		projectPath,
+		visibility,
 	});
 	saveProjects(projects);
 
@@ -520,6 +526,8 @@ async function createProjectWithStreamSafe(data, eventEmitter) {
 		frontendPort,
 		backendPort,
 		projectLocation,
+		autoCreateRepo,
+		visibility,
 	} = data;
 	const projects = loadProjects();
 	const trimmedName = String(name || '').trim();
@@ -649,8 +657,10 @@ async function createProjectWithStreamSafe(data, eventEmitter) {
 	}
 
 	newProject.repository = await initializeProjectRepository(newProject, {
+		autoCreateRepo,
 		projectPath,
 		onLog: (message) => eventEmitter.emit('log', message),
+		visibility,
 	});
 	saveProjects(projects);
 
@@ -3526,11 +3536,16 @@ async function updateProject(oldName, updates) {
 }
 
 // ---------- Delete Project ----------
-async function deleteProject(name) {
+async function deleteProject(name, options = {}) {
 	const projects = loadProjects();
 	const project = findProject(projects, name);
 	if (!project) throw new Error('Project not found');
 	const projectIndex = projects.findIndex((p) => p.name === project.name);
+	const shouldDeleteRemote = options.deleteRemote === true;
+
+	if (shouldDeleteRemote) {
+		await deleteProjectRepository(project);
+	}
 
 	// Stop processes if running
 	if (processes[project.name]) {
@@ -3546,6 +3561,27 @@ async function deleteProject(name) {
 	deleteTasksForProject(project.name);
 	clearProjectMonitoringState(project.name);
 	return true;
+}
+
+async function publishProject(name) {
+	const projects = loadProjects();
+	const project = findProject(projects, name);
+	if (!project) throw new Error('Project not found');
+
+	if (project.repository?.status === 'connected') {
+		throw new Error('This project is already published to GitHub.');
+	}
+
+	if (project.repository?.status !== 'local-only') {
+		throw new Error('Only local-only projects can be published from here.');
+	}
+
+	project.repository = await publishProjectRepository(project, {
+		projectPath: getProjectPath(project),
+	});
+	saveProjects(projects);
+
+	return decorateProject(project);
 }
 
 function getConnectionString(db) {
@@ -3585,6 +3621,7 @@ module.exports = {
 	createProjectWithStream: createProjectWithStreamSafe,
 	getProject,
 	getAllProjects,
+	publishProject,
 	updateProject,
 	deleteProject,
 	getConnectionString,

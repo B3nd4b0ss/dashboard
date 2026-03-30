@@ -182,6 +182,16 @@ router.patch('/:name', async (req, res) => {
 	}
 });
 
+// Publish a local-only project to GitHub
+router.post('/:name/publish', async (req, res) => {
+	try {
+		const project = await projectService.publishProject(req.params.name);
+		res.json(project);
+	} catch (err) {
+		res.status(400).json({ error: err.message });
+	}
+});
+
 // Start project
 router.post('/:name/start', async (req, res) => {
 	try {
@@ -205,7 +215,9 @@ router.post('/:name/stop', async (req, res) => {
 // Delete project
 router.delete('/:name/delete', async (req, res) => {
 	try {
-		await projectService.deleteProject(req.params.name);
+		await projectService.deleteProject(req.params.name, {
+			deleteRemote: req.query.deleteRemote === 'true',
+		});
 		res.json({ message: 'Project deleted' });
 	} catch (err) {
 		res.status(400).json({ error: err.message });

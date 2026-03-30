@@ -23,6 +23,10 @@ import {
 	getTemplateLabel,
 	hasWebsiteMonitoring as hasWebsiteProjectMonitoring,
 } from '../utils/projectPresentation';
+import {
+	getTaskStatusLabel,
+	getTaskTypeLabel,
+} from '../utils/taskPresentation';
 import './ProjectDetail.css';
 
 const API = 'http://localhost:4000';
@@ -73,36 +77,6 @@ function getStatusLabel(status) {
 			return 'Needs attention';
 		default:
 			return 'Stopped';
-	}
-}
-
-function getTaskStatusLabel(status) {
-	switch (status) {
-		case 'in_progress':
-			return 'In Progress';
-		case 'review':
-			return 'Review';
-		case 'done':
-			return 'Done';
-		default:
-			return 'Backlog';
-	}
-}
-
-function getTaskTypeLabel(type) {
-	switch (type) {
-		case 'feature':
-			return 'Feature';
-		case 'bug':
-			return 'Bug';
-		case 'chore':
-			return 'Chore';
-		case 'docs':
-			return 'Docs';
-		case 'refactor':
-			return 'Refactor';
-		default:
-			return 'Task';
 	}
 }
 
@@ -558,6 +532,7 @@ function ProjectDetail() {
 	const monitoringServices = monitoring.services || {};
 	const taskSummary = project.taskSummary || {};
 	const repository = project.repository || null;
+	const canPublishProject = repository?.status === 'local-only';
 	const isRunning = project.status === 'running';
 	const isPartial = project.status === 'partial';
 	const hasManagedServices =
@@ -1318,7 +1293,10 @@ function ProjectDetail() {
 
 							<div className='detail-task-list'>
 								{projectTasks.slice(0, 6).map((task) => (
-									<div key={task.id} className='detail-task-item'>
+									<Link
+										key={task.id}
+										to={`/tasks/${encodeURIComponent(task.id)}`}
+										className='detail-task-item'>
 										<div className='detail-task-copy'>
 											<div className='task-chip-row'>
 												<span className='detail-task-ticket-key'>
@@ -1366,7 +1344,7 @@ function ProjectDetail() {
 												</div>
 											)}
 										</div>
-									</div>
+									</Link>
 								))}
 							</div>
 						</>
@@ -1537,12 +1515,34 @@ function ProjectDetail() {
 						</div>
 
 						{!editMode ? (
-							<button
-								type='button'
-								className='ghost-button'
-								onClick={() => setEditMode(true)}>
-								Edit project
-							</button>
+							<div className='edit-actions detail-edit-actions'>
+								{canPublishProject && (
+									<button
+										type='button'
+										className='success-button'
+										disabled={busyAction === 'publish'}
+										onClick={() =>
+											runAction('publish', () =>
+												axios.post(
+													`${API}/projects/${encodeURIComponent(
+														project.name,
+													)}/publish`,
+												),
+											)
+										}>
+										{busyAction === 'publish'
+											? 'Publishing...'
+											: 'Publish project'}
+									</button>
+								)}
+								<button
+									type='button'
+									className='ghost-button'
+									disabled={busyAction === 'publish'}
+									onClick={() => setEditMode(true)}>
+									Edit project
+								</button>
+							</div>
 						) : (
 							<div className='edit-actions detail-edit-actions'>
 								<button

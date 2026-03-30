@@ -422,17 +422,28 @@ async function configureGitRemote(projectPath, remoteName, remoteUrl) {
 async function initializeProjectRepository(project, options = {}) {
 	const projectPath = options.projectPath || project.projectPath;
 	const githubSettings = getGitHubSettings();
+	const autoCreateRepo =
+		typeof options.autoCreateRepo === 'boolean'
+			? options.autoCreateRepo
+			: githubSettings.autoCreateRepo;
+	const repositoryVisibility =
+		options.visibility === 'public' || options.visibility === 'private'
+			? options.visibility
+			: project.repository?.visibility === 'public' ||
+				  project.repository?.visibility === 'private'
+				? project.repository.visibility
+				: githubSettings.visibility;
 	const projectScaffold = getProjectScaffold(project);
 	const repositoryName = projectScaffold.projectSlug;
 	const fallbackIdentity = buildFallbackIdentity(githubSettings);
 
 	if (!commandExists('git')) {
 		return {
-			provider: githubSettings.autoCreateRepo ? 'github' : 'git',
+			provider: autoCreateRepo ? 'github' : 'git',
 			status: 'failed',
 			name: repositoryName,
 			owner: githubSettings.owner || '',
-			visibility: githubSettings.visibility,
+			visibility: repositoryVisibility,
 			defaultBranch: DEFAULT_BRANCH,
 			localInitializedAt: null,
 			lastError: 'Git is not available on this machine.',
@@ -440,7 +451,7 @@ async function initializeProjectRepository(project, options = {}) {
 	}
 
 	const githubPublishingEnabled =
-		githubSettings.autoCreateRepo && Boolean(githubSettings.token);
+		autoCreateRepo && Boolean(githubSettings.token);
 	let remoteRepository = null;
 	let repositoryError = null;
 
@@ -452,11 +463,11 @@ async function initializeProjectRepository(project, options = {}) {
 		await ensureGitIdentity(projectPath, fallbackIdentity);
 	} catch (error) {
 		return {
-			provider: githubSettings.autoCreateRepo ? 'github' : 'git',
+			provider: autoCreateRepo ? 'github' : 'git',
 			status: 'failed',
 			name: repositoryName,
 			owner: githubSettings.owner || '',
-			visibility: githubSettings.visibility,
+			visibility: repositoryVisibility,
 			defaultBranch: DEFAULT_BRANCH,
 			localInitializedAt: null,
 			lastError: error.message,
@@ -470,7 +481,7 @@ async function initializeProjectRepository(project, options = {}) {
 				token: githubSettings.token,
 				owner: githubSettings.owner,
 				repositoryName,
-				visibility: githubSettings.visibility,
+				visibility: repositoryVisibility,
 				description: projectScaffold.description,
 			});
 			emitLog(options.onLog, 'Configuring origin remote...');
@@ -491,11 +502,11 @@ async function initializeProjectRepository(project, options = {}) {
 		);
 	} catch (error) {
 		return {
-			provider: githubSettings.autoCreateRepo ? 'github' : 'git',
+			provider: autoCreateRepo ? 'github' : 'git',
 			status: 'failed',
 			name: repositoryName,
 			owner: githubSettings.owner || '',
-			visibility: githubSettings.visibility,
+			visibility: repositoryVisibility,
 			defaultBranch: DEFAULT_BRANCH,
 			localInitializedAt: null,
 			lastError: error.message,
@@ -506,7 +517,7 @@ async function initializeProjectRepository(project, options = {}) {
 	const baseRepository = {
 		name: repositoryName,
 		owner: githubSettings.owner || '',
-		visibility: githubSettings.visibility,
+		visibility: repositoryVisibility,
 		defaultBranch: DEFAULT_BRANCH,
 		localInitializedAt: now,
 	};
@@ -564,6 +575,84 @@ async function initializeProjectRepository(project, options = {}) {
 			lastError: error.message,
 		};
 	}
+}
+
+async function publishProjectRepository(project, options = {}) {
+	const projectPath = options.projectPath || getProjectPath(project);
+	const githubSettings = getGitHubSettings();
+	const projectScaffold = getProjectScaffold(project);
+	const repositoryName = projectScaffold.projectSlug;
+	const configuredDefaultBranch =
+		project?.repository?.defaultBranch || DEFAULT_BRANCH;
+	const repositoryVisibility =
+		options.visibility === 'public' || options.visibility === 'private'
+			? options.visibility
+			: project.repository?.visibility === 'public' ||
+				  project.repository?.visibility === 'private'
+				? project.repository.visibility
+				: githubSettings.visibility;
+	const fallbackIdentity = buildFallbackIdentity(githubSettings);
+
+	if (!commandExists('git')) {
+		throw new Error('Git is not available on this machine.');
+	}
+
+	if (!githubSettings.token) {
+		throw new Error(
+			'A saved GitHub token is required to publish this project to GitHub.',
+		);
+	}
+
+	if (!(await fs.pathExists(path.join(projectPath, '.git')))) {
+		throw new Error('This project does not have a local git repository yet.');
+	}
+
+	const branchName = (await gitRefExists(projectPath, configuredDefaultBranch))
+		? configuredDefaultBranch
+		: readCurrentGitBranch(projectPath) || DEFAULT_BRANCH;
+
+	emitLog(options.onLog, 'Preparing local repository for publishing...');
+	await ensureGitIdentity(projectPath, fallbackIdentity);
+
+	emitLog(options.onLog, 'Creating GitHub repository...');
+	const remoteRepository = await createOrReuseGitHubRepository({
+		token: githubSettings.token,
+		owner: githubSettings.owner,
+		repositoryName,
+		visibility: repositoryVisibility,
+		description: projectScaffold.description,
+	});
+
+	emitLog(options.onLog, 'Configuring origin remote...');
+	await configureGitRemote(projectPath, 'origin', remoteRepository.cloneUrl);
+
+	emitLog(options.onLog, `Pushing ${branchName} to GitHub...`);
+	await runCommand(
+		'git',
+		buildGitHubPushArguments('origin', branchName, githubSettings.token),
+		{
+			cwd: projectPath,
+			env: {
+				...process.env,
+				GIT_TERMINAL_PROMPT: '0',
+			},
+		},
+	);
+	emitLog(options.onLog, `GitHub remote connected: ${remoteRepository.url}`);
+
+	return {
+		name: repositoryName,
+		owner: remoteRepository.owner,
+		visibility: remoteRepository.visibility,
+		defaultBranch: branchName,
+		localInitializedAt:
+			project.repository?.localInitializedAt || new Date().toISOString(),
+		...remoteRepository,
+		provider: 'github',
+		status: 'connected',
+		pushedAt: new Date().toISOString(),
+		lastError: null,
+	};
 }
 
 async function createTaskBranch(project, task, options = {}) {
@@ -632,9 +721,56 @@ async function createTaskBranch(project, task, options = {}) {
 	};
 }
 
+async function deleteProjectRepository(project) {
+	if (!project?.repository || project.repository.provider !== 'github') {
+		return false;
+	}
+
+	const githubSettings = getGitHubSettings();
+	if (!githubSettings.token) {
+		throw new Error(
+			'A saved GitHub token is required to delete the remote repository.',
+		);
+	}
+
+	const owner = String(project.repository.owner || '').trim();
+	const repositoryName = String(project.repository.name || '').trim();
+
+	if (!owner || !repositoryName) {
+		throw new Error(
+			'This project is missing the GitHub repository owner or name.',
+		);
+	}
+
+	try {
+		await githubRequest(
+			'DELETE',
+			`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repositoryName)}`,
+			githubSettings.token,
+		);
+		return true;
+	} catch (error) {
+		if (error.statusCode === 404) {
+			throw new Error(
+				'GitHub could not find that repository. It may already be deleted or the token cannot access it.',
+			);
+		}
+
+		if (error.statusCode === 403) {
+			throw new Error(
+				`${error.message} Deleting a GitHub repository requires admin access. Classic PATs need delete_repo; fine-grained PATs need Administration: write.`,
+			);
+		}
+
+		throw error;
+	}
+}
+
 module.exports = {
 	DEFAULT_BRANCH,
 	buildTaskBranchName,
 	createTaskBranch,
+	deleteProjectRepository,
 	initializeProjectRepository,
+	publishProjectRepository,
 };

@@ -60,3 +60,6 @@ coverage/
 # Docker (if you ever add volumes or compose files, you might want to exclude them)
 docker-compose.override.yml
 *.pid
+
+# Docs
+docs/

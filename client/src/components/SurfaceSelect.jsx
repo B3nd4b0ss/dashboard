@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
 import KeyboardArrowDownRounded from '@mui/icons-material/KeyboardArrowDownRounded';
 import CheckRounded from '@mui/icons-material/CheckRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
@@ -36,7 +36,10 @@ function SurfaceSelect({
 }) {
 	const [open, setOpen] = useState(false);
 	const [query, setQuery] = useState('');
+	const [menuDirection, setMenuDirection] = useState('down');
+	const [menuMaxHeight, setMenuMaxHeight] = useState(null);
 	const rootRef = useRef(null);
+	const menuRef = useRef(null);
 	const searchInputRef = useRef(null);
 	const listboxId = useId();
 	const selectedOption =
@@ -99,12 +102,63 @@ function SurfaceSelect({
 		return () => window.cancelAnimationFrame(frameId);
 	}, [open, searchable]);
 
+	useLayoutEffect(() => {
+		if (!open) {
+			setMenuDirection('down');
+			setMenuMaxHeight(null);
+			return undefined;
+		}
+
+		const updateMenuPlacement = () => {
+			const rootElement = rootRef.current;
+			const menuElement = menuRef.current;
+
+			if (!rootElement || !menuElement) {
+				return;
+			}
+
+			const viewportPadding = 16;
+			const menuGap = 10;
+			const rootRect = rootElement.getBoundingClientRect();
+			const availableBelow =
+				window.innerHeight - rootRect.bottom - viewportPadding - menuGap;
+			const availableAbove = rootRect.top - viewportPadding - menuGap;
+			const preferredMenuHeight = Math.min(menuElement.scrollHeight, 320);
+			const shouldOpenUp =
+				preferredMenuHeight > availableBelow &&
+				availableAbove > availableBelow;
+			const nextDirection = shouldOpenUp ? 'up' : 'down';
+			const availableSpace = shouldOpenUp
+				? availableAbove
+				: availableBelow;
+
+			setMenuDirection(nextDirection);
+			setMenuMaxHeight(
+				Math.max(0, Math.min(320, Math.floor(availableSpace))),
+			);
+		};
+
+		updateMenuPlacement();
+
+		const handleViewportChange = () => {
+			window.requestAnimationFrame(updateMenuPlacement);
+		};
+
+		window.addEventListener('resize', handleViewportChange);
+		document.addEventListener('scroll', handleViewportChange, true);
+
+		return () => {
+			window.removeEventListener('resize', handleViewportChange);
+			document.removeEventListener('scroll', handleViewportChange, true);
+		};
+	}, [open, searchable, query, visibleOptions.length]);
+
 	return (
 		<div
 			ref={rootRef}
 			className={`surface-select ${variant} ${align} ${
 				open ? 'open' : ''
-			} ${className}`.trim()}>
+			} ${menuDirection === 'up' ? 'opens-up' : 'opens-down'} ${className}`.trim()}>
 			<button
 				type='button'
 				className='surface-select-trigger'
@@ -124,8 +178,14 @@ function SurfaceSelect({
 
 			{open && (
 				<div
+					ref={menuRef}
 					id={listboxId}
 					className='surface-select-menu'
+					style={
+						menuMaxHeight !== null
+							? { maxHeight: `${menuMaxHeight}px` }
+							: undefined
+					}
 					role='listbox'>
 					{searchable && (
 						<label className='surface-select-search'>

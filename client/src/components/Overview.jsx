@@ -65,6 +65,8 @@ const EMPTY_FORM = {
 	javaVersion: '',
 	javaGroupId: '',
 	javaArtifactId: '',
+	autoCreateRepo: null,
+	visibility: '',
 };
 const DEFAULT_SYSTEM_SETTINGS = {
 	github: {
@@ -116,6 +118,32 @@ const STATUS_FILTER_OPTIONS = [
 	},
 ];
 
+const REPOSITORY_VISIBILITY_OPTIONS = [
+	{
+		value: 'private',
+		label: 'Private',
+		description: 'Only invited collaborators can access the new repo.',
+	},
+	{
+		value: 'public',
+		label: 'Public',
+		description: 'Anyone can view the repository once it is created.',
+	},
+];
+
+const REPOSITORY_MODE_OPTIONS = [
+	{
+		value: 'github',
+		label: 'Create on GitHub',
+		description: 'Create a local repo, then connect and push it to GitHub.',
+	},
+	{
+		value: 'local',
+		label: 'Local only',
+		description: 'Initialize git locally and skip GitHub repository creation.',
+	},
+];
+
 const FRONTEND_FAMILY_OPTIONS = [
 	{
 		value: '',
@@ -132,7 +160,8 @@ const FRONTEND_FAMILY_OPTIONS = [
 	{
 		value: 'static',
 		label: 'HTML + CSS + JS',
-		description: 'Generate a simple static site starter with example files.',
+		description:
+			'Generate a simple static site starter with example files.',
 		keywords: ['plain html css javascript static'],
 	},
 ];
@@ -142,7 +171,8 @@ const FRONTEND_PRESET_OPTIONS = {
 		{
 			value: 'vite-vanilla',
 			label: 'Vanilla JS',
-			description: 'Just Vite, no framework. This is the "only Vite" option.',
+			description:
+				'Just Vite, no framework. This is the "only Vite" option.',
 			keywords: ['vite only javascript vanilla plain'],
 		},
 		{
@@ -205,7 +235,8 @@ const BACKEND_PRESET_OPTIONS = {
 		{
 			value: 'python-cli',
 			label: 'CLI app',
-			description: 'Package-style Python workspace with pyproject metadata and tests.',
+			description:
+				'Package-style Python workspace with pyproject metadata and tests.',
 			keywords: ['python cli pyproject terminal app'],
 		},
 	],
@@ -213,7 +244,8 @@ const BACKEND_PRESET_OPTIONS = {
 		{
 			value: 'php',
 			label: 'Built-in server',
-			description: 'Starter designed for php -S and a single index.php entrypoint.',
+			description:
+				'Starter designed for php -S and a single index.php entrypoint.',
 			keywords: ['php built-in'],
 		},
 	],
@@ -221,13 +253,15 @@ const BACKEND_PRESET_OPTIONS = {
 		{
 			value: 'java-console',
 			label: 'Console app',
-			description: 'Plain Java app you can compile with javac and run with java.',
+			description:
+				'Plain Java app you can compile with javac and run with java.',
 			keywords: ['java javac console cli'],
 		},
 		{
 			value: 'java-maven',
 			label: 'Maven app',
-			description: 'Real Maven project with pom.xml and a runnable main class.',
+			description:
+				'Real Maven project with pom.xml and a runnable main class.',
 			keywords: ['java maven pom'],
 		},
 	],
@@ -242,7 +276,8 @@ const WEBSITE_BACKEND_RUNTIME_OPTIONS = [
 	{
 		value: 'node',
 		label: 'Node.js',
-		description: 'Attach an Express, Fastify, or Koa service to the website.',
+		description:
+			'Attach an Express, Fastify, or Koa service to the website.',
 	},
 	{
 		value: 'php',
@@ -268,7 +303,8 @@ const WEBSITE_BACKEND_PRESET_OPTIONS = {
 		{
 			value: 'python',
 			label: 'Standard HTTP server',
-			description: 'Zero-dependency starter using Python standard library modules.',
+			description:
+				'Zero-dependency starter using Python standard library modules.',
 			keywords: ['http server python'],
 		},
 	],
@@ -276,7 +312,8 @@ const WEBSITE_BACKEND_PRESET_OPTIONS = {
 		{
 			value: 'java',
 			label: 'HTTP server',
-			description: 'Minimal Java server using the JDK HTTP server classes.',
+			description:
+				'Minimal Java server using the JDK HTTP server classes.',
 			keywords: ['java jdk http'],
 		},
 	],
@@ -285,8 +322,8 @@ const WEBSITE_BACKEND_PRESET_OPTIONS = {
 const CLI_BACKEND_TEMPLATES = ['python-cli', 'java-console', 'java-maven'];
 const MANAGED_APP_BACKEND_TEMPLATES = ['python', 'php', 'java'];
 
-const WEBSITE_FAMILY_OPTIONS = FRONTEND_FAMILY_OPTIONS.filter(
-	(option) => Boolean(option.value),
+const WEBSITE_FAMILY_OPTIONS = FRONTEND_FAMILY_OPTIONS.filter((option) =>
+	Boolean(option.value),
 );
 
 const COMPOSER_FAST_LANES = [
@@ -405,7 +442,9 @@ function getDefaultFrontendPreset(frontendFamily) {
 }
 
 function getDefaultBackendPreset(backendRuntime, composerLane = '') {
-	return getBackendPresetOptions(backendRuntime, composerLane)[0]?.value || '';
+	return (
+		getBackendPresetOptions(backendRuntime, composerLane)[0]?.value || ''
+	);
 }
 
 function getSuggestedBackendPort(template) {
@@ -469,6 +508,15 @@ function normalizeComposerForm(nextValue = {}) {
 	return {
 		...EMPTY_FORM,
 		...nextValue,
+		autoCreateRepo:
+			typeof nextValue.autoCreateRepo === 'boolean'
+				? nextValue.autoCreateRepo
+				: null,
+		visibility:
+			nextValue.visibility === 'public' ||
+			nextValue.visibility === 'private'
+				? nextValue.visibility
+				: '',
 		frontendFamily,
 		frontendPreset: normalizedFrontendPreset,
 		frontend: normalizedFrontendPreset,
@@ -639,6 +687,8 @@ function buildFastLaneDraft(lane, previous = EMPTY_FORM) {
 		javaVersion: previous.javaVersion,
 		javaGroupId: previous.javaGroupId,
 		javaArtifactId: previous.javaArtifactId,
+		autoCreateRepo: previous.autoCreateRepo,
+		visibility: previous.visibility,
 	};
 
 	if (lane === 'website') {
@@ -654,7 +704,8 @@ function buildFastLaneDraft(lane, previous = EMPTY_FORM) {
 			(option) => option.value === previous.backend,
 		);
 		const nextFrontendFamily =
-			getComposerLaneFromForm(previous) === 'website' && previous.frontendFamily
+			getComposerLaneFromForm(previous) === 'website' &&
+			previous.frontendFamily
 				? previous.frontendFamily
 				: 'vite';
 		const nextFrontend =
@@ -674,7 +725,8 @@ function buildFastLaneDraft(lane, previous = EMPTY_FORM) {
 			backendPreset: hasCompatibleWebsiteBackend ? previous.backend : '',
 			backend: hasCompatibleWebsiteBackend ? previous.backend : '',
 			backendPort: hasCompatibleWebsiteBackend
-				? previous.backendPort || getSuggestedBackendPort(previous.backend)
+				? previous.backendPort ||
+					getSuggestedBackendPort(previous.backend)
 				: '',
 		};
 	}
@@ -728,7 +780,9 @@ function getFastLaneTemplateLabel(lane, form) {
 	}
 
 	if (lane === 'python' || lane === 'java') {
-		return form.backend ? getTemplateLabel(form.backend) : 'Choose a project style';
+		return form.backend
+			? getTemplateLabel(form.backend)
+			: 'Choose a project style';
 	}
 
 	return 'Choose Website, Python, or Java';
@@ -764,7 +818,10 @@ function getComposerJavaVersion(form) {
 }
 
 function getComposerJavaArtifactId(form) {
-	return form.javaArtifactId || slugifyComposerToken(form.name || 'workspace-app');
+	return (
+		form.javaArtifactId ||
+		slugifyComposerToken(form.name || 'workspace-app')
+	);
 }
 
 function getComposerJavaExecClass(form) {
@@ -891,7 +948,9 @@ function Overview({ mode = 'board' }) {
 	const query = getSearchParamValue(searchParams, 'q');
 	const [statusFilter, setStatusFilter] = useState('all');
 	const [form, setForm] = useState(() => normalizeComposerForm(EMPTY_FORM));
-	const [systemSettings, setSystemSettings] = useState(DEFAULT_SYSTEM_SETTINGS);
+	const [systemSettings, setSystemSettings] = useState(
+		DEFAULT_SYSTEM_SETTINGS,
+	);
 	const [selectedLane, setSelectedLane] = useState(() =>
 		getComposerLaneFromForm(normalizeComposerForm(EMPTY_FORM)),
 	);
@@ -937,7 +996,11 @@ function Overview({ mode = 'board' }) {
 
 	const refreshDashboard = async ({ silent = false } = {}) => {
 		try {
-			await Promise.all([loadProjects(), loadDatabases(), loadSystemSettings()]);
+			await Promise.all([
+				loadProjects(),
+				loadDatabases(),
+				loadSystemSettings(),
+			]);
 			setDashboardError('');
 		} catch (error) {
 			if (!silent) {
@@ -999,7 +1062,10 @@ function Overview({ mode = 'board' }) {
 			setProgress((previous) => Math.max(previous, 28));
 		} else if (message.includes('Frontend created')) {
 			setProgress(55);
-		} else if (message.includes('Creating') && message.includes('backend')) {
+		} else if (
+			message.includes('Creating') &&
+			message.includes('backend')
+		) {
 			setProgress(68);
 		} else if (message.includes('Backend starter files are ready')) {
 			setProgress((previous) => Math.max(previous, 86));
@@ -1053,7 +1119,9 @@ function Overview({ mode = 'board' }) {
 				}));
 			}
 		} catch (error) {
-			alert(error.response?.data?.error || 'Failed to open folder picker.');
+			alert(
+				error.response?.data?.error || 'Failed to open folder picker.',
+			);
 		} finally {
 			setFolderPickerBusy(false);
 		}
@@ -1063,6 +1131,16 @@ function Overview({ mode = 'board' }) {
 		const composerLane = selectedLane || getComposerLaneFromForm(form);
 		const frontendNeedsPort = frontendTemplateRequiresPort(form.frontend);
 		const backendNeedsPort = backendTemplateRequiresPort(form.backend);
+		const repositoryAutoCreate =
+			typeof form.autoCreateRepo === 'boolean'
+				? form.autoCreateRepo
+				: githubSettings.autoCreateRepo;
+		const repositoryVisibility =
+			form.visibility === 'public' || form.visibility === 'private'
+				? form.visibility
+				: githubSettings.visibility === 'public'
+					? 'public'
+					: 'private';
 
 		if (!form.name.trim()) {
 			alert('Please enter a project name.');
@@ -1079,7 +1157,10 @@ function Overview({ mode = 'board' }) {
 			return;
 		}
 
-		if ((composerLane === 'python' || composerLane === 'java') && !form.backend) {
+		if (
+			(composerLane === 'python' || composerLane === 'java') &&
+			!form.backend
+		) {
 			alert('Choose a project style for this lane.');
 			return;
 		}
@@ -1094,7 +1175,11 @@ function Overview({ mode = 'board' }) {
 			return;
 		}
 
-		if (frontendNeedsPort && backendNeedsPort && form.frontendPort === form.backendPort) {
+		if (
+			frontendNeedsPort &&
+			backendNeedsPort &&
+			form.frontendPort === form.backendPort
+		) {
 			alert('Frontend and backend ports must be different.');
 			return;
 		}
@@ -1114,7 +1199,11 @@ function Overview({ mode = 'board' }) {
 			const response = await fetch(`${API}/projects/create-stream`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(form),
+				body: JSON.stringify({
+					...form,
+					autoCreateRepo: repositoryAutoCreate,
+					visibility: repositoryVisibility,
+				}),
 			});
 
 			if (!response.ok) {
@@ -1158,13 +1247,17 @@ function Overview({ mode = 'board' }) {
 					if (data.type === 'complete') {
 						setProgress(100);
 						setIsCreating(false);
+						const createdProjectName = data.project?.name || form.name;
 						resetForm();
 						await refreshDashboard({ silent: true });
+						setShowTerminal(false);
+						setTerminalOutput([]);
 
-						window.setTimeout(() => {
-							setShowTerminal(false);
-							setTerminalOutput([]);
-						}, 1800);
+						if (createdProjectName) {
+							navigate(
+								`/projects/${encodeURIComponent(createdProjectName)}`,
+							);
+						}
 					}
 
 					if (data.type === 'error') {
@@ -1213,13 +1306,28 @@ function Overview({ mode = 'board' }) {
 		);
 	};
 
-	const deleteProject = async (name) => {
+	const deleteProject = async (project) => {
+		const name = project.name;
 		if (!window.confirm(`Delete "${name}" and its local files?`)) {
 			return;
 		}
 
+		const hasGitHubRepository =
+			project.repository?.provider === 'github' &&
+			Boolean(project.repository?.owner) &&
+			Boolean(project.repository?.name);
+		let deleteRemote = false;
+
+		if (hasGitHubRepository) {
+			deleteRemote = window.confirm(
+				`Also delete ${project.repository.owner}/${project.repository.name} from GitHub?\n\nChoose "Cancel" here if you only want to remove the local project.`,
+			);
+		}
+
 		await runProjectAction(name, 'delete', () =>
-			axios.delete(`${API}/projects/${encodeURIComponent(name)}/delete`),
+			axios.delete(`${API}/projects/${encodeURIComponent(name)}/delete`, {
+				params: { deleteRemote },
+			}),
 		);
 	};
 
@@ -1261,15 +1369,17 @@ function Overview({ mode = 'board' }) {
 		(total, project) => total + (project.taskSummary?.total || 0),
 		0,
 	);
-	const websiteProjectCount = projects.filter((project) => project.frontend).length;
+	const websiteProjectCount = projects.filter(
+		(project) => project.frontend,
+	).length;
 	const websiteMonitoringCount = projects.filter((project) =>
 		hasWebsiteProjectMonitoring(project),
 	).length;
 	const terminalProjectCount = projects.filter((project) =>
 		Boolean(project.backend && !hasProjectOperationalMonitoring(project)),
 	).length;
-	const linkedDatabaseCount = projects.filter(
-		(project) => Boolean(project.databaseId),
+	const linkedDatabaseCount = projects.filter((project) =>
+		Boolean(project.databaseId),
 	).length;
 	const totalCpuPercent = projects.reduce(
 		(total, project) => total + getProjectCpuPercent(project),
@@ -1280,7 +1390,10 @@ function Overview({ mode = 'board' }) {
 		0,
 	);
 	const topCpuProject = getTopMetricProject(projects, getProjectCpuPercent);
-	const topMemoryProject = getTopMetricProject(projects, getProjectMemoryBytes);
+	const topMemoryProject = getTopMetricProject(
+		projects,
+		getProjectMemoryBytes,
+	);
 	const databaseOptions = [
 		{
 			value: '',
@@ -1327,14 +1440,28 @@ function Overview({ mode = 'board' }) {
 	const composerJavaSourcePath = getComposerJavaSourcePath(form);
 	const composerProjectLocationLabel = getComposerProjectLocationLabel(form);
 	const composerProjectPathPreview = getComposerProjectPathPreview(form);
-	const githubSettings = systemSettings.github || DEFAULT_SYSTEM_SETTINGS.github;
-	const githubRepositoryName = slugifyComposerToken(form.name || 'project-name');
+	const githubSettings =
+		systemSettings.github || DEFAULT_SYSTEM_SETTINGS.github;
+	const composerAutoCreateRepo =
+		typeof form.autoCreateRepo === 'boolean'
+			? form.autoCreateRepo
+			: githubSettings.autoCreateRepo;
+	const githubRepositoryName = slugifyComposerToken(
+		form.name || 'project-name',
+	);
 	const githubOwnerLabel = githubSettings.owner || 'token owner';
-	const githubPublishConfigured =
-		githubSettings.autoCreateRepo && githubSettings.hasToken;
-	const githubPublishTarget = githubPublishConfigured
+	const githubTokenReady = githubSettings.hasToken;
+	const githubPublishEnabledForProject =
+		composerAutoCreateRepo && githubTokenReady;
+	const composerRepositoryVisibility =
+		form.visibility === 'public' || form.visibility === 'private'
+			? form.visibility
+			: githubSettings.visibility === 'public'
+				? 'public'
+				: 'private';
+	const githubPublishTarget = githubPublishEnabledForProject
 		? `${githubOwnerLabel}/${githubRepositoryName}`
-		: githubSettings.autoCreateRepo
+		: composerAutoCreateRepo
 			? 'Add a saved token in Settings'
 			: 'Auto-publish is off';
 	const selectedWebsiteFamily =
@@ -1371,7 +1498,10 @@ function Overview({ mode = 'board' }) {
 	};
 	const handleWebsiteBackendRuntimeChange = (nextValue) => {
 		updateForm((previous) => {
-			const compatibleOptions = getBackendPresetOptions(nextValue, 'website');
+			const compatibleOptions = getBackendPresetOptions(
+				nextValue,
+				'website',
+			);
 			const currentPresetStillValid = compatibleOptions.some(
 				(option) => option.value === previous.backendPreset,
 			);
@@ -1387,7 +1517,8 @@ function Overview({ mode = 'board' }) {
 				backendPreset: nextPreset,
 				backend: nextPreset,
 				backendPort: nextPreset
-					? previous.backendPort || getSuggestedBackendPort(nextPreset)
+					? previous.backendPort ||
+						getSuggestedBackendPort(nextPreset)
 					: '',
 			};
 		});
@@ -1458,13 +1589,15 @@ function Overview({ mode = 'board' }) {
 						<div>
 							<span className='section-tag'>Project Board</span>
 							<h2>
-								Launch, track, and shape websites, APIs, Java apps, and
-								Python workspaces from one clean board.
+								Launch, track, and shape websites, APIs, Java
+								apps, and Python workspaces from one clean
+								board.
 							</h2>
 							<p>
-								The project surface keeps web apps, backend services,
-								CLI workspaces, runtime health, and linked databases in
-								one place without losing the real dev actions underneath.
+								The project surface keeps web apps, backend
+								services, CLI workspaces, runtime health, and
+								linked databases in one place without losing the
+								real dev actions underneath.
 							</p>
 						</div>
 
@@ -1511,7 +1644,9 @@ function Overview({ mode = 'board' }) {
 							</div>
 							<div>
 								<span>Total CPU</span>
-								<strong>{formatPercent(totalCpuPercent)}</strong>
+								<strong>
+									{formatPercent(totalCpuPercent)}
+								</strong>
 								<small className='meta-strip-note'>
 									{topCpuProject.project
 										? `${topCpuProject.project.name} is highest at ${formatPercent(topCpuProject.value)}`
@@ -1584,11 +1719,13 @@ function Overview({ mode = 'board' }) {
 				<section className='projects-toolbar-surface composer-route-hero'>
 					<div>
 						<span className='section-tag'>Project Composer</span>
-						<h2>Build the next workspace in its own focused flow.</h2>
+						<h2>
+							Build the next workspace in its own focused flow.
+						</h2>
 						<p>
-							Choose Website, Python, or Java, shape the compatible
-							starter, and return to the project board when the draft is
-							ready.
+							Choose Website, Python, or Java, shape the
+							compatible starter, and return to the project board
+							when the draft is ready.
 						</p>
 					</div>
 
@@ -1661,12 +1798,14 @@ function Overview({ mode = 'board' }) {
 					<div className='composer-flow'>
 						<section className='composer-stage-card composer-stage-card-name'>
 							<div className='composer-card-heading'>
-								<span className='composer-step-badge'>Step 1</span>
+								<span className='composer-step-badge'>
+									Step 1
+								</span>
 								<div>
 									<strong>Name the workspace</strong>
 									<p>
-										Start with a clean project name. Everything
-										else builds on this base.
+										Start with a clean project name.
+										Everything else builds on this base.
 									</p>
 								</div>
 							</div>
@@ -1692,10 +1831,14 @@ function Overview({ mode = 'board' }) {
 										<button
 											type='button'
 											className='inline-field-action'
-											onClick={browseComposerProjectLocation}
+											onClick={
+												browseComposerProjectLocation
+											}
 											disabled={folderPickerBusy}>
 											<FolderRounded fontSize='inherit' />
-											{folderPickerBusy ? 'Opening...' : 'Browse'}
+											{folderPickerBusy
+												? 'Opening...'
+												: 'Browse'}
 										</button>
 									</div>
 									<input
@@ -1703,7 +1846,8 @@ function Overview({ mode = 'board' }) {
 										onChange={(event) =>
 											updateForm((previous) => ({
 												...previous,
-												projectLocation: event.target.value,
+												projectLocation:
+													event.target.value,
 											}))
 										}
 										placeholder='Leave blank for the default dashboard projects folder'
@@ -1713,11 +1857,14 @@ function Overview({ mode = 'board' }) {
 								<div className='field-group field-wide'>
 									<span>Project folder preview</span>
 									<div className='composer-selection-preview'>
-										<strong>{composerProjectPathPreview}</strong>
+										<strong>
+											{composerProjectPathPreview}
+										</strong>
 										<span>
-											Type an absolute path or a path relative to the
-											dashboard projects folder. Clearing this field
-											uses the default location.
+											Type an absolute path or a path
+											relative to the dashboard projects
+											folder. Clearing this field uses the
+											default location.
 										</span>
 									</div>
 								</div>
@@ -1726,13 +1873,15 @@ function Overview({ mode = 'board' }) {
 
 						<section className='composer-stage-card composer-stage-card-blueprints'>
 							<div className='composer-card-heading'>
-								<span className='composer-step-badge'>Fast lane</span>
+								<span className='composer-step-badge'>
+									Fast lane
+								</span>
 								<div>
 									<strong>Choose the project family</strong>
 									<p>
-										Start with one lane, then the composer will narrow
-										itself to the controls that fit that type of
-										project.
+										Start with one lane, then the composer
+										will narrow itself to the controls that
+										fit that type of project.
 									</p>
 								</div>
 							</div>
@@ -1740,7 +1889,8 @@ function Overview({ mode = 'board' }) {
 							<div className='composer-blueprint-grid'>
 								{COMPOSER_FAST_LANES.map((lane) => {
 									const LaneIcon = lane.Icon;
-									const isActive = composerLane === lane.value;
+									const isActive =
+										composerLane === lane.value;
 
 									return (
 										<button
@@ -1765,16 +1915,19 @@ function Overview({ mode = 'board' }) {
 							</div>
 
 							<p className='field-help'>
-								Website keeps website starters together and now lets you
-								attach an optional backend again. Python and Java stay
-								focused on their standalone app templates.
+								Website keeps website starters together and now
+								lets you attach an optional backend again.
+								Python and Java stay focused on their standalone
+								app templates.
 							</p>
 						</section>
 
 						<div className='composer-stage-grid'>
 							<section className='composer-stage-card composer-stage-card-frontend'>
 								<div className='composer-card-heading'>
-									<span className='composer-step-badge'>Step 2</span>
+									<span className='composer-step-badge'>
+										Step 2
+									</span>
 									<div>
 										<strong>
 											{composerLane === 'website'
@@ -1804,13 +1957,20 @@ function Overview({ mode = 'board' }) {
 												<span>Website type</span>
 												<SurfaceSelect
 													value={form.frontendFamily}
-													onChange={handleFrontendFamilyChange}
-													options={WEBSITE_FAMILY_OPTIONS}
+													onChange={
+														handleFrontendFamilyChange
+													}
+													options={
+														WEBSITE_FAMILY_OPTIONS
+													}
 													searchable
 													searchPlaceholder='Search website types'
 												/>
 												<p className='field-help'>
-													Vite unlocks React, Vue, and Vanilla starters. Static gives you a plain HTML, CSS, and JavaScript project.
+													Vite unlocks React, Vue, and
+													Vanilla starters. Static
+													gives you a plain HTML, CSS,
+													and JavaScript project.
 												</p>
 											</div>
 
@@ -1818,9 +1978,15 @@ function Overview({ mode = 'board' }) {
 												<span>Starter</span>
 												{showFrontendPresetSelect ? (
 													<SurfaceSelect
-														value={form.frontendPreset}
-														onChange={handleFrontendPresetChange}
-														options={frontendPresetOptions}
+														value={
+															form.frontendPreset
+														}
+														onChange={
+															handleFrontendPresetChange
+														}
+														options={
+															frontendPresetOptions
+														}
 														placeholder='Select a website starter'
 														searchable
 														searchPlaceholder='Search website starters'
@@ -1829,10 +1995,13 @@ function Overview({ mode = 'board' }) {
 													<div className='composer-selection-preview'>
 														<strong>
 															{selectedFrontendPreset?.label ||
-																getTemplateLabel(form.frontend)}
+																getTemplateLabel(
+																	form.frontend,
+																)}
 														</strong>
 														<span>
-															{form.frontendFamily === 'static'
+															{form.frontendFamily ===
+															'static'
 																? 'Static sites already resolve to one compatible starter.'
 																: 'Choose a website type to unlock matching starters.'}
 														</span>
@@ -1847,10 +2016,14 @@ function Overview({ mode = 'board' }) {
 													value={form.frontendPort}
 													disabled={!form.frontend}
 													onChange={(event) =>
-														updateForm((previous) => ({
-															...previous,
-															frontendPort: event.target.value,
-														}))
+														updateForm(
+															(previous) => ({
+																...previous,
+																frontendPort:
+																	event.target
+																		.value,
+															}),
+														)
 													}
 													placeholder={
 														form.frontend
@@ -1864,13 +2037,20 @@ function Overview({ mode = 'board' }) {
 												<span>Backend runtime</span>
 												<SurfaceSelect
 													value={form.backendRuntime}
-													onChange={handleWebsiteBackendRuntimeChange}
-													options={WEBSITE_BACKEND_RUNTIME_OPTIONS}
+													onChange={
+														handleWebsiteBackendRuntimeChange
+													}
+													options={
+														WEBSITE_BACKEND_RUNTIME_OPTIONS
+													}
 													searchable
 													searchPlaceholder='Search website backends'
 												/>
 												<p className='field-help'>
-													Add a backend to the website when you want API routes or server logic. Python HTTP and Java HTTP live here now.
+													Add a backend to the website
+													when you want API routes or
+													server logic. Python HTTP
+													and Java HTTP live here now.
 												</p>
 											</div>
 
@@ -1879,9 +2059,15 @@ function Overview({ mode = 'board' }) {
 												{form.backendRuntime ? (
 													showBackendPresetSelect ? (
 														<SurfaceSelect
-															value={form.backendPreset}
-															onChange={handleBackendPresetChange}
-															options={backendPresetOptions}
+															value={
+																form.backendPreset
+															}
+															onChange={
+																handleBackendPresetChange
+															}
+															options={
+																backendPresetOptions
+															}
 															placeholder='Select a backend starter'
 															searchable
 															searchPlaceholder='Search backend starters'
@@ -1890,12 +2076,16 @@ function Overview({ mode = 'board' }) {
 														<div className='composer-selection-preview'>
 															<strong>
 																{selectedBackendPreset?.label ||
-																	getTemplateLabel(form.backend)}
+																	getTemplateLabel(
+																		form.backend,
+																	)}
 															</strong>
 															<span>
-																{form.backendRuntime === 'python'
+																{form.backendRuntime ===
+																'python'
 																	? 'Python HTTP has one matching website backend starter.'
-																	: form.backendRuntime === 'java'
+																	: form.backendRuntime ===
+																		  'java'
 																		? 'Java HTTP has one matching website backend starter.'
 																		: 'This runtime already resolves to a compatible backend starter.'}
 															</span>
@@ -1903,9 +2093,15 @@ function Overview({ mode = 'board' }) {
 													)
 												) : (
 													<div className='composer-selection-preview'>
-														<strong>No backend selected</strong>
+														<strong>
+															No backend selected
+														</strong>
 														<span>
-															Keep the website frontend-only or choose a backend runtime to attach an API service.
+															Keep the website
+															frontend-only or
+															choose a backend
+															runtime to attach an
+															API service.
 														</span>
 													</div>
 												)}
@@ -1919,14 +2115,21 @@ function Overview({ mode = 'board' }) {
 														value={form.backendPort}
 														disabled={!form.backend}
 														onChange={(event) =>
-															updateForm((previous) => ({
-																...previous,
-																backendPort: event.target.value,
-															}))
+															updateForm(
+																(previous) => ({
+																	...previous,
+																	backendPort:
+																		event
+																			.target
+																			.value,
+																}),
+															)
 														}
 														placeholder={
 															form.backend
-																? getSuggestedBackendPort(form.backend)
+																? getSuggestedBackendPort(
+																		form.backend,
+																	)
 																: 'Choose a backend starter first'
 														}
 													/>
@@ -1951,16 +2154,23 @@ function Overview({ mode = 'board' }) {
 										</>
 									) : null}
 
-									{composerLane === 'python' || composerLane === 'java' ? (
+									{composerLane === 'python' ||
+									composerLane === 'java' ? (
 										<>
 											<div className='field-group'>
 												<span>Project type</span>
 												<SurfaceSelect
 													value={form.backendPreset}
-													onChange={handleBackendPresetChange}
-													options={backendPresetOptions}
+													onChange={
+														handleBackendPresetChange
+													}
+													options={
+														backendPresetOptions
+													}
 													placeholder='Select a project type'
-													searchable={showBackendPresetSelect}
+													searchable={
+														showBackendPresetSelect
+													}
 													searchPlaceholder={`Search ${composerLane} project types`}
 												/>
 												<p className='field-help'>
@@ -1973,7 +2183,8 @@ function Overview({ mode = 'board' }) {
 											{backendPortRequired ? (
 												<label className='field-group'>
 													<span>
-														{composerLane === 'python'
+														{composerLane ===
+														'python'
 															? 'Service port'
 															: 'Java service port'}
 													</span>
@@ -1982,14 +2193,20 @@ function Overview({ mode = 'board' }) {
 														value={form.backendPort}
 														disabled={!form.backend}
 														onChange={(event) =>
-															updateForm((previous) => ({
-																...previous,
-																backendPort: event.target.value,
-															}))
+															updateForm(
+																(previous) => ({
+																	...previous,
+																	backendPort:
+																		event
+																			.target
+																			.value,
+																}),
+															)
 														}
 														placeholder={
 															form.backend
-																? composerLane === 'python'
+																? composerLane ===
+																	'python'
 																	? '8000'
 																	: '8080'
 																: 'Select a project type first'
@@ -2020,9 +2237,14 @@ function Overview({ mode = 'board' }) {
 										<div className='field-group'>
 											<span>Composer</span>
 											<div className='composer-selection-preview'>
-												<strong>Pick a fast lane first</strong>
+												<strong>
+													Pick a fast lane first
+												</strong>
 												<span>
-													Choose Website, Python, or Java above and the right fields will appear here automatically.
+													Choose Website, Python, or
+													Java above and the right
+													fields will appear here
+													automatically.
 												</span>
 											</div>
 										</div>
@@ -2032,67 +2254,9 @@ function Overview({ mode = 'board' }) {
 
 							<section className='composer-stage-card composer-stage-card-summary'>
 								<div className='composer-card-heading'>
-									<span className='composer-step-badge'>Step 3</span>
-									<div>
-										<strong>Compatibility summary</strong>
-										<p>
-											The dashboard resolves the actual starter before
-											it sends the creation request.
-										</p>
-									</div>
-								</div>
-
-								<div className='composer-selection-summary'>
-									<div className='composer-selection-chip'>
-										<strong>Fast lane</strong>
-										<span>
-											{selectedLaneOption
-												? selectedLaneOption.label
-												: 'Choose Website, Python, or Java'}
-										</span>
-									</div>
-									<div className='composer-selection-chip'>
-										<strong>Starter</strong>
-										<span>{getFastLaneTemplateLabel(composerLane, form)}</span>
-									</div>
-									<div className='composer-selection-chip'>
-										<strong>Mode</strong>
-										<span>{composerLaunchLabel}</span>
-									</div>
-									<div className='composer-selection-chip'>
-										<strong>Folder</strong>
-										<span>{composerProjectLocationLabel}</span>
-									</div>
-									<div className='composer-selection-chip'>
-										<strong>Port</strong>
-										<span>
-											{composerLane === 'website'
-												? form.backend
-													? `Web ${form.frontendPort || '3000'} + ${getBackendPortLabel(form.backend)} ${form.backendPort || getSuggestedBackendPort(form.backend)}`
-													: `Web ${form.frontendPort || '3000'}`
-												: backendPortRequired
-													? form.backendPort ||
-														(composerLane === 'python'
-															? '8000'
-															: '8080')
-													: 'No web port'}
-										</span>
-									</div>
-								</div>
-								<p className='field-help'>
-									{composerLane === 'website'
-										? `${selectedWebsiteFamily?.label || 'Website'} starters stay grouped together and can now pair with the backend runtime you want.`
-										: composerLane === 'python'
-											? 'Python creation now stays inside standalone terminal-first templates. Choose Website when you need a Python HTTP backend.'
-											: composerLane === 'java'
-												? 'Java creation now stays inside console and Maven templates. Choose Website when you need a Java HTTP backend.'
-												: 'Once you pick a lane, the summary here will update with the exact starter and launch mode.'}
-								</p>
-							</section>
-
-							<section className='composer-stage-card composer-stage-card-summary'>
-								<div className='composer-card-heading'>
-									<span className='composer-step-badge'>Git</span>
+									<span className='composer-step-badge'>
+										Git
+									</span>
 									<div>
 										<strong>Repository setup</strong>
 										<p>
@@ -2100,8 +2264,9 @@ function Overview({ mode = 'board' }) {
 											<code>README.md</code>, run{' '}
 											<code>git init</code>, prepare the{' '}
 											<code>origin</code> remote, make the
-											first commit, and then push when your
-											saved GitHub settings are ready.
+											first commit, and then push when
+											your saved GitHub settings are
+											ready.
 										</p>
 									</div>
 								</div>
@@ -2109,27 +2274,94 @@ function Overview({ mode = 'board' }) {
 								<div className='composer-selection-summary'>
 									<div className='composer-selection-chip'>
 										<strong>Local repo</strong>
-										<span>README + git init + first commit</span>
-									</div>
-									<div className='composer-selection-chip'>
-										<strong>GitHub</strong>
-										<span>{githubPublishTarget}</span>
-									</div>
-									<div className='composer-selection-chip'>
-										<strong>Visibility</strong>
 										<span>
-											{githubSettings.visibility === 'public'
-												? 'Public'
-												: 'Private'}
+											README + git init + first commit
 										</span>
 									</div>
+								<div className='composer-selection-chip'>
+									<strong>GitHub</strong>
+									<span>
+										{composerAutoCreateRepo
+											? githubPublishTarget
+											: 'Skip GitHub for this project'}
+									</span>
 								</div>
+								<div className='composer-selection-chip'>
+									<strong>Visibility</strong>
+									<span>
+										{composerAutoCreateRepo &&
+										composerRepositoryVisibility ===
+											'public'
+											? 'Public'
+											: composerAutoCreateRepo
+												? 'Private'
+												: 'Local only'}
+									</span>
+								</div>
+							</div>
+								<div className='field-group field-wide'>
+									<span>Repository mode</span>
+									<SurfaceSelect
+										value={
+											composerAutoCreateRepo
+												? 'github'
+												: 'local'
+										}
+										onChange={(nextValue) =>
+											updateForm((previous) => ({
+												...previous,
+												autoCreateRepo:
+													nextValue === 'github',
+											}))
+										}
+										options={REPOSITORY_MODE_OPTIONS}
+									/>
+									<p className='field-help'>
+										Starts from your Settings default, but
+										you can keep this project local-only
+										when you do not want a GitHub repo yet.
+									</p>
+								</div>
+								{composerAutoCreateRepo ? (
+								<div className='field-group field-wide'>
+									<span>Repository visibility</span>
+									<SurfaceSelect
+										value={composerRepositoryVisibility}
+										onChange={(nextValue) =>
+											updateForm((previous) => ({
+												...previous,
+												visibility: nextValue,
+											}))
+										}
+										options={REPOSITORY_VISIBILITY_OPTIONS}
+									/>
+									<p className='field-help'>
+										Starts from your Settings default, but
+										you can override it for this project
+										before creation.
+									</p>
+								</div>
+								) : (
+									<div className='field-group field-wide'>
+										<span>Repository visibility</span>
+										<div className='composer-selection-preview'>
+											<strong>Not needed for local-only mode</strong>
+											<span>
+												The dashboard will still create
+												a local git repository with a
+												first commit, but it will not
+												create or connect a GitHub repo.
+											</span>
+										</div>
+									</div>
+								)}
 								<p className='field-help'>
-									{githubPublishConfigured
-										? `The dashboard will create ${githubPublishTarget} and push the first commit automatically.`
-										: githubSettings.autoCreateRepo
-											? 'GitHub publishing is enabled in principle, but you still need to save a token in Settings before the dashboard can create repos for you.'
-											: 'Auto-publish is currently off, so new projects will stop after local git initialization.'}
+									{composerAutoCreateRepo &&
+									githubPublishEnabledForProject
+										? `The dashboard will create ${githubPublishTarget} as a ${composerRepositoryVisibility} repository and push the first commit automatically.`
+										: composerAutoCreateRepo
+											? 'GitHub publishing is enabled for this project in principle, but you still need to save a token in Settings before the dashboard can create repos for you.'
+											: 'This project will stop after local git initialization and will not connect to GitHub during creation.'}
 								</p>
 								<div className='composer-settings-link-row'>
 									<Link to='/settings' className='ghost-link'>
@@ -2142,13 +2374,16 @@ function Overview({ mode = 'board' }) {
 
 						<section className='composer-stage-card composer-stage-card-advanced'>
 							<div className='composer-card-heading'>
-								<span className='composer-step-badge'>Step 4</span>
+								<span className='composer-step-badge'>
+									Step 4
+								</span>
 								<div>
 									<strong>Advanced setup</strong>
 									<p>
-										Set the common project metadata once, then add
-										Java-specific scaffold details whenever the
-										selected project or backend uses Java.
+										Set the common project metadata once,
+										then add Java-specific scaffold details
+										whenever the selected project or backend
+										uses Java.
 									</p>
 								</div>
 							</div>
@@ -2195,7 +2430,8 @@ function Overview({ mode = 'board' }) {
 												onChange={(event) =>
 													updateForm((previous) => ({
 														...previous,
-														javaPackageName: event.target.value,
+														javaPackageName:
+															event.target.value,
 													}))
 												}
 												placeholder={`${composerJavaGroupId}.app`}
@@ -2209,7 +2445,8 @@ function Overview({ mode = 'board' }) {
 												onChange={(event) =>
 													updateForm((previous) => ({
 														...previous,
-														javaMainClass: event.target.value,
+														javaMainClass:
+															event.target.value,
 													}))
 												}
 												placeholder='App'
@@ -2223,7 +2460,8 @@ function Overview({ mode = 'board' }) {
 												onChange={(event) =>
 													updateForm((previous) => ({
 														...previous,
-														javaVersion: event.target.value,
+														javaVersion:
+															event.target.value,
 													}))
 												}
 												placeholder='11'
@@ -2237,10 +2475,15 @@ function Overview({ mode = 'board' }) {
 													<input
 														value={form.javaGroupId}
 														onChange={(event) =>
-															updateForm((previous) => ({
-																...previous,
-																javaGroupId: event.target.value,
-															}))
+															updateForm(
+																(previous) => ({
+																	...previous,
+																	javaGroupId:
+																		event
+																			.target
+																			.value,
+																}),
+															)
 														}
 														placeholder='com.dashboard'
 													/>
@@ -2249,15 +2492,23 @@ function Overview({ mode = 'board' }) {
 												<label className='field-group'>
 													<span>Artifact ID</span>
 													<input
-														value={form.javaArtifactId}
+														value={
+															form.javaArtifactId
+														}
 														onChange={(event) =>
-															updateForm((previous) => ({
-																...previous,
-																javaArtifactId: event.target.value,
-															}))
+															updateForm(
+																(previous) => ({
+																	...previous,
+																	javaArtifactId:
+																		event
+																			.target
+																			.value,
+																}),
+															)
 														}
 														placeholder={slugifyComposerToken(
-															form.name || 'workspace-app',
+															form.name ||
+																'workspace-app',
 														)}
 													/>
 												</label>
@@ -2265,10 +2516,16 @@ function Overview({ mode = 'board' }) {
 												<div className='field-group'>
 													<span>Exec main class</span>
 													<div className='composer-selection-preview'>
-														<strong>{composerJavaExecClass}</strong>
+														<strong>
+															{
+																composerJavaExecClass
+															}
+														</strong>
 														<span>
-															This value is written to
-															`exec.mainClass` in the generated
+															This value is
+															written to
+															`exec.mainClass` in
+															the generated
 															`pom.xml`.
 														</span>
 													</div>
@@ -2279,9 +2536,12 @@ function Overview({ mode = 'board' }) {
 										<div className='field-group'>
 											<span>Java source path</span>
 											<div className='composer-selection-preview'>
-												<strong>{composerJavaSourcePath}</strong>
+												<strong>
+													{composerJavaSourcePath}
+												</strong>
 												<span>
-													{form.backend === 'java-maven'
+													{form.backend ===
+													'java-maven'
 														? `The generated pom uses ${composerJavaArtifactId} with Java ${composerJavaVersion}.`
 														: `The dashboard compiles ${composerJavaExecClass} with Java ${composerJavaVersion}.`}
 												</span>
@@ -2294,8 +2554,10 @@ function Overview({ mode = 'board' }) {
 										<div className='composer-selection-preview'>
 											<strong>{composerVersion}</strong>
 											<span>
-												Version and description are applied to generated
-												metadata files where the starter supports them.
+												Version and description are
+												applied to generated metadata
+												files where the starter supports
+												them.
 											</span>
 										</div>
 									</div>
@@ -2305,12 +2567,14 @@ function Overview({ mode = 'board' }) {
 
 						<section className='composer-stage-card composer-stage-card-database'>
 							<div className='composer-card-heading'>
-								<span className='composer-step-badge'>Optional</span>
+								<span className='composer-step-badge'>
+									Optional
+								</span>
 								<div>
 									<strong>Attach a database</strong>
 									<p>
-										Link infrastructure now or keep the project
-										app-only and add storage later.
+										Link infrastructure now or keep the
+										project app-only and add storage later.
 									</p>
 								</div>
 							</div>
@@ -2339,9 +2603,9 @@ function Overview({ mode = 'board' }) {
 									searchPlaceholder='Search databases'
 								/>
 								<p className='field-help'>
-									Need a fresh local database? Create it in the
-									databases workspace and come right back here
-									with it selected.
+									Need a fresh local database? Create it in
+									the databases workspace and come right back
+									here with it selected.
 								</p>
 							</div>
 						</section>
@@ -2368,402 +2632,460 @@ function Overview({ mode = 'board' }) {
 
 			{!isComposerPage && (
 				<section className='project-grid-board'>
-				{visibleProjects.length > 0 ? (
-					visibleProjects.map((project) => {
-						const projectProgress = getProjectProgress(project);
-						const primaryUrl = getPrimaryProjectUrl(project);
-						const projectCrew = getProjectCrew(project);
-						const monitoring = project.monitoring || {};
-						const scaffold = getProjectScaffold(project);
-						const showMonitoring =
-							hasWebsiteProjectMonitoring(project);
-						const launchLabel =
-							getProjectLaunchLabelForDisplay(project);
-						const primaryEntry = getProjectPrimaryEntry(project);
-						const commandLabel = getProjectCommandLabel(project);
-						const projectDescription = getProjectDescription(project);
-						const runtimeLabel = getProjectRuntimeLabel(project);
+					{visibleProjects.length > 0 ? (
+						visibleProjects.map((project) => {
+							const projectProgress = getProjectProgress(project);
+							const primaryUrl = getPrimaryProjectUrl(project);
+							const projectCrew = getProjectCrew(project);
+							const monitoring = project.monitoring || {};
+							const scaffold = getProjectScaffold(project);
+							const showMonitoring =
+								hasWebsiteProjectMonitoring(project);
+							const launchLabel =
+								getProjectLaunchLabelForDisplay(project);
+							const primaryEntry =
+								getProjectPrimaryEntry(project);
+							const commandLabel =
+								getProjectCommandLabel(project);
+							const projectDescription =
+								getProjectDescription(project);
+							const runtimeLabel =
+								getProjectRuntimeLabel(project);
 
-						return (
-							<article
-								key={project.name}
-								className={`project-board-card status-${project.status}`}>
-								<div className='project-card-top'>
-									<div>
-										<div className='card-badges'>
-											<span
-												className={`status-pill ${project.status}`}>
-												{getStatusLabel(project.status)}
-											</span>
-											{project.database && (
-												<span className='meta-pill'>
-													{project.database.type}
+							return (
+								<article
+									key={project.name}
+									className={`project-board-card status-${project.status}`}>
+									<div className='project-card-top'>
+										<div>
+											<div className='card-badges'>
+												<span
+													className={`status-pill ${project.status}`}>
+													{getStatusLabel(
+														project.status,
+													)}
+												</span>
+												{project.database && (
+													<span className='meta-pill'>
+														{project.database.type}
+													</span>
+												)}
+											</div>
+											<Link
+												to={`/projects/${encodeURIComponent(project.name)}`}
+												className='project-link'>
+												<h3>{project.name}</h3>
+											</Link>
+											<p className='project-purpose-copy'>
+												{projectDescription}
+											</p>
+											<p>{getProjectSummary(project)}</p>
+										</div>
+
+										<div className='project-port-cluster'>
+											{project.frontendPort && (
+												<span className='port-pill frontend'>
+													<PublicRounded fontSize='inherit' />
+													<span>Web</span>
+													<strong>
+														:{project.frontendPort}
+													</strong>
+												</span>
+											)}
+											{project.backendPort && (
+												<span className='port-pill backend'>
+													<HubRounded fontSize='inherit' />
+													<span>
+														{getBackendPortLabel(
+															project.backend,
+														)}
+													</span>
+													<strong>
+														:{project.backendPort}
+													</strong>
 												</span>
 											)}
 										</div>
-										<Link
-											to={`/projects/${encodeURIComponent(project.name)}`}
-											className='project-link'>
-											<h3>{project.name}</h3>
-										</Link>
-										<p className='project-purpose-copy'>
-											{projectDescription}
-										</p>
-										<p>{getProjectSummary(project)}</p>
 									</div>
 
-									<div className='project-port-cluster'>
-										{project.frontendPort && (
-											<span className='port-pill frontend'>
-												<PublicRounded fontSize='inherit' />
-												<span>Web</span>
-												<strong>
-													:{project.frontendPort}
-												</strong>
-											</span>
+									<div className='progress-block'>
+										<div className='progress-meta'>
+											<span>Workspace progress</span>
+											<strong>{projectProgress}%</strong>
+										</div>
+										<div className='progress-track'>
+											<span
+												style={{
+													width: `${projectProgress}%`,
+												}}
+											/>
+										</div>
+									</div>
+
+									<div className='project-task-row'>
+										<div className='task-stat'>
+											<span>Total tasks</span>
+											<strong>
+												{project.taskSummary?.total ||
+													0}
+											</strong>
+										</div>
+										<div className='task-stat'>
+											<span>Completed</span>
+											<strong>
+												{project.taskSummary
+													?.completed || 0}
+											</strong>
+										</div>
+										<div className='task-stat'>
+											<span>Open</span>
+											<strong>
+												{project.taskSummary?.pending ||
+													0}
+											</strong>
+										</div>
+									</div>
+
+									<div className='project-monitoring-grid'>
+										{showMonitoring ? (
+											<>
+												<div className='monitoring-stat'>
+													<span>
+														<SpeedRounded fontSize='inherit' />
+														CPU load
+													</span>
+													<strong>
+														{formatPercent(
+															monitoring.cpuPercent,
+														)}
+													</strong>
+												</div>
+												<div className='monitoring-stat'>
+													<span>
+														<MemoryRounded fontSize='inherit' />
+														Memory
+													</span>
+													<strong>
+														{formatBytes(
+															monitoring.memoryBytes,
+														)}
+													</strong>
+												</div>
+												<div className='monitoring-stat'>
+													<span>
+														<MonitorHeartRounded fontSize='inherit' />
+														Avg response
+													</span>
+													<strong>
+														{project.status ===
+														'stopped'
+															? 'Offline'
+															: formatLatency(
+																	monitoring.averageResponseTimeMs,
+																)}
+													</strong>
+												</div>
+												<div className='monitoring-stat'>
+													<span>
+														<WarningAmberRounded fontSize='inherit' />
+														Failed checks
+													</span>
+													<strong>
+														{monitoring.failedRequestCount ||
+															0}
+													</strong>
+												</div>
+											</>
+										) : (
+											<>
+												<div className='monitoring-stat'>
+													<span>
+														<CodeRounded fontSize='inherit' />
+														Launch mode
+													</span>
+													<strong>
+														{launchLabel}
+													</strong>
+												</div>
+												<div className='monitoring-stat'>
+													<span>
+														<TerminalRounded fontSize='inherit' />
+														Primary entry
+													</span>
+													<strong>
+														{primaryEntry}
+													</strong>
+												</div>
+												{project.backend ===
+												'java-maven' ? (
+													<>
+														<div className='monitoring-stat'>
+															<span>
+																<RocketLaunchRounded fontSize='inherit' />
+																Group ID
+															</span>
+															<strong>
+																{
+																	scaffold.javaGroupId
+																}
+															</strong>
+														</div>
+														<div className='monitoring-stat'>
+															<span>
+																<ConstructionRounded fontSize='inherit' />
+																Artifact
+															</span>
+															<strong>
+																{
+																	scaffold.javaArtifactId
+																}
+															</strong>
+														</div>
+													</>
+												) : (
+													<>
+														<div className='monitoring-stat'>
+															<span>
+																<TaskAltRounded fontSize='inherit' />
+																Version
+															</span>
+															<strong>
+																{
+																	scaffold.version
+																}
+															</strong>
+														</div>
+														<div className='monitoring-stat'>
+															<span>
+																<FolderRounded fontSize='inherit' />
+																Command
+															</span>
+															<strong>
+																{commandLabel}
+															</strong>
+														</div>
+													</>
+												)}
+											</>
 										)}
-										{project.backendPort && (
-											<span className='port-pill backend'>
-												<HubRounded fontSize='inherit' />
-												<span>
-													{getBackendPortLabel(project.backend)}
-												</span>
-												<strong>
-													:{project.backendPort}
-												</strong>
-											</span>
-										)}
 									</div>
-								</div>
 
-								<div className='progress-block'>
-									<div className='progress-meta'>
-										<span>Workspace progress</span>
-										<strong>{projectProgress}%</strong>
-									</div>
-									<div className='progress-track'>
-										<span
-											style={{
-												width: `${projectProgress}%`,
-											}}
-										/>
-									</div>
-								</div>
-
-								<div className='project-task-row'>
-									<div className='task-stat'>
-										<span>Total tasks</span>
-										<strong>
-											{project.taskSummary?.total || 0}
-										</strong>
-									</div>
-									<div className='task-stat'>
-										<span>Completed</span>
-										<strong>
-											{project.taskSummary?.completed ||
-												0}
-										</strong>
-									</div>
-									<div className='task-stat'>
-										<span>Open</span>
-										<strong>
-											{project.taskSummary?.pending || 0}
-										</strong>
-									</div>
-								</div>
-
-								<div className='project-monitoring-grid'>
-									{showMonitoring ? (
-										<>
-											<div className='monitoring-stat'>
-												<span>
-													<SpeedRounded fontSize='inherit' />
-													CPU load
-												</span>
-												<strong>{formatPercent(monitoring.cpuPercent)}</strong>
-											</div>
-											<div className='monitoring-stat'>
-												<span>
-													<MemoryRounded fontSize='inherit' />
-													Memory
-												</span>
-												<strong>{formatBytes(monitoring.memoryBytes)}</strong>
-											</div>
-											<div className='monitoring-stat'>
-												<span>
+									<div className='project-health-row'>
+										{showMonitoring ? (
+											<>
+												<span
+													className={`health-pill ${
+														monitoring.status ||
+														'offline'
+													}`}>
 													<MonitorHeartRounded fontSize='inherit' />
-													Avg response
+													{getMonitoringStatusLabel(
+														monitoring.status,
+													)}
 												</span>
-												<strong>
-													{project.status === 'stopped'
+												<span className='monitoring-hint'>
+													Response{' '}
+													{project.status ===
+													'stopped'
 														? 'Offline'
 														: formatLatency(
 																monitoring.averageResponseTimeMs,
 															)}
-												</strong>
-											</div>
-											<div className='monitoring-stat'>
-												<span>
-													<WarningAmberRounded fontSize='inherit' />
-													Failed checks
 												</span>
-												<strong>{monitoring.failedRequestCount || 0}</strong>
-											</div>
-										</>
-									) : (
-										<>
-											<div className='monitoring-stat'>
-												<span>
-													<CodeRounded fontSize='inherit' />
-													Launch mode
+												<span className='monitoring-hint'>
+													Restarts{' '}
+													{monitoring.restartCount ||
+														0}
 												</span>
-												<strong>{launchLabel}</strong>
-											</div>
-											<div className='monitoring-stat'>
-												<span>
-													<TerminalRounded fontSize='inherit' />
-													Primary entry
-												</span>
-												<strong>{primaryEntry}</strong>
-											</div>
-											{project.backend === 'java-maven' ? (
-												<>
-													<div className='monitoring-stat'>
-														<span>
-															<RocketLaunchRounded fontSize='inherit' />
-															Group ID
-														</span>
-														<strong>{scaffold.javaGroupId}</strong>
-													</div>
-													<div className='monitoring-stat'>
-														<span>
-															<ConstructionRounded fontSize='inherit' />
-															Artifact
-														</span>
-														<strong>{scaffold.javaArtifactId}</strong>
-													</div>
-												</>
-											) : (
-												<>
-													<div className='monitoring-stat'>
-														<span>
-															<TaskAltRounded fontSize='inherit' />
-															Version
-														</span>
-														<strong>{scaffold.version}</strong>
-													</div>
-													<div className='monitoring-stat'>
-														<span>
-															<FolderRounded fontSize='inherit' />
-															Command
-														</span>
-														<strong>{commandLabel}</strong>
-													</div>
-												</>
-											)}
-										</>
-									)}
-								</div>
-
-								<div className='project-health-row'>
-									{showMonitoring ? (
-										<>
-											<span
-												className={`health-pill ${
-													monitoring.status || 'offline'
-												}`}>
-												<MonitorHeartRounded fontSize='inherit' />
-												{getMonitoringStatusLabel(
-													monitoring.status,
+												{monitoring.crashCount > 0 && (
+													<span className='monitoring-hint alert'>
+														Crashes{' '}
+														{monitoring.crashCount}
+													</span>
 												)}
-											</span>
-											<span className='monitoring-hint'>
-												Response{' '}
-												{project.status === 'stopped'
-													? 'Offline'
-													: formatLatency(
-															monitoring.averageResponseTimeMs,
-														)}
-											</span>
-											<span className='monitoring-hint'>
-												Restarts {monitoring.restartCount || 0}
-											</span>
-											{monitoring.crashCount > 0 && (
-												<span className='monitoring-hint alert'>
-													Crashes {monitoring.crashCount}
+											</>
+										) : (
+											<>
+												<span className='health-pill offline'>
+													<TerminalRounded fontSize='inherit' />
+													Terminal workflow
+												</span>
+												<span className='monitoring-hint'>
+													{runtimeLabel}
+												</span>
+												<span className='monitoring-hint'>
+													Workspace{' '}
+													{formatBytes(
+														monitoring.workspaceSizeBytes,
+													)}
+												</span>
+											</>
+										)}
+									</div>
+
+									<div className='project-card-middle'>
+										<div className='avatar-group'>
+											{projectCrew.map((entry) => (
+												<div
+													key={entry.label}
+													className={`avatar-chip ${entry.accent}`}>
+													{entry.label}
+												</div>
+											))}
+										</div>
+
+										<div className='service-tags'>
+											{project.frontend && (
+												<span>
+													<PublicRounded fontSize='inherit' />
+													Frontend
 												</span>
 											)}
-										</>
-									) : (
-										<>
-											<span className='health-pill offline'>
-												<TerminalRounded fontSize='inherit' />
-												Terminal workflow
-											</span>
-											<span className='monitoring-hint'>{runtimeLabel}</span>
-											<span className='monitoring-hint'>
-												Workspace{' '}
-												{formatBytes(monitoring.workspaceSizeBytes)}
-											</span>
-										</>
-									)}
-								</div>
-
-								<div className='project-card-middle'>
-									<div className='avatar-group'>
-										{projectCrew.map((entry) => (
-											<div
-												key={entry.label}
-												className={`avatar-chip ${entry.accent}`}>
-												{entry.label}
-											</div>
-										))}
+											{project.backend && (
+												<span>
+													<HubRounded fontSize='inherit' />
+													{getBackendChipLabel(
+														project.backend,
+													)}
+												</span>
+											)}
+											{project.database && (
+												<span>
+													<DnsRounded fontSize='inherit' />
+													Database
+												</span>
+											)}
+										</div>
 									</div>
 
-									<div className='service-tags'>
-										{project.frontend && (
-											<span>
-												<PublicRounded fontSize='inherit' />
-												Frontend
-											</span>
-										)}
-										{project.backend && (
-											<span>
-												<HubRounded fontSize='inherit' />
-												{getBackendChipLabel(project.backend)}
-											</span>
-										)}
-										{project.database && (
-											<span>
-												<DnsRounded fontSize='inherit' />
-												Database
-											</span>
-										)}
-									</div>
-								</div>
-
-								<div className='project-card-actions'>
-									<div className='project-card-link-row'>
-										<Link
-											to={`/projects/${encodeURIComponent(project.name)}`}
-											className='ghost-link project-inline-action'>
-											<ArrowOutwardRounded fontSize='small' />
-											Open
-										</Link>
-
-										<Link
-											to={`/projects/${encodeURIComponent(project.name)}/editor`}
-											className='ghost-link project-inline-action'>
-											<CodeRounded fontSize='small' />
-											Editor
-										</Link>
-
-										<Link
-											to={`/tasks?project=${encodeURIComponent(project.name)}`}
-											className='ghost-link project-inline-action'>
-											<TaskAltRounded fontSize='small' />
-											Tasks
-										</Link>
-
-										{primaryUrl && (
-											<a
-												href={primaryUrl}
-												target='_blank'
-												rel='noopener noreferrer'
-												className='secondary-link project-inline-action'>
-												<LanRounded fontSize='small' />
-												Preview
-											</a>
-										)}
-
-										{project.repository?.url && (
-											<a
-												href={project.repository.url}
-												target='_blank'
-												rel='noopener noreferrer'
+									<div className='project-card-actions'>
+										<div className='project-card-link-row'>
+											<Link
+												to={`/projects/${encodeURIComponent(project.name)}`}
 												className='ghost-link project-inline-action'>
 												<ArrowOutwardRounded fontSize='small' />
-												GitHub
-											</a>
-										)}
-									</div>
+												Open
+											</Link>
 
-									<div className='project-card-runtime-row'>
-										{project.hasManagedServices ? (
-											project.status === 'stopped' ? (
-												<button
-													type='button'
-													className='success-button project-inline-action'
-													disabled={
-														pendingAction ===
-														`start:${project.name}`
-													}
-													onClick={() =>
-														startProject(project.name)
-													}>
-													<PlayArrowRounded fontSize='small' />
-													{pendingAction ===
-													`start:${project.name}`
-														? 'Starting...'
-														: 'Start'}
-												</button>
-											) : (
-												<button
-													type='button'
-													className='danger-button project-inline-action'
-													disabled={
-														pendingAction ===
-														`stop:${project.name}`
-													}
-													onClick={() =>
-														stopProject(project.name)
-													}>
-													<StopRounded fontSize='small' />
-													{pendingAction ===
-													`stop:${project.name}`
-														? 'Stopping...'
-														: 'Stop'}
-												</button>
-											)
-										) : (
 											<Link
 												to={`/projects/${encodeURIComponent(project.name)}/editor`}
-												className='success-button project-inline-action'>
-												<TerminalRounded fontSize='small' />
-												Run in editor
+												className='ghost-link project-inline-action'>
+												<CodeRounded fontSize='small' />
+												Editor
 											</Link>
-										)}
 
-										<button
-											type='button'
-											className='text-button project-delete-button'
-											disabled={
-												pendingAction ===
-												`delete:${project.name}`
-											}
-											onClick={() =>
-												deleteProject(project.name)
-											}>
-											<DeleteOutlineRounded fontSize='small' />
-											Delete
-										</button>
+											<Link
+												to={`/tasks?project=${encodeURIComponent(project.name)}`}
+												className='ghost-link project-inline-action'>
+												<TaskAltRounded fontSize='small' />
+												Tasks
+											</Link>
+
+											{primaryUrl && (
+												<a
+													href={primaryUrl}
+													target='_blank'
+													rel='noopener noreferrer'
+													className='secondary-link project-inline-action'>
+													<LanRounded fontSize='small' />
+													Preview
+												</a>
+											)}
+
+											{project.repository?.url && (
+												<a
+													href={
+														project.repository.url
+													}
+													target='_blank'
+													rel='noopener noreferrer'
+													className='ghost-link project-inline-action'>
+													<ArrowOutwardRounded fontSize='small' />
+													GitHub
+												</a>
+											)}
+										</div>
+
+										<div className='project-card-runtime-row'>
+											{project.hasManagedServices ? (
+												project.status === 'stopped' ? (
+													<button
+														type='button'
+														className='success-button project-inline-action'
+														disabled={
+															pendingAction ===
+															`start:${project.name}`
+														}
+														onClick={() =>
+															startProject(
+																project.name,
+															)
+														}>
+														<PlayArrowRounded fontSize='small' />
+														{pendingAction ===
+														`start:${project.name}`
+															? 'Starting...'
+															: 'Start'}
+													</button>
+												) : (
+													<button
+														type='button'
+														className='danger-button project-inline-action'
+														disabled={
+															pendingAction ===
+															`stop:${project.name}`
+														}
+														onClick={() =>
+															stopProject(
+																project.name,
+															)
+														}>
+														<StopRounded fontSize='small' />
+														{pendingAction ===
+														`stop:${project.name}`
+															? 'Stopping...'
+															: 'Stop'}
+													</button>
+												)
+											) : (
+												<Link
+													to={`/projects/${encodeURIComponent(project.name)}/editor`}
+													className='success-button project-inline-action'>
+													<TerminalRounded fontSize='small' />
+													Run in editor
+												</Link>
+											)}
+
+											<button
+												type='button'
+												className='text-button project-delete-button'
+												disabled={
+													pendingAction ===
+													`delete:${project.name}`
+												}
+												onClick={() =>
+													deleteProject(project)
+												}>
+												<DeleteOutlineRounded fontSize='small' />
+												Delete
+											</button>
+										</div>
 									</div>
-								</div>
-							</article>
-						);
-					})
-				) : (
-					<div className='empty-board-state'>
-						<div className='empty-board-icon'>
-							<FolderRounded />
+								</article>
+							);
+						})
+					) : (
+						<div className='empty-board-state'>
+							<div className='empty-board-icon'>
+								<FolderRounded />
+							</div>
+							<h3>No projects match this view yet.</h3>
+							<p>
+								Adjust the search or filters, or create a new
+								workspace to start populating the board.
+							</p>
 						</div>
-						<h3>No projects match this view yet.</h3>
-						<p>
-							Adjust the search or filters, or create a new
-							workspace to start populating the board.
-						</p>
-					</div>
-				)}
+					)}
 				</section>
 			)}
 		</div>

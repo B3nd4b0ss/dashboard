@@ -8,6 +8,7 @@ import Databases from './components/Databases';
 import DockerHub from './components/DockerHub';
 import DockerStackDetail from './components/DockerStackDetail';
 import TasksBoard from './components/TasksBoard';
+import TaskDetailPage from './components/TaskDetailPage';
 import SettingsPage from './components/SettingsPage';
 import './App.css';
 
@@ -38,6 +39,7 @@ function App() {
 						element={<DockerStackDetail />}
 					/>
 					<Route path='tasks' element={<TasksBoard />} />
+					<Route path='tasks/:id' element={<TaskDetailPage />} />
 					<Route
 						path='team'
 						element={<Navigate to='/dashboard' replace />}

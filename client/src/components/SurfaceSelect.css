@@ -92,6 +92,11 @@
 	animation: surface-select-rise 0.18s ease;
 }
 
+.surface-select.opens-up .surface-select-menu {
+	top: auto;
+	bottom: calc(100% + 10px);
+}
+
 .surface-select-search {
 	position: sticky;
 	top: 0;
