@@ -335,6 +335,7 @@
 	align-items: center;
 	gap: 12px;
 	flex: 1;
+	min-width: 0;
 	min-height: 48px;
 	padding: 0 14px;
 	border-radius: 16px;
@@ -347,11 +348,22 @@
 }
 
 .board-search .search-input {
+	flex: 1 1 auto;
+	width: 100%;
+	min-width: 0;
 	min-height: unset;
 	padding: 0;
 	border: 0;
 	background: transparent;
+	color: var(--text-color);
+	caret-color: var(--text-color);
+	line-height: 1.4;
 	box-shadow: none;
+}
+
+.board-search .search-input::placeholder {
+	color: var(--muted-color);
+	opacity: 1;
 }
 
 .board-actions select,
