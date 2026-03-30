@@ -130,6 +130,31 @@ Install these only if you want the matching project types or integrations:
 | Java JDK       | Java HTTP projects and Java console projects       |
 | Maven          | Java Maven project generation and builds           |
 
+### Official Download Pages
+
+Use the official installers or download pages below:
+
+| Software | Official download page | Notes |
+| --- | --- | --- |
+| Node.js + npm | [nodejs.org/en/download](https://nodejs.org/en/download/) | npm is included with the standard Node.js installer |
+| Git for Windows | [git-scm.com/install/windows](https://git-scm.com/install/windows) | Recommended for local repositories and GitHub publishing |
+| PowerShell 7 | [learn.microsoft.com/powershell/installing-powershell-on-windows](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.5) | Optional if Windows PowerShell 5.1 is already enough for your setup |
+| Docker Desktop | [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/) | Needed only for Docker features |
+| Python for Windows | [python.org/downloads/windows](https://www.python.org/downloads/windows/) | Needed only for Python-based project templates |
+| Java JDK | [adoptium.net/temurin](https://adoptium.net/temurin) | A practical OpenJDK distribution for Java project templates |
+| Apache Maven | [maven.apache.org/download.cgi](https://maven.apache.org/download.cgi) | Needed only for Maven-based Java projects |
+
+### Common Windows Install Locations
+
+These can vary depending on the installer options, but these are common default locations after installation:
+
+- Node.js: `C:\Program Files\nodejs\`
+- Git: `C:\Program Files\Git\`
+- Docker Desktop: `C:\Program Files\Docker\Docker\`
+- PowerShell 7: `C:\Program Files\PowerShell\7\`
+- Java JDK: often under `C:\Program Files\Java\` or a vendor folder such as `C:\Program Files\Eclipse Adoptium\`
+- Maven: wherever you extract it, commonly something like `C:\Program Files\Apache\maven\`
+
 ### Machine Recommendations
 
 These are practical recommendations for a smooth local experience:
@@ -152,7 +177,7 @@ This project is primarily set up for Windows because it ships with PowerShell he
 
 ### 1. Install Node.js and npm
 
-1. Download and install a current Node.js LTS release.
+1. Download and install a current Node.js LTS release from [nodejs.org/en/download](https://nodejs.org/en/download/).
 2. Open a new terminal.
 3. Verify the installation:
 
@@ -165,7 +190,7 @@ If `npm -v` fails, reinstall Node.js using the official installer and make sure 
 
 ### 2. Install Git
 
-1. Download and install Git for Windows.
+1. Download and install Git for Windows from [git-scm.com/install/windows](https://git-scm.com/install/windows).
 2. Keep the option that adds Git to your terminal path enabled.
 3. Verify the installation:
 
@@ -175,7 +200,7 @@ git --version
 
 ### 3. Check PowerShell
 
-PowerShell is included on modern Windows systems. Verify it with:
+PowerShell is included on modern Windows systems. If you want the newer standalone release, download it from [learn.microsoft.com/powershell/installing-powershell-on-windows](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.5). Verify your current installation with:
 
 ```powershell
 $PSVersionTable.PSVersion
@@ -185,10 +210,10 @@ $PSVersionTable.PSVersion
 
 Only install the tools you plan to use:
 
-- install Docker Desktop if you want Docker stack support
-- install Python 3 if you want Python projects or Python HTTP backends
-- install a Java JDK if you want Java project templates
-- install Maven if you want Maven-based Java projects
+- install Docker Desktop from [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/) if you want Docker stack support
+- install Python 3 from [python.org/downloads/windows](https://www.python.org/downloads/windows/) if you want Python projects or Python HTTP backends
+- install a Java JDK from [adoptium.net/temurin](https://adoptium.net/temurin) if you want Java project templates
+- install Maven from [maven.apache.org/download.cgi](https://maven.apache.org/download.cgi) if you want Maven-based Java projects
 
 Helpful verification commands:
 
