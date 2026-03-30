@@ -1,10 +1,13 @@
 {
   "name": "dashboard",
   "version": "1.0.0",
-  "description": "",
+  "description": "Local developer control center for scaffolding, running, editing, and tracking software projects.",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --test \"server/tests/**/*.test.js\"",
+    "test:server": "node --test \"server/tests/**/*.test.js\"",
+    "lint:client": "npm run lint --prefix client",
+    "check": "npm run test:server && npm run lint:client",
     "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
     "app:start": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\start-dashboard.ps1",
     "app:stop": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\stop-dashboard.ps1",
@@ -19,7 +22,7 @@
     "pm2:main:resurrect": "node .\\node_modules\\pm2\\bin\\pm2 resurrect"
   },
   "keywords": [],
-  "author": "",
+  "author": "Ben Grob",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {

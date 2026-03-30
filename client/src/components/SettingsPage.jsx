@@ -14,6 +14,7 @@ const DEFAULT_FORM = {
 	owner: '',
 	visibility: 'private',
 	token: '',
+	allowManualCommands: false,
 };
 const VISIBILITY_OPTIONS = [
 	{
@@ -35,14 +36,22 @@ const VISIBILITY_OPTIONS = [
  * @returns {{autoCreateRepo: boolean, owner: string, visibility: string, token: string}} Editable form state.
  */
 function normalizeSettingsForm(settings = {}) {
+	const githubSettings = settings.github || {};
+	const terminalSettings = settings.terminal || {};
+
 	return {
 		autoCreateRepo:
-			typeof settings.autoCreateRepo === 'boolean'
-				? settings.autoCreateRepo
+			typeof githubSettings.autoCreateRepo === 'boolean'
+				? githubSettings.autoCreateRepo
 				: DEFAULT_FORM.autoCreateRepo,
-		owner: settings.owner || '',
-		visibility: settings.visibility === 'public' ? 'public' : 'private',
+		owner: githubSettings.owner || '',
+		visibility:
+			githubSettings.visibility === 'public' ? 'public' : 'private',
 		token: '',
+		allowManualCommands:
+			typeof terminalSettings.allowManualCommands === 'boolean'
+				? terminalSettings.allowManualCommands
+				: DEFAULT_FORM.allowManualCommands,
 	};
 }
 
@@ -64,7 +73,7 @@ function SettingsPage() {
 		try {
 			const response = await axios.get(`${API}/system/settings`);
 			const githubSettings = response.data?.github || {};
-			setForm(normalizeSettingsForm(githubSettings));
+			setForm(normalizeSettingsForm(response.data || {}));
 			setHasSavedToken(Boolean(githubSettings.hasToken));
 			setClearSavedToken(false);
 			setError('');
@@ -98,6 +107,9 @@ function SettingsPage() {
 					owner: form.owner,
 					visibility: form.visibility,
 				},
+				terminal: {
+					allowManualCommands: form.allowManualCommands,
+				},
 			};
 
 			if (form.token.trim()) {
@@ -113,12 +125,12 @@ function SettingsPage() {
 				payload,
 			);
 			const githubSettings = response.data?.github || {};
-			setForm(normalizeSettingsForm(githubSettings));
+			setForm(normalizeSettingsForm(response.data || {}));
 			setHasSavedToken(Boolean(githubSettings.hasToken));
 			setClearSavedToken(false);
 			setError('');
 			setStatus(
-				'Settings saved. New projects will use this GitHub setup.',
+				'Settings saved. GitHub defaults and terminal permissions are updated for the whole dashboard.',
 			);
 		} catch (saveError) {
 			setError(
@@ -163,6 +175,11 @@ function SettingsPage() {
 								: 'New projects will create a README, initialize git, and make the first commit locally. Add a GitHub token to enable origin setup and publishing.'
 							: 'New projects will create a README, initialize git, and make the first commit locally without creating a GitHub repository.'}
 					</p>
+					<p>
+						{form.allowManualCommands
+							? 'Advanced terminal mode is enabled, so workspace users can run ad-hoc commands in addition to presets.'
+							: 'Advanced terminal mode is off, so the workspace terminal only allows curated presets until you explicitly unlock manual commands.'}
+					</p>
 				</div>
 			</section>
 
@@ -199,6 +216,28 @@ function SettingsPage() {
 							onChange={(event) =>
 								updateForm(
 									'autoCreateRepo',
+									event.target.checked,
+								)
+							}
+						/>
+					</label>
+
+					<label className='settings-toggle-card'>
+						<div>
+							<strong>Enable advanced terminal commands</strong>
+							<p>
+								When disabled, the project workspace can still
+								run saved presets, but ad-hoc shell commands
+								stay locked. Turn this on only when you want the
+								editor terminal to accept free-form commands.
+							</p>
+						</div>
+						<input
+							type='checkbox'
+							checked={form.allowManualCommands}
+							onChange={(event) =>
+								updateForm(
+									'allowManualCommands',
 									event.target.checked,
 								)
 							}
@@ -264,9 +303,9 @@ function SettingsPage() {
 								</span>
 							</label>
 							<p>
-								The token is stored locally for this dashboard
-								so new projects can publish without prompting
-								you each time.
+								The token is stored locally on this machine in
+								the dashboard settings file so new projects can
+								publish without prompting you each time.
 							</p>
 						</div>
 					</label>

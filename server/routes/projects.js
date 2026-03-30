@@ -14,6 +14,7 @@ const {
 	runProjectCommand,
 	runProjectPreset,
 	getProjectExecution,
+	getProjectCommandHistory,
 	stopProjectExecution,
 } = require('../services/projectTerminalService');
 
@@ -135,7 +136,7 @@ router.post('/:name/terminal/execute', async (req, res) => {
 		});
 		res.json(execution);
 	} catch (err) {
-		res.status(400).json({ error: err.message });
+		res.status(err.statusCode || 400).json({ error: err.message });
 	}
 });
 
@@ -150,6 +151,19 @@ router.post('/:name/terminal/presets/:presetId', async (req, res) => {
 		res.json(execution);
 	} catch (err) {
 		res.status(400).json({ error: err.message });
+	}
+});
+
+// `GET /projects/:name/terminal/history`
+// Route params: `name` is the persisted project name. Query param `limit` optionally trims the recent history list.
+router.get('/:name/terminal/history', async (req, res) => {
+	try {
+		const items = getProjectCommandHistory(req.params.name, {
+			limit: req.query.limit,
+		});
+		res.json({ items });
+	} catch (err) {
+		res.status(err.statusCode || 400).json({ error: err.message });
 	}
 });
 

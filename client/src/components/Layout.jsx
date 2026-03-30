@@ -11,6 +11,7 @@ import SpaceDashboardRounded from '@mui/icons-material/SpaceDashboardRounded';
 import FolderRounded from '@mui/icons-material/FolderRounded';
 import ChecklistRounded from '@mui/icons-material/ChecklistRounded';
 import StorageRounded from '@mui/icons-material/StorageRounded';
+import MonitorHeartRounded from '@mui/icons-material/MonitorHeartRounded';
 import HubRounded from '@mui/icons-material/HubRounded';
 import SettingsRounded from '@mui/icons-material/SettingsRounded';
 import MenuRounded from '@mui/icons-material/MenuRounded';
@@ -59,6 +60,11 @@ const SECONDARY_NAV = [
 		to: '/databases',
 		label: 'Databases',
 		icon: StorageRounded,
+	},
+	{
+		to: '/monitoring',
+		label: 'Monitoring',
+		icon: MonitorHeartRounded,
 	},
 	{
 		to: '/docker',
@@ -149,6 +155,14 @@ function getSectionMeta(pathname) {
 				description:
 					'Keep local services visible without breaking the new product shell.',
 				searchPlaceholder: 'Search databases and containers',
+			};
+		case '/monitoring':
+			return {
+				label: 'Operations',
+				title: 'Monitoring',
+				description:
+					'Track project health, uptime, response times, and recent runtime issues across managed apps.',
+				searchPlaceholder: 'Search monitored projects or statuses',
 			};
 		case '/docker':
 			return {
@@ -258,6 +272,7 @@ function supportsInlineTopbarSearch(pathname) {
 		'/projects',
 		'/tasks',
 		'/databases',
+		'/monitoring',
 		'/docker',
 	].includes(pathname);
 }

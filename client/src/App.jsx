@@ -5,6 +5,7 @@ import Overview from './components/Overview';
 import ProjectDetail from './components/ProjectDetail';
 import ProjectEditorPage from './components/ProjectEditorPage';
 import Databases from './components/Databases';
+import Monitoring from './components/Monitoring';
 import DockerHub from './components/DockerHub';
 import DockerStackDetail from './components/DockerStackDetail';
 import TasksBoard from './components/TasksBoard';
@@ -38,6 +39,7 @@ function App() {
 						element={<ProjectEditorPage />}
 					/>
 					<Route path='databases' element={<Databases />} />
+					<Route path='monitoring' element={<Monitoring />} />
 					<Route path='docker' element={<DockerHub />} />
 					<Route
 						path='docker/:stackId'

@@ -2,6 +2,8 @@
   "name": "client",
   "private": true,
   "version": "0.0.0",
+  "description": "React frontend for the local Dashboard developer workspace.",
+  "author": "Ben Grob",
   "type": "module",
   "scripts": {
     "dev": "vite",

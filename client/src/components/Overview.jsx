@@ -23,10 +23,6 @@ import TerminalRounded from '@mui/icons-material/TerminalRounded';
 import FolderRounded from '@mui/icons-material/FolderRounded';
 import RocketLaunchRounded from '@mui/icons-material/RocketLaunchRounded';
 import TaskAltRounded from '@mui/icons-material/TaskAltRounded';
-import MemoryRounded from '@mui/icons-material/MemoryRounded';
-import SpeedRounded from '@mui/icons-material/SpeedRounded';
-import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
-import MonitorHeartRounded from '@mui/icons-material/MonitorHeartRounded';
 import CodeRounded from '@mui/icons-material/CodeRounded';
 import { API_BASE_URL, DASHBOARD_API_PORT } from '../config/api';
 import SurfaceSelect from './SurfaceSelect';
@@ -37,7 +33,6 @@ import {
 	getProjectRuntimeLabel,
 	getProjectScaffold,
 	hasOperationalMonitoring as hasProjectOperationalMonitoring,
-	hasWebsiteMonitoring as hasWebsiteProjectMonitoring,
 } from '../utils/projectPresentation';
 import {
 	buildNextTextSearchParams,
@@ -879,84 +874,6 @@ function getComposerProjectPathPreview(form) {
 	return `${location.replace(/[\\/]+$/, '')}${separator}${projectName}`;
 }
 
-function formatBytes(bytes) {
-	if (!Number.isFinite(bytes) || bytes <= 0) {
-		return '0 B';
-	}
-
-	const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-	let value = bytes;
-	let unitIndex = 0;
-
-	while (value >= 1024 && unitIndex < units.length - 1) {
-		value /= 1024;
-		unitIndex += 1;
-	}
-
-	const digits = value >= 10 || unitIndex === 0 ? 0 : 1;
-	return `${value.toFixed(digits)} ${units[unitIndex]}`;
-}
-
-function formatPercent(value) {
-	if (!Number.isFinite(value) || value <= 0) {
-		return '0%';
-	}
-
-	return `${value >= 10 ? Math.round(value) : value.toFixed(1)}%`;
-}
-
-function formatLatency(value) {
-	if (!Number.isFinite(value) || value <= 0) {
-		return 'Waiting';
-	}
-
-	if (value >= 1000) {
-		return `${(value / 1000).toFixed(1)}s`;
-	}
-
-	return `${Math.round(value)} ms`;
-}
-
-function getProjectCpuPercent(project) {
-	return Number.isFinite(project.monitoring?.cpuPercent)
-		? project.monitoring.cpuPercent
-		: 0;
-}
-
-function getProjectMemoryBytes(project) {
-	return Number.isFinite(project.monitoring?.memoryBytes)
-		? project.monitoring.memoryBytes
-		: 0;
-}
-
-function getTopMetricProject(projects, selector) {
-	return projects.reduce(
-		(best, project) => {
-			const value = selector(project);
-
-			if (value > best.value) {
-				return { project, value };
-			}
-
-			return best;
-		},
-		{ project: null, value: 0 },
-	);
-}
-
-function getMonitoringStatusLabel(status) {
-	switch (status) {
-		case 'healthy':
-			return 'Healthy';
-		case 'degraded':
-			return 'Degraded';
-		case 'starting':
-			return 'Starting';
-		default:
-			return 'Offline';
-	}
-}
-
 /**
  * Broadcasts project lifecycle events so other surfaces can refresh optimistically.
  *
@@ -1413,28 +1330,12 @@ function Overview({ mode = 'board' }) {
 	const websiteProjectCount = projects.filter(
 		(project) => project.frontend,
 	).length;
-	const websiteMonitoringCount = projects.filter((project) =>
-		hasWebsiteProjectMonitoring(project),
-	).length;
 	const terminalProjectCount = projects.filter((project) =>
 		Boolean(project.backend && !hasProjectOperationalMonitoring(project)),
 	).length;
 	const linkedDatabaseCount = projects.filter((project) =>
 		Boolean(project.databaseId),
 	).length;
-	const totalCpuPercent = projects.reduce(
-		(total, project) => total + getProjectCpuPercent(project),
-		0,
-	);
-	const totalMemoryBytes = projects.reduce(
-		(total, project) => total + getProjectMemoryBytes(project),
-		0,
-	);
-	const topCpuProject = getTopMetricProject(projects, getProjectCpuPercent);
-	const topMemoryProject = getTopMetricProject(
-		projects,
-		getProjectMemoryBytes,
-	);
 	const databaseOptions = [
 		{
 			value: '',
@@ -1681,36 +1582,6 @@ function Overview({ mode = 'board' }) {
 						</article>
 						<article className='meta-strip-card'>
 							<div className='meta-strip-icon blue'>
-								<SpeedRounded />
-							</div>
-							<div>
-								<span>Total CPU</span>
-								<strong>
-									{formatPercent(totalCpuPercent)}
-								</strong>
-								<small className='meta-strip-note'>
-									{topCpuProject.project
-										? `${topCpuProject.project.name} is highest at ${formatPercent(topCpuProject.value)}`
-										: 'No active telemetry yet'}
-								</small>
-							</div>
-						</article>
-						<article className='meta-strip-card'>
-							<div className='meta-strip-icon amber'>
-								<MemoryRounded />
-							</div>
-							<div>
-								<span>Total RAM</span>
-								<strong>{formatBytes(totalMemoryBytes)}</strong>
-								<small className='meta-strip-note'>
-									{topMemoryProject.project
-										? `${topMemoryProject.project.name} is using ${formatBytes(topMemoryProject.value)}`
-										: 'No memory telemetry yet'}
-								</small>
-							</div>
-						</article>
-						<article className='meta-strip-card'>
-							<div className='meta-strip-icon blue'>
 								<PublicRounded />
 							</div>
 							<div>
@@ -1725,15 +1596,6 @@ function Overview({ mode = 'board' }) {
 							<div>
 								<span>Terminal-first apps</span>
 								<strong>{terminalProjectCount}</strong>
-							</div>
-						</article>
-						<article className='meta-strip-card'>
-							<div className='meta-strip-icon green'>
-								<MonitorHeartRounded />
-							</div>
-							<div>
-								<span>Website monitoring</span>
-								<strong>{websiteMonitoringCount}</strong>
 							</div>
 						</article>
 						<article className='meta-strip-card'>
@@ -2682,10 +2544,7 @@ function Overview({ mode = 'board' }) {
 							const projectProgress = getProjectProgress(project);
 							const primaryUrl = getPrimaryProjectUrl(project);
 							const projectCrew = getProjectCrew(project);
-							const monitoring = project.monitoring || {};
 							const scaffold = getProjectScaffold(project);
-							const showMonitoring =
-								hasWebsiteProjectMonitoring(project);
 							const launchLabel =
 								getProjectLaunchLabelForDisplay(project);
 							const primaryEntry =
@@ -2696,6 +2555,12 @@ function Overview({ mode = 'board' }) {
 								getProjectDescription(project);
 							const runtimeLabel =
 								getProjectRuntimeLabel(project);
+							const hasManagedServices =
+								hasProjectOperationalMonitoring(project);
+							const activeServiceCount =
+								project.runtime?.activeServiceCount || 0;
+							const expectedServiceCount =
+								project.runtime?.expectedServiceCount || 0;
 
 							return (
 								<article
@@ -2792,52 +2657,38 @@ function Overview({ mode = 'board' }) {
 									</div>
 
 									<div className='project-monitoring-grid'>
-										{showMonitoring ? (
+										<div className='monitoring-stat'>
+											<span>
+												<CodeRounded fontSize='inherit' />
+												Launch mode
+											</span>
+											<strong>{launchLabel}</strong>
+										</div>
+										<div className='monitoring-stat'>
+											<span>
+												<TerminalRounded fontSize='inherit' />
+												Primary entry
+											</span>
+											<strong>{primaryEntry}</strong>
+										</div>
+										{project.backend === 'java-maven' ? (
 											<>
 												<div className='monitoring-stat'>
 													<span>
-														<SpeedRounded fontSize='inherit' />
-														CPU load
+														<RocketLaunchRounded fontSize='inherit' />
+														Group ID
 													</span>
 													<strong>
-														{formatPercent(
-															monitoring.cpuPercent,
-														)}
+														{scaffold.javaGroupId}
 													</strong>
 												</div>
 												<div className='monitoring-stat'>
 													<span>
-														<MemoryRounded fontSize='inherit' />
-														Memory
+														<ConstructionRounded fontSize='inherit' />
+														Artifact
 													</span>
 													<strong>
-														{formatBytes(
-															monitoring.memoryBytes,
-														)}
-													</strong>
-												</div>
-												<div className='monitoring-stat'>
-													<span>
-														<MonitorHeartRounded fontSize='inherit' />
-														Avg response
-													</span>
-													<strong>
-														{project.status ===
-														'stopped'
-															? 'Offline'
-															: formatLatency(
-																	monitoring.averageResponseTimeMs,
-																)}
-													</strong>
-												</div>
-												<div className='monitoring-stat'>
-													<span>
-														<WarningAmberRounded fontSize='inherit' />
-														Failed checks
-													</span>
-													<strong>
-														{monitoring.failedRequestCount ||
-															0}
+														{scaffold.javaArtifactId}
 													</strong>
 												</div>
 											</>
@@ -2845,127 +2696,49 @@ function Overview({ mode = 'board' }) {
 											<>
 												<div className='monitoring-stat'>
 													<span>
-														<CodeRounded fontSize='inherit' />
-														Launch mode
+														<TaskAltRounded fontSize='inherit' />
+														Runtime
 													</span>
-													<strong>
-														{launchLabel}
-													</strong>
+													<strong>{runtimeLabel}</strong>
 												</div>
 												<div className='monitoring-stat'>
 													<span>
-														<TerminalRounded fontSize='inherit' />
-														Primary entry
+														<FolderRounded fontSize='inherit' />
+														Command
 													</span>
-													<strong>
-														{primaryEntry}
-													</strong>
+													<strong>{commandLabel}</strong>
 												</div>
-												{project.backend ===
-												'java-maven' ? (
-													<>
-														<div className='monitoring-stat'>
-															<span>
-																<RocketLaunchRounded fontSize='inherit' />
-																Group ID
-															</span>
-															<strong>
-																{
-																	scaffold.javaGroupId
-																}
-															</strong>
-														</div>
-														<div className='monitoring-stat'>
-															<span>
-																<ConstructionRounded fontSize='inherit' />
-																Artifact
-															</span>
-															<strong>
-																{
-																	scaffold.javaArtifactId
-																}
-															</strong>
-														</div>
-													</>
-												) : (
-													<>
-														<div className='monitoring-stat'>
-															<span>
-																<TaskAltRounded fontSize='inherit' />
-																Version
-															</span>
-															<strong>
-																{
-																	scaffold.version
-																}
-															</strong>
-														</div>
-														<div className='monitoring-stat'>
-															<span>
-																<FolderRounded fontSize='inherit' />
-																Command
-															</span>
-															<strong>
-																{commandLabel}
-															</strong>
-														</div>
-													</>
-												)}
 											</>
 										)}
 									</div>
 
 									<div className='project-health-row'>
-										{showMonitoring ? (
-											<>
-												<span
-													className={`health-pill ${
-														monitoring.status ||
-														'offline'
-													}`}>
-													<MonitorHeartRounded fontSize='inherit' />
-													{getMonitoringStatusLabel(
-														monitoring.status,
-													)}
-												</span>
-												<span className='monitoring-hint'>
-													Response{' '}
-													{project.status ===
-													'stopped'
-														? 'Offline'
-														: formatLatency(
-																monitoring.averageResponseTimeMs,
-															)}
-												</span>
-												<span className='monitoring-hint'>
-													Restarts{' '}
-													{monitoring.restartCount ||
-														0}
-												</span>
-												{monitoring.crashCount > 0 && (
-													<span className='monitoring-hint alert'>
-														Crashes{' '}
-														{monitoring.crashCount}
-													</span>
-												)}
-											</>
-										) : (
-											<>
-												<span className='health-pill offline'>
+										<span className='health-pill offline'>
+											{hasManagedServices ? (
+												<>
+													<RocketLaunchRounded fontSize='inherit' />
+													Managed runtime
+												</>
+											) : (
+												<>
 													<TerminalRounded fontSize='inherit' />
 													Terminal workflow
-												</span>
-												<span className='monitoring-hint'>
-													{runtimeLabel}
-												</span>
-												<span className='monitoring-hint'>
-													Workspace{' '}
-													{formatBytes(
-														monitoring.workspaceSizeBytes,
-													)}
-												</span>
-											</>
+												</>
+											)}
+										</span>
+										{hasManagedServices &&
+											expectedServiceCount > 0 && (
+											<span className='monitoring-hint'>
+												Services {activeServiceCount}/
+												{expectedServiceCount}
+											</span>
 										)}
+										<span className='monitoring-hint'>
+											{runtimeLabel}
+										</span>
+										<span className='monitoring-hint'>
+											Version {scaffold.version}
+										</span>
 									</div>
 
 									<div className='project-card-middle'>

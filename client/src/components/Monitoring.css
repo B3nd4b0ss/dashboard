@@ -1,0 +1,515 @@
+.monitoring-page {
+	display: grid;
+	gap: 20px;
+}
+
+.monitoring-state-card,
+.monitoring-hero,
+.monitoring-metric-card,
+.monitoring-project-card,
+.monitoring-alert-banner {
+	border-radius: 24px;
+	background: var(--surface-color);
+	border: 1px solid var(--border-color);
+	box-shadow: var(--shadow-soft);
+}
+
+.monitoring-state-card {
+	display: grid;
+	gap: 10px;
+	padding: 28px;
+}
+
+.monitoring-state-card.empty {
+	justify-items: flex-start;
+}
+
+.monitoring-state-card strong {
+	font-size: 1.1rem;
+	letter-spacing: -0.03em;
+}
+
+.monitoring-state-card p {
+	margin: 0;
+	color: var(--muted-color);
+	line-height: 1.6;
+}
+
+.monitoring-hero {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 20px;
+	padding: 28px;
+	background:
+		radial-gradient(
+			circle at top right,
+			rgba(61, 109, 242, 0.18),
+			transparent 30%
+		),
+		var(--surface-color);
+}
+
+.monitoring-hero-copy {
+	display: grid;
+	gap: 10px;
+	max-width: 720px;
+}
+
+.monitoring-section-tag,
+.monitoring-metric-card span,
+.monitoring-service-kind,
+.monitoring-summary-card span,
+.monitoring-service-metric span {
+	color: var(--soft-label);
+	font-size: 0.76rem;
+	font-weight: 800;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+}
+
+.monitoring-hero-copy h2 {
+	margin: 0;
+	font-size: clamp(1.9rem, 3vw, 2.7rem);
+	letter-spacing: -0.05em;
+}
+
+.monitoring-hero-copy p {
+	margin: 0;
+	color: var(--muted-color);
+	line-height: 1.65;
+}
+
+.monitoring-hero-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.monitoring-secondary-button,
+.monitoring-primary-link,
+.monitoring-quiet-link {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-height: 44px;
+	padding: 0 16px;
+	border-radius: 14px;
+	border: 1px solid transparent;
+	font-weight: 700;
+	text-decoration: none;
+	cursor: pointer;
+	transition:
+		transform 0.18s ease,
+		background-color 0.18s ease,
+		border-color 0.18s ease,
+		color 0.18s ease;
+}
+
+.monitoring-secondary-button,
+.monitoring-quiet-link {
+	background: var(--surface-subtle);
+	border-color: var(--border-color);
+	color: var(--text-color);
+}
+
+.monitoring-primary-link {
+	background: linear-gradient(135deg, var(--accent), #456ffd);
+	color: white;
+}
+
+.monitoring-secondary-button:hover,
+.monitoring-primary-link:hover,
+.monitoring-quiet-link:hover {
+	transform: translateY(-1px);
+}
+
+.monitoring-metrics {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+	gap: 16px;
+}
+
+.monitoring-metric-card {
+	display: flex;
+	align-items: flex-start;
+	gap: 14px;
+	padding: 20px 22px;
+	min-width: 0;
+}
+
+.monitoring-metric-card > div:last-child {
+	display: grid;
+	gap: 6px;
+	min-width: 0;
+}
+
+.monitoring-metric-card strong {
+	font-size: 1.45rem;
+	letter-spacing: -0.04em;
+	overflow-wrap: anywhere;
+}
+
+.monitoring-metric-card p {
+	margin: 0;
+	color: var(--muted-color);
+	line-height: 1.55;
+}
+
+.monitoring-metric-icon {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	width: 44px;
+	height: 44px;
+	border-radius: 16px;
+	flex-shrink: 0;
+}
+
+.monitoring-metric-icon.blue {
+	background: rgba(61, 109, 242, 0.12);
+	color: var(--accent);
+}
+
+.monitoring-metric-icon.green {
+	background: rgba(15, 168, 124, 0.14);
+	color: var(--success);
+}
+
+.monitoring-metric-icon.amber {
+	background: rgba(243, 176, 62, 0.16);
+	color: var(--warning-color);
+}
+
+.monitoring-metric-icon.slate {
+	background: rgba(95, 105, 124, 0.12);
+	color: var(--muted-color);
+}
+
+.monitoring-alert-banner {
+	display: flex;
+	align-items: flex-start;
+	gap: 12px;
+	padding: 18px 20px;
+}
+
+.monitoring-alert-banner strong {
+	display: block;
+	margin-bottom: 4px;
+	font-size: 1rem;
+	letter-spacing: -0.02em;
+}
+
+.monitoring-alert-banner p {
+	margin: 0;
+	color: var(--muted-color);
+	line-height: 1.6;
+}
+
+.monitoring-alert-banner.warning {
+	background:
+		linear-gradient(
+			135deg,
+			rgba(255, 122, 89, 0.1),
+			rgba(243, 176, 62, 0.06)
+		),
+		var(--surface-color);
+}
+
+.monitoring-alert-banner.healthy {
+	background:
+		linear-gradient(
+			135deg,
+			rgba(15, 168, 124, 0.1),
+			rgba(61, 109, 242, 0.05)
+		),
+		var(--surface-color);
+}
+
+.monitoring-alert-banner.error {
+	color: var(--danger-color);
+	background:
+		linear-gradient(
+			135deg,
+			rgba(217, 77, 77, 0.08),
+			rgba(255, 122, 89, 0.04)
+		),
+		var(--surface-color);
+}
+
+.monitoring-project-grid {
+	display: grid;
+	gap: 18px;
+}
+
+.monitoring-project-card {
+	display: grid;
+	gap: 18px;
+	padding: 24px;
+	min-width: 0;
+}
+
+.monitoring-project-head {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 16px;
+}
+
+.monitoring-project-copy,
+.monitoring-project-actions {
+	min-width: 0;
+}
+
+.monitoring-project-copy {
+	display: grid;
+	gap: 10px;
+}
+
+.monitoring-chip-row {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
+.monitoring-runtime-pill,
+.monitoring-health-pill,
+.monitoring-service-port {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 8px;
+	min-height: 30px;
+	padding: 0 12px;
+	border-radius: 999px;
+	font-size: 0.78rem;
+	font-weight: 700;
+}
+
+.monitoring-runtime-pill.status-running {
+	background: rgba(15, 168, 124, 0.14);
+	color: var(--success);
+}
+
+.monitoring-runtime-pill.status-partial {
+	background: rgba(255, 122, 89, 0.14);
+	color: var(--accent-deep);
+}
+
+.monitoring-runtime-pill.status-stopped {
+	background: rgba(95, 105, 124, 0.12);
+	color: var(--muted-color);
+}
+
+.monitoring-health-pill.tone-healthy {
+	background: rgba(15, 168, 124, 0.14);
+	color: var(--success);
+}
+
+.monitoring-health-pill.tone-degraded {
+	background: rgba(255, 122, 89, 0.14);
+	color: var(--accent-deep);
+}
+
+.monitoring-health-pill.tone-starting {
+	background: rgba(61, 109, 242, 0.12);
+	color: var(--accent);
+}
+
+.monitoring-health-pill.tone-offline {
+	background: rgba(95, 105, 124, 0.12);
+	color: var(--muted-color);
+}
+
+.monitoring-project-copy h3 {
+	margin: 0;
+	font-size: 1.4rem;
+	letter-spacing: -0.04em;
+}
+
+.monitoring-project-copy p {
+	margin: 0;
+	color: var(--muted-color);
+	line-height: 1.6;
+}
+
+.monitoring-project-actions {
+	display: flex;
+	flex-wrap: wrap;
+	justify-content: flex-end;
+	gap: 10px;
+}
+
+.monitoring-summary-grid,
+.monitoring-service-grid {
+	display: grid;
+	gap: 14px;
+}
+
+.monitoring-summary-grid {
+	grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.monitoring-summary-card,
+.monitoring-service-card {
+	border-radius: 20px;
+	background: var(--surface-subtle);
+	border: 1px solid var(--border-color);
+	min-width: 0;
+}
+
+.monitoring-summary-card {
+	display: grid;
+	gap: 8px;
+	padding: 16px 18px;
+}
+
+.monitoring-summary-card strong {
+	font-size: 1rem;
+	letter-spacing: -0.03em;
+	overflow-wrap: anywhere;
+}
+
+.monitoring-inline-alerts {
+	display: grid;
+	gap: 10px;
+}
+
+.monitoring-inline-alert {
+	display: flex;
+	align-items: flex-start;
+	gap: 10px;
+	padding: 14px 16px;
+	border-radius: 18px;
+	background: rgba(217, 77, 77, 0.08);
+	border: 1px solid rgba(217, 77, 77, 0.14);
+	color: var(--danger-color);
+}
+
+.monitoring-inline-alert span {
+	line-height: 1.55;
+	overflow-wrap: anywhere;
+}
+
+.monitoring-service-grid {
+	grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+}
+
+.monitoring-service-card {
+	display: grid;
+	gap: 14px;
+	padding: 18px;
+}
+
+.monitoring-service-head,
+.monitoring-service-badges,
+.monitoring-service-actions {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.monitoring-service-copy {
+	display: grid;
+	gap: 6px;
+	min-width: 0;
+}
+
+.monitoring-service-kind {
+	display: inline-flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.monitoring-service-copy strong,
+.monitoring-service-error,
+.monitoring-muted-note {
+	overflow-wrap: anywhere;
+}
+
+.monitoring-service-copy strong {
+	font-size: 1.05rem;
+	letter-spacing: -0.03em;
+}
+
+.monitoring-service-port {
+	background: rgba(61, 109, 242, 0.08);
+	color: var(--accent);
+	white-space: nowrap;
+}
+
+.monitoring-service-metrics {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 10px;
+}
+
+.monitoring-service-metric {
+	display: grid;
+	gap: 7px;
+	padding: 12px 14px;
+	border-radius: 16px;
+	background: rgba(20, 32, 52, 0.04);
+	border: 1px solid var(--border-color);
+	min-width: 0;
+}
+
+.monitoring-service-metric strong {
+	font-size: 0.98rem;
+	letter-spacing: -0.03em;
+	overflow-wrap: anywhere;
+}
+
+.monitoring-service-error {
+	margin: 0;
+	padding: 12px 14px;
+	border-radius: 16px;
+	background: rgba(217, 77, 77, 0.08);
+	border: 1px solid rgba(217, 77, 77, 0.16);
+	color: var(--danger-color);
+	line-height: 1.55;
+}
+
+.monitoring-muted-note {
+	color: var(--muted-color);
+	line-height: 1.55;
+}
+
+@media (max-width: 1180px) {
+	.monitoring-metrics,
+	.monitoring-summary-grid {
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+	}
+}
+
+@media (max-width: 900px) {
+	.monitoring-hero,
+	.monitoring-project-head,
+	.monitoring-project-actions,
+	.monitoring-service-head,
+	.monitoring-service-badges,
+	.monitoring-service-actions {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.monitoring-project-actions {
+		justify-content: flex-start;
+	}
+}
+
+@media (max-width: 720px) {
+	.monitoring-metrics,
+	.monitoring-summary-grid,
+	.monitoring-service-metrics {
+		grid-template-columns: 1fr;
+	}
+
+	.monitoring-hero,
+	.monitoring-project-card,
+	.monitoring-metric-card {
+		padding: 20px;
+	}
+}

@@ -234,6 +234,16 @@ If you want GitHub publishing:
 
 For private repository creation, the token needs private-repository creation permissions. For local-only workflows, GitHub setup is not required.
 
+## Security And Trust Model
+
+Dashboard is built first as a local, single-user developer workspace. The current safety model assumes you trust the machine it runs on and the people who can reach the local UI.
+
+- manual terminal commands are disabled by default until you explicitly enable Advanced terminal mode in `/settings`
+- saved project command presets still work even when manual commands are locked
+- recent terminal executions are written to `logs/terminal-history.json` so command activity is easier to review later
+- GitHub tokens are stored locally on this machine in `settings.json`, which is gitignored, and are only used for GitHub-related actions
+- the app is not intended to be exposed directly to the public internet or untrusted multi-user environments without adding your own authentication and network controls
+
 ## Project Installation Tutorial
 
 ### 1. Clone the Repository
@@ -310,7 +320,7 @@ The app stores its working state directly in the repository for easy inspection 
 - `settings.json` - dashboard settings such as GitHub preferences
 - `projects/` - generated local project workspaces
 - `docker-stacks/` - Docker stack data
-- `logs/` - runtime and PM2 logs
+- `logs/` - runtime logs, PM2 logs, and terminal execution history
 
 ## Repository Structure
 

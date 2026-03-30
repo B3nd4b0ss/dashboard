@@ -434,4 +434,8 @@ module.exports = {
 	createProjectEntry,
 	deleteProjectEntry,
 	resolveProjectPath,
+	__test__: {
+		isWithinRoot,
+		normalizeRelativePath,
+	},
 };

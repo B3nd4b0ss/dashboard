@@ -1,17 +1,22 @@
 const { randomUUID } = require('crypto');
 const { spawn } = require('child_process');
 const fs = require('fs');
+const path = require('path');
+const fsExtra = require('fs-extra');
 const kill = require('tree-kill');
+const { TERMINAL_HISTORY_FILE } = require('../config/constants');
 const { loadProjects } = require('../utils/fileOperations');
 const { findProject } = require('../utils/helpers');
 const { resolveProjectPath } = require('./projectFileService');
 const { getProjectCommandPresets } = require('./projectTemplates');
 const { configureProcessToolEnvironment } = require('./developmentToolchain');
+const { getTerminalSettings } = require('./settingsService');
 
 configureProcessToolEnvironment();
 
 const terminalExecutions = new Map();
 const MAX_OUTPUT_LENGTH = 120000;
+const MAX_HISTORY_ITEMS = 20;
 const POWERSHELL_COMMAND =
 	process.env.ComSpec &&
 	process.env.ComSpec.toLowerCase().includes('powershell')
@@ -31,6 +36,19 @@ function getProjectRecord(projectName) {
 	}
 
 	return project;
+}
+
+/**
+ * Creates a structured error that callers can map to an HTTP status code.
+ *
+ * @param {string} message - User-facing error message.
+ * @param {number} [statusCode=400] - Suggested HTTP status code.
+ * @returns {Error} Error carrying a status code.
+ */
+function createStatusError(message, statusCode = 400) {
+	const error = new Error(message);
+	error.statusCode = statusCode;
+	return error;
 }
 
 /**
@@ -85,6 +103,23 @@ function getShellInvocation(command) {
 }
 
 /**
+ * Rejects ad-hoc terminal commands unless the dashboard is explicitly in advanced terminal mode.
+ *
+ * @param {{allowManualCommands?: boolean}} [terminalSettings=getTerminalSettings()] - Terminal settings payload.
+ * @returns {void}
+ */
+function assertManualCommandsAllowed(terminalSettings = getTerminalSettings()) {
+	if (terminalSettings.allowManualCommands) {
+		return;
+	}
+
+	throw createStatusError(
+		'Manual terminal commands are disabled. Enable Advanced terminal mode in Settings to run ad-hoc commands.',
+		403,
+	);
+}
+
+/**
  * Limits stored terminal output so long-running commands do not grow unbounded in memory.
  *
  * @param {string} output - Current buffered terminal output.
@@ -102,6 +137,88 @@ function trimOutput(output) {
 		output: output.slice(output.length - MAX_OUTPUT_LENGTH),
 		truncated: true,
 	};
+}
+
+/**
+ * Loads the persisted terminal history store from disk.
+ *
+ * @returns {Record<string, Array<object>>} History entries grouped by project name.
+ */
+function loadTerminalHistoryStore() {
+	if (!fsExtra.existsSync(TERMINAL_HISTORY_FILE)) {
+		return {};
+	}
+
+	try {
+		return fsExtra.readJsonSync(TERMINAL_HISTORY_FILE);
+	} catch (error) {
+		return {};
+	}
+}
+
+/**
+ * Persists the grouped terminal history store to disk.
+ *
+ * @param {Record<string, Array<object>>} store - History entries grouped by project name.
+ * @returns {void}
+ */
+function saveTerminalHistoryStore(store) {
+	fsExtra.ensureDirSync(path.dirname(TERMINAL_HISTORY_FILE));
+	fsExtra.writeJsonSync(TERMINAL_HISTORY_FILE, store, { spaces: 2 });
+}
+
+/**
+ * Converts an execution record into a lightweight history entry that can be persisted.
+ *
+ * @param {object} execution - Internal execution record.
+ * @returns {object} Serializable history entry.
+ */
+function toHistoryEntry(execution) {
+	return {
+		id: execution.id,
+		projectName: execution.projectName,
+		kind: execution.kind,
+		label: execution.label,
+		command: execution.command,
+		cwd: execution.cwd,
+		status: execution.status,
+		startedAt: execution.startedAt,
+		updatedAt: execution.updatedAt,
+		endedAt: execution.endedAt,
+		exitCode: execution.exitCode,
+	};
+}
+
+/**
+ * Writes the latest snapshot of an execution into the persistent history store.
+ *
+ * @param {object} execution - Internal execution record.
+ * @returns {void}
+ */
+function persistExecutionHistory(execution) {
+	const store = loadTerminalHistoryStore();
+	const historyItems = Array.isArray(store[execution.projectName])
+		? store[execution.projectName]
+		: [];
+	const nextEntry = toHistoryEntry(execution);
+	const existingIndex = historyItems.findIndex(
+		(entry) => entry.id === execution.id,
+	);
+
+	if (existingIndex >= 0) {
+		historyItems[existingIndex] = nextEntry;
+	} else {
+		historyItems.unshift(nextEntry);
+	}
+
+	store[execution.projectName] = historyItems
+		.sort((left, right) => {
+			const leftTime = Date.parse(left.startedAt || '') || 0;
+			const rightTime = Date.parse(right.startedAt || '') || 0;
+			return rightTime - leftTime;
+		})
+		.slice(0, MAX_HISTORY_ITEMS);
+	saveTerminalHistoryStore(store);
 }
 
 /**
@@ -131,6 +248,7 @@ function toExecutionSnapshot(execution) {
 	return {
 		id: execution.id,
 		projectName: execution.projectName,
+		kind: execution.kind,
 		label: execution.label,
 		command: execution.command,
 		cwd: execution.cwd,
@@ -157,7 +275,7 @@ function toExecutionSnapshot(execution) {
  */
 function startExecution(
 	projectName,
-	{ command, cwd = '', label = 'Custom command' },
+	{ command, cwd = '', kind = 'manual', label = 'Custom command' },
 ) {
 	const trimmedCommand = String(command || '').trim();
 	if (!trimmedCommand) {
@@ -176,6 +294,7 @@ function startExecution(
 	const execution = {
 		id: randomUUID(),
 		projectName,
+		kind,
 		label,
 		command: trimmedCommand,
 		cwd: normalizedPath,
@@ -201,6 +320,7 @@ function startExecution(
 	execution.proc = proc;
 	execution.pid = proc.pid || null;
 	terminalExecutions.set(execution.id, execution);
+	persistExecutionHistory(execution);
 
 	if (proc.stdout) {
 		proc.stdout.on('data', (chunk) =>
@@ -220,6 +340,7 @@ function startExecution(
 		execution.exitCode = null;
 		execution.endedAt = new Date().toISOString();
 		execution.updatedAt = execution.endedAt;
+		persistExecutionHistory(execution);
 	});
 
 	proc.on('close', (code) => {
@@ -233,6 +354,7 @@ function startExecution(
 				: 'failed';
 		execution.proc = null;
 		execution.pid = null;
+		persistExecutionHistory(execution);
 	});
 
 	return toExecutionSnapshot(execution);
@@ -247,10 +369,12 @@ function startExecution(
  * @returns {object} Initial execution snapshot.
  */
 function runProjectCommand(projectName, command, options = {}) {
-	getProjectRecord(projectName);
-	return startExecution(projectName, {
+	const project = getProjectRecord(projectName);
+	assertManualCommandsAllowed();
+	return startExecution(project.name, {
 		command,
 		cwd: options.cwd || '',
+		kind: 'manual',
 		label: options.label || 'Custom command',
 	});
 }
@@ -272,11 +396,35 @@ function runProjectPreset(projectName, presetId) {
 		throw new Error('Command preset not found');
 	}
 
-	return startExecution(projectName, {
+	return startExecution(project.name, {
 		command: buildShellCommandFromSteps(preset.steps),
 		cwd: preset.cwd || '',
+		kind: 'preset',
 		label: preset.label,
 	});
+}
+
+/**
+ * Returns recent terminal executions for a project.
+ *
+ * @param {string} projectName - Project that owns the history.
+ * @param {{limit?: number}} [options={}] - Optional limit for recent entries.
+ * @returns {Array<object>} Recent execution history, newest first.
+ */
+function getProjectCommandHistory(projectName, options = {}) {
+	const project = getProjectRecord(projectName);
+
+	const store = loadTerminalHistoryStore();
+	const historyItems = Array.isArray(store[project.name])
+		? store[project.name]
+		: [];
+	const requestedLimit = Number.parseInt(options.limit, 10);
+	const safeLimit =
+		Number.isInteger(requestedLimit) && requestedLimit > 0
+			? Math.min(requestedLimit, MAX_HISTORY_ITEMS)
+			: MAX_HISTORY_ITEMS;
+
+	return historyItems.slice(0, safeLimit);
 }
 
 /**
@@ -287,10 +435,10 @@ function runProjectPreset(projectName, presetId) {
  * @returns {object} Current execution snapshot.
  */
 function getProjectExecution(projectName, executionId) {
-	getProjectRecord(projectName);
+	const project = getProjectRecord(projectName);
 
 	const execution = terminalExecutions.get(executionId);
-	if (!execution || execution.projectName !== projectName) {
+	if (!execution || execution.projectName !== project.name) {
 		throw new Error('Terminal execution not found');
 	}
 
@@ -305,10 +453,10 @@ function getProjectExecution(projectName, executionId) {
  * @returns {Promise<object>} Final or in-progress execution snapshot after the stop signal is sent.
  */
 function stopProjectExecution(projectName, executionId) {
-	getProjectRecord(projectName);
+	const project = getProjectRecord(projectName);
 
 	const execution = terminalExecutions.get(executionId);
-	if (!execution || execution.projectName !== projectName) {
+	if (!execution || execution.projectName !== project.name) {
 		throw new Error('Terminal execution not found');
 	}
 
@@ -329,5 +477,14 @@ module.exports = {
 	runProjectCommand,
 	runProjectPreset,
 	getProjectExecution,
+	getProjectCommandHistory,
 	stopProjectExecution,
+	__test__: {
+		assertManualCommandsAllowed,
+		buildShellCommandFromSteps,
+		MAX_HISTORY_ITEMS,
+		MAX_OUTPUT_LENGTH,
+		toHistoryEntry,
+		trimOutput,
+	},
 };

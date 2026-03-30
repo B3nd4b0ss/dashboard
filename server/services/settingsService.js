@@ -7,6 +7,9 @@ const DEFAULT_SETTINGS = Object.freeze({
 		token: '',
 		visibility: 'private',
 	},
+	terminal: {
+		allowManualCommands: false,
+	},
 });
 
 /**
@@ -25,6 +28,17 @@ function normalizeVisibility(
 	}
 
 	return fallback;
+}
+
+/**
+ * Normalizes boolean values while preserving a fallback when the client omits the field.
+ *
+ * @param {unknown} value - Raw value received from the client.
+ * @param {boolean} fallback - Value to use when the input is not a boolean.
+ * @returns {boolean} Normalized boolean.
+ */
+function normalizeBoolean(value, fallback) {
+	return typeof value === 'boolean' ? value : fallback;
 }
 
 /**
@@ -79,6 +93,25 @@ function normalizeGitHubSettings(
 }
 
 /**
+ * Merges raw terminal settings input with existing values and normalizes each field.
+ *
+ * @param {object} [input={}] - Partial terminal settings payload.
+ * @param {object} [existing=DEFAULT_SETTINGS.terminal] - Existing terminal settings used as defaults.
+ * @returns {{allowManualCommands: boolean}} Normalized terminal settings.
+ */
+function normalizeTerminalSettings(
+	input = {},
+	existing = DEFAULT_SETTINGS.terminal,
+) {
+	return {
+		allowManualCommands: normalizeBoolean(
+			input.allowManualCommands,
+			existing.allowManualCommands,
+		),
+	};
+}
+
+/**
  * Normalizes the full settings document loaded from disk or received from the client.
  *
  * @param {object} [input={}] - Partial raw settings object.
@@ -89,9 +122,14 @@ function normalizeSettings(input = {}) {
 		input.github,
 		DEFAULT_SETTINGS.github,
 	);
+	const existingTerminal = normalizeTerminalSettings(
+		input.terminal,
+		DEFAULT_SETTINGS.terminal,
+	);
 
 	return {
 		github: existingGitHub,
+		terminal: existingTerminal,
 	};
 }
 
@@ -118,6 +156,9 @@ function getPublicSettingsFromValue(settings) {
 			visibility: settings.github.visibility,
 			hasToken: Boolean(settings.github.token),
 		},
+		terminal: {
+			allowManualCommands: settings.terminal.allowManualCommands,
+		},
 	};
 }
 
@@ -139,6 +180,7 @@ function getPublicSettings() {
 function updateSettings(updates = {}) {
 	const current = getSettings();
 	const githubUpdates = updates.github || {};
+	const terminalUpdates = updates.terminal || {};
 	const nextSettings = {
 		github: {
 			...current.github,
@@ -162,6 +204,13 @@ function updateSettings(updates = {}) {
 					? githubUpdates.token.trim()
 					: current.github.token,
 		},
+		terminal: {
+			...current.terminal,
+			allowManualCommands: normalizeBoolean(
+				terminalUpdates.allowManualCommands,
+				current.terminal.allowManualCommands,
+			),
+		},
 	};
 
 	if (githubUpdates.clearToken) {
@@ -181,10 +230,28 @@ function getGitHubSettings() {
 	return getSettings().github;
 }
 
+/**
+ * Returns the private terminal settings block for internal services.
+ *
+ * @returns {{allowManualCommands: boolean}} Normalized terminal settings.
+ */
+function getTerminalSettings() {
+	return getSettings().terminal;
+}
+
 module.exports = {
 	DEFAULT_SETTINGS,
 	getGitHubSettings,
 	getPublicSettings,
 	getSettings,
+	getTerminalSettings,
 	updateSettings,
+	__test__: {
+		normalizeBoolean,
+		normalizeGitHubOwner,
+		normalizeGitHubSettings,
+		normalizeSettings,
+		normalizeTerminalSettings,
+		normalizeVisibility,
+	},
 };

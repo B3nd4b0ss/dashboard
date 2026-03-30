@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import DescriptionRounded from '@mui/icons-material/DescriptionRounded';
 import CodeRounded from '@mui/icons-material/CodeRounded';
 import DataObjectRounded from '@mui/icons-material/DataObjectRounded';
@@ -314,7 +314,9 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 		path: '',
 	});
 	const [commandValue, setCommandValue] = useState('');
+	const [manualCommandsEnabled, setManualCommandsEnabled] = useState(false);
 	const [terminalExecution, setTerminalExecution] = useState(null);
+	const [terminalHistory, setTerminalHistory] = useState([]);
 	const [terminalBusy, setTerminalBusy] = useState(false);
 	const [terminalError, setTerminalError] = useState('');
 	const textareaRef = useRef(null);
@@ -336,6 +338,9 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 	const effectiveExpandedPaths = hasTreeSearch
 		? collectNestedDirectoryPaths(visibleEntries)
 		: expandedPaths;
+	const selectedFilePath = selectedFile?.path || '';
+	const terminalExecutionId = terminalExecution?.id || '';
+	const terminalExecutionStatus = terminalExecution?.status || '';
 
 	const syncScrollPositions = ({ top, left = 0 } = {}) => {
 		scrollSyncRef.current = true;
@@ -431,7 +436,34 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 		}
 	};
 
-	useEffect(() => {
+	const loadTerminalSettings = async () => {
+		try {
+			const response = await axios.get(`${API}/system/settings`);
+			setManualCommandsEnabled(
+				Boolean(response.data?.terminal?.allowManualCommands),
+			);
+		} catch {
+			setManualCommandsEnabled(false);
+		}
+	};
+
+	const loadTerminalHistory = async () => {
+		try {
+			const response = await axios.get(
+				`${API}/projects/${encodeURIComponent(
+					projectName,
+				)}/terminal/history`,
+				{
+					params: { limit: 8 },
+				},
+			);
+			setTerminalHistory(response.data?.items || []);
+		} catch {
+			setTerminalHistory([]);
+		}
+	};
+
+	const initializeWorkspaceState = useEffectEvent(() => {
 		setWorkspace({
 			entries: [],
 			entryCount: 0,
@@ -447,15 +479,30 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 		setCreationDraft({ open: false, type: 'file', path: '' });
 		setProjectMeta(null);
 		setCommandValue('');
+		setManualCommandsEnabled(false);
 		setTerminalExecution(null);
+		setTerminalHistory([]);
 		setTerminalBusy(false);
 		setTerminalError('');
 		loadWorkspace({ preserveSelection: false });
 		loadProjectMeta();
+		loadTerminalSettings();
+		loadTerminalHistory();
+	});
+
+	const refreshTerminalHistoryEvent = useEffectEvent(() => {
+		loadTerminalHistory();
+	});
+
+	useEffect(() => {
+		initializeWorkspaceState();
 	}, [projectName]);
 
 	useEffect(() => {
-		if (!terminalExecution?.id || terminalExecution.status !== 'running') {
+		if (
+			!terminalExecutionId ||
+			terminalExecutionStatus !== 'running'
+		) {
 			return undefined;
 		}
 
@@ -464,7 +511,7 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 				const response = await axios.get(
 					`${API}/projects/${encodeURIComponent(
 						projectName,
-					)}/terminal/${terminalExecution.id}`,
+					)}/terminal/${terminalExecutionId}`,
 				);
 				setTerminalExecution(response.data);
 			} catch (error) {
@@ -476,7 +523,15 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 		}, 1200);
 
 		return () => window.clearInterval(intervalId);
-	}, [projectName, terminalExecution?.id, terminalExecution?.status]);
+	}, [projectName, terminalExecutionId, terminalExecutionStatus]);
+
+	useEffect(() => {
+		if (!terminalExecutionId || terminalExecutionStatus === 'running') {
+			return;
+		}
+
+		refreshTerminalHistoryEvent();
+	}, [terminalExecutionId, terminalExecutionStatus]);
 
 	useEffect(() => {
 		terminalOutputRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -789,7 +844,7 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 	);
 
 	useEffect(() => {
-		if (!selectedFile) {
+		if (!selectedFilePath) {
 			return;
 		}
 
@@ -803,7 +858,7 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 				left: textareaRef.current.scrollLeft,
 			});
 		});
-	}, [lineCount, selectedFile?.path]);
+	}, [lineCount, selectedFilePath]);
 
 	const commandPresets = projectMeta?.commandPresets || [];
 	const primaryCommandPreset =
@@ -811,6 +866,7 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 		commandPresets[0] ||
 		null;
 	const executionRunning = terminalExecution?.status === 'running';
+	const manualCommandLocked = !manualCommandsEnabled;
 	const selectedWorkingDirectory =
 		selectedEntry?.type === 'directory'
 			? selectedEntry.path
@@ -829,7 +885,11 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 			const response = await request();
 			setTerminalExecution(response.data);
 			await loadProjectMeta();
+			await loadTerminalHistory();
 		} catch (error) {
+			if (error.response?.status === 403) {
+				setManualCommandsEnabled(false);
+			}
 			setTerminalError(
 				error.response?.data?.error ||
 					'Unable to start that terminal command.',
@@ -861,6 +921,13 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 	};
 
 	const runManualCommand = async () => {
+		if (!manualCommandsEnabled) {
+			setTerminalError(
+				'Manual terminal commands are locked. Enable Advanced terminal mode in Settings to run ad-hoc commands.',
+			);
+			return;
+		}
+
 		if (!commandValue.trim()) {
 			return;
 		}
@@ -908,7 +975,7 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 
 		try {
 			await navigator.clipboard.writeText(terminalExecution.output);
-		} catch (error) {
+		} catch {
 			setTerminalError('Unable to copy terminal output.');
 		}
 	};
@@ -1243,7 +1310,9 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 					<div className='workspace-terminal-command-copy'>
 						<strong>Manual command</strong>
 						<span>
-							{selectedWorkingDirectory
+							{manualCommandLocked
+								? 'Manual commands are locked. Presets still run normally until you enable Advanced terminal mode.'
+								: selectedWorkingDirectory
 								? `Runs inside ${selectedWorkingDirectory}`
 								: terminalWorkingDirectory
 									? `Runs inside ${terminalWorkingDirectory} by default. Select a folder to override it.`
@@ -1253,6 +1322,7 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 					<input
 						className='workspace-terminal-input'
 						value={commandValue}
+						disabled={manualCommandLocked}
 						onChange={(event) =>
 							setCommandValue(event.target.value)
 						}
@@ -1262,20 +1332,25 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 								runManualCommand();
 							}
 						}}
-						placeholder='npm run build, mvn test, py -3 -m app doctor'
+						placeholder={
+							manualCommandLocked
+								? 'Enable Advanced terminal mode in Settings to run ad-hoc commands'
+								: 'npm run build, mvn test, py -3 -m app doctor'
+						}
 					/>
 					<div className='workspace-terminal-command-actions'>
 						<button
 							type='button'
 							className='success-button'
 							disabled={
+								manualCommandLocked ||
 								terminalBusy ||
 								executionRunning ||
 								!commandValue.trim()
 							}
 							onClick={runManualCommand}>
 							<TerminalRounded fontSize='small' />
-							Run command
+							{manualCommandLocked ? 'Locked' : 'Run command'}
 						</button>
 						{terminalExecution?.status === 'running' && (
 							<button
@@ -1289,6 +1364,56 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 						)}
 					</div>
 				</div>
+
+				{manualCommandLocked && (
+					<div className='workspace-terminal-lock-note'>
+						<strong>Advanced terminal mode is off.</strong>
+						<span>
+							Manual commands are disabled until you unlock them
+							in <Link to='/settings'>Settings</Link>. Saved
+							project presets remain available above.
+						</span>
+					</div>
+				)}
+
+				{terminalHistory.length > 0 && (
+					<div className='workspace-terminal-history'>
+						<div className='workspace-terminal-history-head'>
+							<strong>Recent executions</strong>
+							<span>Saved per project for easier review</span>
+						</div>
+						<div className='workspace-terminal-history-list'>
+							{terminalHistory.map((entry) => (
+								<div
+									key={entry.id}
+									className='workspace-terminal-history-item'>
+									<div className='workspace-terminal-history-main'>
+										<strong>{entry.label}</strong>
+										<span>{entry.command}</span>
+									</div>
+									<div className='workspace-terminal-history-meta'>
+										<span>
+											{entry.kind === 'preset'
+												? 'Preset'
+												: 'Manual'}
+											{entry.cwd
+												? ` | ${entry.cwd}`
+												: ' | project root'}
+										</span>
+										<strong>
+											{formatExecutionStatus(
+												entry.status,
+											)}
+										</strong>
+										<span>
+											{formatTimestamp(entry.startedAt)}
+										</span>
+									</div>
+								</div>
+							))}
+						</div>
+					</div>
+				)}
 
 				{terminalError && (
 					<div className='workspace-error-banner'>
@@ -1319,10 +1444,9 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 						</>
 					) : (
 						<div className='workspace-empty-state workspace-terminal-empty'>
-							Use the quick actions above or type any command you
-							want to run inside this project. Java, Python,
-							Maven, npm, and other local tools can all be
-							executed here.
+							{manualCommandLocked
+								? 'Use the preset actions above, or unlock Advanced terminal mode in Settings if you want this workspace to accept ad-hoc commands.'
+								: 'Use the quick actions above or type any command you want to run inside this project. Java, Python, Maven, npm, and other local tools can all be executed here.'}
 						</div>
 					)}
 					<div ref={terminalOutputRef} />
