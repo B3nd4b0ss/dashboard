@@ -303,9 +303,10 @@ function SettingsPage() {
 								</span>
 							</label>
 							<p>
-								The token is stored locally on this machine in
-								the dashboard settings file so new projects can
-								publish without prompting you each time.
+								The token stays local to this machine. On
+								Windows, the dashboard encrypts it with the
+								current user profile before writing settings to
+								disk.
 							</p>
 						</div>
 					</label>

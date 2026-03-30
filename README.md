@@ -241,8 +241,10 @@ Dashboard is built first as a local, single-user developer workspace. The curren
 - manual terminal commands are disabled by default until you explicitly enable Advanced terminal mode in `/settings`
 - saved project command presets still work even when manual commands are locked
 - recent terminal executions are written to `logs/terminal-history.json` so command activity is easier to review later
-- GitHub tokens are stored locally on this machine in `settings.json`, which is gitignored, and are only used for GitHub-related actions
+- on Windows, GitHub tokens are encrypted with the current user profile before they are written to `settings.json`; the token is never returned in public API responses and is only used for GitHub-related actions
 - the app is not intended to be exposed directly to the public internet or untrusted multi-user environments without adding your own authentication and network controls
+
+If you need to access the dashboard from a non-loopback origin during development, set `DASHBOARD_ALLOWED_ORIGINS` to a comma-separated allowlist and `DASHBOARD_HOST` to the interface you want the backend to bind to. The default behavior is local-only.
 
 ## Project Installation Tutorial
 

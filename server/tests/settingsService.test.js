@@ -50,3 +50,44 @@ test('normalizeSettings merges github and terminal defaults', () => {
 	assert.equal(normalized.github.autoCreateRepo, true);
 	assert.equal(normalized.terminal.allowManualCommands, true);
 });
+
+test('buildPersistedSettings encrypts the token on Windows-style platforms', () => {
+	const persisted = __test__.buildPersistedSettings(
+		{
+			github: {
+				owner: 'octocat',
+				token: 'ghp_secret',
+			},
+			terminal: {
+				allowManualCommands: true,
+			},
+		},
+		{
+			platform: 'win32',
+			encryptToken: (value) => `encrypted:${value}`,
+		},
+	);
+
+	assert.equal(persisted.github.token, 'encrypted:ghp_secret');
+	assert.equal(persisted.github.tokenStorage, 'dpapi');
+	assert.equal(persisted.terminal.allowManualCommands, true);
+});
+
+test('hydratePersistedSettings decrypts DPAPI-backed tokens for runtime use', () => {
+	const runtime = __test__.hydratePersistedSettings(
+		{
+			github: {
+				owner: 'octocat',
+				token: 'encrypted:ghp_secret',
+				tokenStorage: 'dpapi',
+			},
+		},
+		{
+			platform: 'win32',
+			decryptToken: (value) => value.replace('encrypted:', ''),
+		},
+	);
+
+	assert.equal(runtime.github.token, 'ghp_secret');
+	assert.equal(runtime.github.tokenStorage, 'dpapi');
+});

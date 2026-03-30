@@ -8,13 +8,27 @@ const membersRouter = require('./routes/members');
 const systemRouter = require('./routes/system');
 const { PORT } = require('./config/constants');
 const {
+	createCorsOptions,
+	parseOriginList,
+	resolveServerHost,
+} = require('./config/http');
+const {
 	configureProcessToolEnvironment,
 } = require('./services/developmentToolchain');
 
 const detectedToolchain = configureProcessToolEnvironment();
+const serverHost = resolveServerHost();
+const extraAllowedOrigins = parseOriginList(process.env.DASHBOARD_ALLOWED_ORIGINS);
 
 const app = express();
-app.use(cors());
+app.disable('x-powered-by');
+app.use(
+	cors(
+		createCorsOptions({
+			extraOrigins: extraAllowedOrigins,
+		}),
+	),
+);
 app.use(express.json({ limit: '4mb' }));
 
 if (detectedToolchain.javaHome || detectedToolchain.mavenHome) {
@@ -31,8 +45,25 @@ app.use('/tasks', tasksRouter);
 app.use('/members', membersRouter);
 app.use('/system', systemRouter);
 
-const server = app.listen(PORT, () =>
-	console.log(`Dashboard backend running on port ${PORT}`),
+app.use((error, req, res, next) => {
+	if (res.headersSent) {
+		next(error);
+		return;
+	}
+
+	const statusCode = error.statusCode || 500;
+	res.status(statusCode).json({
+		error:
+			statusCode >= 500
+				? 'Internal server error'
+				: error.message || 'Request failed',
+	});
+});
+
+const server = app.listen(PORT, serverHost, () =>
+	console.log(
+		`Dashboard backend running on http://${serverHost}:${PORT}`,
+	),
 );
 
 function shutdown(signal) {

@@ -1,10 +1,16 @@
 const { loadSettings, saveSettings } = require('../utils/fileOperations');
+const {
+	decryptLocalSecret,
+	encryptLocalSecret,
+	getLocalSecretStorageType,
+} = require('./localSecretService');
 
 const DEFAULT_SETTINGS = Object.freeze({
 	github: {
 		autoCreateRepo: true,
 		owner: '',
 		token: '',
+		tokenStorage: 'plain',
 		visibility: 'private',
 	},
 	terminal: {
@@ -88,6 +94,8 @@ function normalizeGitHubSettings(
 			typeof input.token === 'string'
 				? input.token.trim()
 				: existing.token || '',
+		tokenStorage:
+			input.tokenStorage === 'dpapi' ? 'dpapi' : existing.tokenStorage,
 		visibility: normalizeVisibility(input.visibility, existing.visibility),
 	};
 }
@@ -139,7 +147,7 @@ function normalizeSettings(input = {}) {
  * @returns {{github: object}} Full normalized settings, including sensitive values such as the GitHub token.
  */
 function getSettings() {
-	return normalizeSettings(loadSettings());
+	return hydratePersistedSettings(loadSettings());
 }
 
 /**
@@ -217,7 +225,7 @@ function updateSettings(updates = {}) {
 		nextSettings.github.token = '';
 	}
 
-	saveSettings(nextSettings);
+	saveSettings(buildPersistedSettings(nextSettings));
 	return getPublicSettingsFromValue(nextSettings);
 }
 
@@ -239,14 +247,74 @@ function getTerminalSettings() {
 	return getSettings().terminal;
 }
 
+/**
+ * Converts plaintext runtime settings into the persisted on-disk representation.
+ *
+ * @param {{github: object, terminal: object}} settings - Runtime settings containing the plaintext GitHub token.
+ * @param {{platform?: string, encryptToken?: Function}} [options={}] - Test overrides.
+ * @returns {{github: object, terminal: object}} Persisted settings payload.
+ */
+function buildPersistedSettings(settings, options = {}) {
+	const normalized = normalizeSettings(settings);
+	const platform = options.platform || process.platform;
+	const encryptToken = options.encryptToken || encryptLocalSecret;
+	const tokenStorage = getLocalSecretStorageType(platform);
+
+	return {
+		...normalized,
+		github: {
+			...normalized.github,
+			token: normalized.github.token
+				? encryptToken(normalized.github.token, {
+						platform,
+					})
+				: '',
+			tokenStorage,
+		},
+	};
+}
+
+/**
+ * Converts persisted settings into the runtime representation used by services.
+ *
+ * @param {{github?: object, terminal?: object}} persistedSettings - Raw settings loaded from disk.
+ * @param {{platform?: string, decryptToken?: Function}} [options={}] - Test overrides.
+ * @returns {{github: object, terminal: object}} Runtime settings with a plaintext token.
+ */
+function hydratePersistedSettings(persistedSettings, options = {}) {
+	const normalized = normalizeSettings(persistedSettings);
+	const platform = options.platform || process.platform;
+	const decryptToken = options.decryptToken || decryptLocalSecret;
+
+	return {
+		...normalized,
+		github: {
+			...normalized.github,
+			token: normalized.github.token
+				? decryptToken(
+						normalized.github.token,
+						normalized.github.tokenStorage,
+						{
+							platform,
+						},
+					)
+				: '',
+		},
+	};
+}
+
 module.exports = {
 	DEFAULT_SETTINGS,
+	buildPersistedSettings,
 	getGitHubSettings,
 	getPublicSettings,
 	getSettings,
 	getTerminalSettings,
+	hydratePersistedSettings,
 	updateSettings,
 	__test__: {
+		buildPersistedSettings,
+		hydratePersistedSettings,
 		normalizeBoolean,
 		normalizeGitHubOwner,
 		normalizeGitHubSettings,
