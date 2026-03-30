@@ -524,8 +524,7 @@
 .workspace-line-number {
 	display: block;
 	min-height: calc(
-		var(--workspace-editor-font-size) *
-			var(--workspace-editor-line-height)
+		var(--workspace-editor-font-size) * var(--workspace-editor-line-height)
 	);
 }
 

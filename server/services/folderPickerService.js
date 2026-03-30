@@ -30,6 +30,14 @@ const FOLDER_PICKER_SCRIPT = path.join(
 );
 const FOLDER_PICKER_TIMEOUT_MS = 90 * 1000;
 
+/**
+ * Converts low-level folder picker failures into a clearer message for the UI.
+ *
+ * @param {Error | null | undefined} error - Error returned by the child process callback.
+ * @param {string} stdout - Stdout captured from the picker script.
+ * @param {string} stderr - Stderr captured from the picker script.
+ * @returns {string} User-friendly error message.
+ */
 function getFriendlyPickerError(error, stdout, stderr) {
 	if (error?.killed || /timed out/i.test(error?.message || '')) {
 		return 'Folder picker timed out before a folder was chosen. If it opened behind other windows, bring it to the front and try again.';
@@ -43,6 +51,14 @@ function getFriendlyPickerError(error, stdout, stderr) {
 	);
 }
 
+/**
+ * Opens the native Windows folder picker script and resolves the selected path.
+ *
+ * @param {{initialPath?: string, title?: string}} [options={}] - Picker options supplied by the API route.
+ * @param {string} [options.initialPath=PROJECTS_DIR] - Initial folder to highlight when the dialog opens.
+ * @param {string} [options.title='Choose a folder'] - Dialog title shown to the user.
+ * @returns {Promise<{canceled: boolean, path: string | null}>} Selection result returned by the PowerShell helper.
+ */
 function openFolderPicker({
 	initialPath = PROJECTS_DIR,
 	title = 'Choose a folder',
@@ -85,7 +101,9 @@ function openFolderPicker({
 			(error, stdout, stderr) => {
 				if (error) {
 					reject(
-						new Error(getFriendlyPickerError(error, stdout, stderr)),
+						new Error(
+							getFriendlyPickerError(error, stdout, stderr),
+						),
 					);
 					return;
 				}
@@ -99,7 +117,11 @@ function openFolderPicker({
 				try {
 					resolve(JSON.parse(payload));
 				} catch (parseError) {
-					reject(new Error('Folder picker returned an unexpected result'));
+					reject(
+						new Error(
+							'Folder picker returned an unexpected result',
+						),
+					);
 				}
 			},
 		);

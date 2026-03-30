@@ -14,6 +14,7 @@ import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
 import RestartAltRounded from '@mui/icons-material/RestartAltRounded';
 import MonitorHeartRounded from '@mui/icons-material/MonitorHeartRounded';
 import ScheduleRounded from '@mui/icons-material/ScheduleRounded';
+import { API_BASE_URL } from '../config/api';
 import {
 	getProjectCommandLabel,
 	getProjectLaunchLabel,
@@ -29,8 +30,15 @@ import {
 } from '../utils/taskPresentation';
 import './ProjectDetail.css';
 
-const API = 'http://localhost:4000';
+const API = API_BASE_URL;
 
+/**
+ * Broadcasts project lifecycle events so other surfaces can refresh optimistically.
+ *
+ * @param {string} projectName - Project name associated with the action.
+ * @param {string} action - Action identifier such as `start` or `stop`.
+ * @returns {void}
+ */
 function broadcastProjectAction(projectName, action) {
 	window.dispatchEvent(
 		new CustomEvent('dashboard:project-action', {
@@ -39,13 +47,24 @@ function broadcastProjectAction(projectName, action) {
 	);
 }
 
+/**
+ * Builds display-ready connection details for a linked database.
+ *
+ * @param {object | null} database - Linked database record.
+ * @returns {Array<{label: string, value: string | number}>} Connection detail rows.
+ */
 function getConnectionInfo(database) {
 	if (!database || !database.credentials) {
 		return null;
 	}
 
-	const { user, password, database: databaseName, host, port } =
-		database.credentials;
+	const {
+		user,
+		password,
+		database: databaseName,
+		host,
+		port,
+	} = database.credentials;
 
 	switch (database.type) {
 		case 'mysql':
@@ -69,6 +88,12 @@ function getConnectionInfo(database) {
 	}
 }
 
+/**
+ * Converts a raw runtime status into the badge label shown in the project detail page.
+ *
+ * @param {string} status - Raw project runtime status.
+ * @returns {string} User-facing status label.
+ */
 function getStatusLabel(status) {
 	switch (status) {
 		case 'running':
@@ -80,6 +105,12 @@ function getStatusLabel(status) {
 	}
 }
 
+/**
+ * Formats byte counts for the monitoring section.
+ *
+ * @param {number} bytes - Raw byte value.
+ * @returns {string} Human-readable byte string.
+ */
 function formatBytes(bytes) {
 	if (!Number.isFinite(bytes) || bytes <= 0) {
 		return '0 B';
@@ -98,6 +129,12 @@ function formatBytes(bytes) {
 	return `${value.toFixed(digits)} ${units[unitIndex]}`;
 }
 
+/**
+ * Formats response time metrics for the monitoring section.
+ *
+ * @param {number | null | undefined} value - Raw latency in milliseconds.
+ * @returns {string} Human-readable latency label.
+ */
 function formatLatency(value) {
 	if (!Number.isFinite(value) || value <= 0) {
 		return 'Waiting';
@@ -110,6 +147,12 @@ function formatLatency(value) {
 	return `${Math.round(value)} ms`;
 }
 
+/**
+ * Formats uptime-style durations for service monitoring cards.
+ *
+ * @param {number | null | undefined} value - Duration in milliseconds.
+ * @returns {string} Human-readable duration label.
+ */
 function formatDuration(value) {
 	if (!Number.isFinite(value) || value <= 0) {
 		return 'Just started';
@@ -131,6 +174,12 @@ function formatDuration(value) {
 	return `${seconds}s`;
 }
 
+/**
+ * Converts a monitoring status into the badge label shown in the UI.
+ *
+ * @param {string} status - Monitoring status returned by the API.
+ * @returns {string} User-facing monitoring label.
+ */
 function getMonitoringStatusLabel(status) {
 	switch (status) {
 		case 'healthy':
@@ -146,6 +195,12 @@ function getMonitoringStatusLabel(status) {
 	}
 }
 
+/**
+ * Normalizes a project into the form state used by the edit modal.
+ *
+ * @param {object} [project={}] - Project record returned by the API.
+ * @returns {object} Editable form state for the current project.
+ */
 function buildEditableProject(project = {}) {
 	const scaffold = getProjectScaffold(project);
 
@@ -164,6 +219,11 @@ function buildEditableProject(project = {}) {
 	};
 }
 
+/**
+ * Renders the project detail page with runtime controls, monitoring, files, and repository actions.
+ *
+ * @returns {JSX.Element} Project detail page.
+ */
 function ProjectDetail() {
 	const { name } = useParams();
 	const navigate = useNavigate();
@@ -234,7 +294,10 @@ function ProjectDetail() {
 		}
 	};
 
-	const fetchLogs = async ({ preferredService = null, silent = false } = {}) => {
+	const fetchLogs = async ({
+		preferredService = null,
+		silent = false,
+	} = {}) => {
 		const fallbackService = preferredService || getDefaultLogService();
 		if (!fallbackService) {
 			return;
@@ -347,7 +410,8 @@ function ProjectDetail() {
 
 		try {
 			const response = await axios.post(`${API}/system/pick-folder`, {
-				initialPath: edited.projectLocation || project?.projectLocation || '',
+				initialPath:
+					edited.projectLocation || project?.projectLocation || '',
 				title: 'Choose the new parent folder for this project',
 			});
 
@@ -355,7 +419,9 @@ function ProjectDetail() {
 				handleChange('projectLocation', response.data.path);
 			}
 		} catch (error) {
-			alert(error.response?.data?.error || 'Failed to open folder picker.');
+			alert(
+				error.response?.data?.error || 'Failed to open folder picker.',
+			);
 		} finally {
 			setFolderPickerBusy(false);
 		}
@@ -436,7 +502,9 @@ function ProjectDetail() {
 			}
 
 			if (isJavaProject) {
-				if (edited.javaPackageName !== projectScaffold.javaPackageName) {
+				if (
+					edited.javaPackageName !== projectScaffold.javaPackageName
+				) {
 					updates.javaPackageName = edited.javaPackageName;
 				}
 
@@ -601,7 +669,8 @@ function ProjectDetail() {
 			: null,
 	].filter(Boolean);
 	const selectedLog =
-		(selectedLogService && projectLogs.services?.[selectedLogService]) || null;
+		(selectedLogService && projectLogs.services?.[selectedLogService]) ||
+		null;
 	const canOpenLogs = logServiceOptions.length > 0;
 
 	return (
@@ -615,7 +684,9 @@ function ProjectDetail() {
 						onClick={(event) => event.stopPropagation()}>
 						<div className='modal-header'>
 							<div>
-								<span className='modal-label'>Connection String</span>
+								<span className='modal-label'>
+									Connection String
+								</span>
 								<h3>{project.database.name}</h3>
 							</div>
 							<button
@@ -644,13 +715,17 @@ function ProjectDetail() {
 				</div>
 			)}
 			{showLogModal && (
-				<div className='modal-overlay' onClick={() => setShowLogModal(false)}>
+				<div
+					className='modal-overlay'
+					onClick={() => setShowLogModal(false)}>
 					<div
 						className='modal-content log-modal-content'
 						onClick={(event) => event.stopPropagation()}>
 						<div className='modal-header log-modal-header'>
 							<div>
-								<span className='modal-label'>Runtime Logs</span>
+								<span className='modal-label'>
+									Runtime Logs
+								</span>
 								<h3>{project.name}</h3>
 							</div>
 							<div className='log-modal-actions'>
@@ -659,7 +734,8 @@ function ProjectDetail() {
 									className='ghost-button'
 									onClick={() =>
 										fetchLogs({
-											preferredService: selectedLogService,
+											preferredService:
+												selectedLogService,
 										})
 									}>
 									<RefreshRounded fontSize='small' />
@@ -682,17 +758,22 @@ function ProjectDetail() {
 											key={option.key}
 											type='button'
 											className={`log-service-tab ${
-												selectedLogService === option.key
+												selectedLogService ===
+												option.key
 													? 'active'
 													: ''
 											}`}
 											onClick={() =>
-												setSelectedLogService(option.key)
+												setSelectedLogService(
+													option.key,
+												)
 											}>
 											<TabIcon fontSize='small' />
 											<span>{option.label}</span>
 											<strong>
-												{option.running ? 'Live' : 'Stored'}
+												{option.running
+													? 'Live'
+													: 'Stored'}
 											</strong>
 										</button>
 									);
@@ -703,7 +784,8 @@ function ProjectDetail() {
 								<div className='log-viewer-toolbar'>
 									<div className='log-meta-stack'>
 										<span className='log-meta-label'>
-											{selectedLogService || 'service'} log
+											{selectedLogService || 'service'}{' '}
+											log
 										</span>
 										{selectedLog?.updatedAt ? (
 											<strong>
@@ -713,11 +795,14 @@ function ProjectDetail() {
 												).toLocaleString()}
 											</strong>
 										) : (
-											<strong>No captured output yet</strong>
+											<strong>
+												No captured output yet
+											</strong>
 										)}
 										{selectedLog?.truncated && (
 											<span className='log-meta-note'>
-												Showing the newest tail of the log file.
+												Showing the newest tail of the
+												log file.
 											</span>
 										)}
 									</div>
@@ -751,9 +836,9 @@ function ProjectDetail() {
 								) : (
 									<div className='log-viewer-empty'>
 										No log lines have been captured for this
-										service yet. Start the project and any new
-										stdout, stderr, or crash markers will appear
-										here automatically.
+										service yet. Start the project and any
+										new stdout, stderr, or crash markers
+										will appear here automatically.
 									</div>
 								)}
 							</div>
@@ -784,11 +869,15 @@ function ProjectDetail() {
 							</span>
 						)}
 						{project.database && (
-							<span className='meta-pill'>{project.database.type}</span>
+							<span className='meta-pill'>
+								{project.database.type}
+							</span>
 						)}
 					</div>
 					<h2>{project.name}</h2>
-					<p className='detail-hero-description'>{scaffold.description}</p>
+					<p className='detail-hero-description'>
+						{scaffold.description}
+					</p>
 					<p className='detail-hero-path'>{project.projectPath}</p>
 				</div>
 				<div className='detail-hero-actions'>
@@ -910,7 +999,9 @@ function ProjectDetail() {
 						{services.frontend && (
 							<div className='service-card'>
 								<span className='service-kind'>Frontend</span>
-								<strong>{getTemplateLabel(project.frontend)}</strong>
+								<strong>
+									{getTemplateLabel(project.frontend)}
+								</strong>
 								<p>Port {project.frontendPort}</p>
 								<div className='service-status-row'>
 									<span
@@ -919,7 +1010,9 @@ function ProjectDetail() {
 												? 'running'
 												: 'stopped'
 										}`}>
-										{services.frontend?.running ? 'Live' : 'Stopped'}
+										{services.frontend?.running
+											? 'Live'
+											: 'Stopped'}
 									</span>
 									<span
 										className={`health-state ${
@@ -983,7 +1076,10 @@ function ProjectDetail() {
 									'degraded' &&
 									monitoringServices.frontend?.lastError && (
 										<p className='service-health-error'>
-											{monitoringServices.frontend.lastError}
+											{
+												monitoringServices.frontend
+													.lastError
+											}
 										</p>
 									)}
 								<div className='service-card-actions'>
@@ -1001,7 +1097,9 @@ function ProjectDetail() {
 						{services.backend && (
 							<div className='service-card'>
 								<span className='service-kind'>Backend</span>
-								<strong>{getTemplateLabel(project.backend)}</strong>
+								<strong>
+									{getTemplateLabel(project.backend)}
+								</strong>
 								<p>Port {project.backendPort}</p>
 								<div className='service-status-row'>
 									<span
@@ -1010,7 +1108,9 @@ function ProjectDetail() {
 												? 'running'
 												: 'stopped'
 										}`}>
-										{services.backend?.running ? 'Live' : 'Stopped'}
+										{services.backend?.running
+											? 'Live'
+											: 'Stopped'}
 									</span>
 									{showMonitoring ? (
 										<span
@@ -1040,8 +1140,8 @@ function ProjectDetail() {
 												</span>
 												<strong>
 													{formatDuration(
-														monitoringServices.backend
-															?.uptimeMs,
+														monitoringServices
+															.backend?.uptimeMs,
 													)}
 												</strong>
 											</div>
@@ -1052,7 +1152,8 @@ function ProjectDetail() {
 												</span>
 												<strong>
 													{formatLatency(
-														monitoringServices.backend
+														monitoringServices
+															.backend
 															?.responseTimeMs,
 													)}
 												</strong>
@@ -1074,7 +1175,8 @@ function ProjectDetail() {
 												</span>
 												<strong>
 													{monitoringServices.backend
-														?.failedRequestCount || 0}
+														?.failedRequestCount ||
+														0}
 												</strong>
 											</div>
 										</>
@@ -1086,7 +1188,9 @@ function ProjectDetail() {
 											</div>
 											<div className='service-metric-item'>
 												<span>Default command</span>
-												<strong>{primaryCommand}</strong>
+												<strong>
+													{primaryCommand}
+												</strong>
 											</div>
 											<div className='service-metric-item'>
 												<span>Runtime</span>
@@ -1094,17 +1198,22 @@ function ProjectDetail() {
 											</div>
 											<div className='service-metric-item'>
 												<span>Version</span>
-												<strong>{scaffold.version}</strong>
+												<strong>
+													{scaffold.version}
+												</strong>
 											</div>
 										</>
 									)}
 								</div>
 								{showMonitoring &&
 									monitoringServices.backend?.healthStatus ===
-									'degraded' &&
+										'degraded' &&
 									monitoringServices.backend?.lastError && (
 										<p className='service-health-error'>
-											{monitoringServices.backend.lastError}
+											{
+												monitoringServices.backend
+													.lastError
+											}
 										</p>
 									)}
 								<div className='service-card-actions'>
@@ -1197,7 +1306,9 @@ function ProjectDetail() {
 								<div className='info-row'>
 									<span>Project health</span>
 									<strong>
-										{getMonitoringStatusLabel(monitoring.status)}
+										{getMonitoringStatusLabel(
+											monitoring.status,
+										)}
 									</strong>
 								</div>
 								<div className='info-row'>
@@ -1212,15 +1323,23 @@ function ProjectDetail() {
 								</div>
 								<div className='info-row'>
 									<span>Total restarts</span>
-									<strong>{monitoring.restartCount || 0}</strong>
+									<strong>
+										{monitoring.restartCount || 0}
+									</strong>
 								</div>
 								<div className='info-row'>
 									<span>Crash count</span>
-									<strong>{monitoring.crashCount || 0}</strong>
+									<strong>
+										{monitoring.crashCount || 0}
+									</strong>
 								</div>
 								<div className='info-row'>
 									<span>Workspace size</span>
-									<strong>{formatBytes(monitoring.workspaceSizeBytes)}</strong>
+									<strong>
+										{formatBytes(
+											monitoring.workspaceSizeBytes,
+										)}
+									</strong>
 								</div>
 								<div className='info-row'>
 									<span>Last health check</span>
@@ -1249,7 +1368,11 @@ function ProjectDetail() {
 								</div>
 								<div className='info-row'>
 									<span>Workspace size</span>
-									<strong>{formatBytes(monitoring.workspaceSizeBytes)}</strong>
+									<strong>
+										{formatBytes(
+											monitoring.workspaceSizeBytes,
+										)}
+									</strong>
 								</div>
 							</>
 						)}
@@ -1275,7 +1398,9 @@ function ProjectDetail() {
 							<div className='detail-task-summary'>
 								<div className='task-summary-chip'>
 									<span>Progress</span>
-									<strong>{taskSummary.progressPercentage || 0}%</strong>
+									<strong>
+										{taskSummary.progressPercentage || 0}%
+									</strong>
 								</div>
 								<div className='task-summary-chip'>
 									<span>Open</span>
@@ -1306,11 +1431,15 @@ function ProjectDetail() {
 													className={`detail-task-type-pill type-${
 														task.type || 'task'
 													}`}>
-													{getTaskTypeLabel(task.type)}
+													{getTaskTypeLabel(
+														task.type,
+													)}
 												</span>
 												<span
 													className={`task-status-pill status-${task.status}`}>
-													{getTaskStatusLabel(task.status)}
+													{getTaskStatusLabel(
+														task.status,
+													)}
 												</span>
 												<span
 													className={`task-priority-pill priority-${task.priority}`}>
@@ -1318,29 +1447,45 @@ function ProjectDetail() {
 												</span>
 											</div>
 											<strong>{task.title}</strong>
-											{task.description && <p>{task.description}</p>}
+											{task.description && (
+												<p>{task.description}</p>
+											)}
 										</div>
 
 										<div className='detail-task-meta'>
 											<div className='detail-task-meta-item'>
 												<GroupsRounded fontSize='inherit' />
-												<span>{task.assignee?.name || 'Unassigned'}</span>
+												<span>
+													{task.assignee?.name ||
+														'Unassigned'}
+												</span>
 											</div>
 											<div className='detail-task-meta-item'>
 												<TaskAltRounded fontSize='inherit' />
-												<span>{getTaskStatusLabel(task.status)}</span>
+												<span>
+													{getTaskStatusLabel(
+														task.status,
+													)}
+												</span>
 											</div>
 											<div
 												className={`detail-task-meta-item ${
-													task.overdue ? 'overdue' : ''
+													task.overdue
+														? 'overdue'
+														: ''
 												}`}>
 												<EventRounded fontSize='inherit' />
-												<span>{task.dueDate || 'No due date'}</span>
+												<span>
+													{task.dueDate ||
+														'No due date'}
+												</span>
 											</div>
 											{task.branch?.name && (
 												<div className='detail-task-meta-item'>
 													<HubRounded fontSize='inherit' />
-													<span>{task.branch.name}</span>
+													<span>
+														{task.branch.name}
+													</span>
 												</div>
 											)}
 										</div>
@@ -1350,8 +1495,9 @@ function ProjectDetail() {
 						</>
 					) : (
 						<p className='detail-copy'>
-							No tasks are linked to this project yet. Create tasks from the
-							task board to start tracking actual delivery progress.
+							No tasks are linked to this project yet. Create
+							tasks from the task board to start tracking actual
+							delivery progress.
 						</p>
 					)}
 				</article>
@@ -1387,7 +1533,8 @@ function ProjectDetail() {
 								) : repository?.status === 'local-only' ? (
 									'Local git repository'
 								) : repository?.status === 'failed' ? (
-									repository.lastError || 'Repository setup needs attention'
+									repository.lastError ||
+									'Repository setup needs attention'
 								) : (
 									'Not configured yet'
 								)}
@@ -1395,7 +1542,9 @@ function ProjectDetail() {
 						</div>
 						<div className='info-row'>
 							<span>Frontend</span>
-							<strong>{getTemplateLabel(project.frontend)}</strong>
+							<strong>
+								{getTemplateLabel(project.frontend)}
+							</strong>
 						</div>
 						<div className='info-row'>
 							<span>Backend</span>
@@ -1437,7 +1586,9 @@ function ProjectDetail() {
 							</div>
 							<div className='info-row'>
 								<span>Qualified class</span>
-								<strong>{scaffold.javaQualifiedMainClass}</strong>
+								<strong>
+									{scaffold.javaQualifiedMainClass}
+								</strong>
 							</div>
 							<div className='info-row'>
 								<span>Compiler release</span>
@@ -1451,7 +1602,9 @@ function ProjectDetail() {
 									</div>
 									<div className='info-row'>
 										<span>Artifact ID</span>
-										<strong>{scaffold.javaArtifactId}</strong>
+										<strong>
+											{scaffold.javaArtifactId}
+										</strong>
 									</div>
 								</>
 							)}
@@ -1468,22 +1621,30 @@ function ProjectDetail() {
 						<div className='detail-info-list'>
 							<div className='info-row'>
 								<span>Host</span>
-								<strong>{project.database.credentials.host}</strong>
+								<strong>
+									{project.database.credentials.host}
+								</strong>
 							</div>
 							<div className='info-row'>
 								<span>Port</span>
-								<strong>{project.database.credentials.port}</strong>
+								<strong>
+									{project.database.credentials.port}
+								</strong>
 							</div>
 							{project.database.credentials.user && (
 								<div className='info-row'>
 									<span>User</span>
-									<strong>{project.database.credentials.user}</strong>
+									<strong>
+										{project.database.credentials.user}
+									</strong>
 								</div>
 							)}
 							{project.database.credentials.database && (
 								<div className='info-row'>
 									<span>Database</span>
-									<strong>{project.database.credentials.database}</strong>
+									<strong>
+										{project.database.credentials.database}
+									</strong>
 								</div>
 							)}
 							{project.database.clientPort && (
@@ -1493,7 +1654,8 @@ function ProjectDetail() {
 										href={`http://localhost:${project.database.clientPort}`}
 										target='_blank'
 										rel='noopener noreferrer'>
-										Open on port {project.database.clientPort}
+										Open on port{' '}
+										{project.database.clientPort}
 									</a>
 								</div>
 							)}
@@ -1555,7 +1717,9 @@ function ProjectDetail() {
 									type='button'
 									className='ghost-button'
 									onClick={() => {
-										setEdited(buildEditableProject(project));
+										setEdited(
+											buildEditableProject(project),
+										);
 										setEditMode(false);
 									}}>
 									Cancel
@@ -1584,7 +1748,9 @@ function ProjectDetail() {
 										onClick={browseProjectLocation}
 										disabled={folderPickerBusy}>
 										<FolderRounded fontSize='inherit' />
-										{folderPickerBusy ? 'Opening...' : 'Browse'}
+										{folderPickerBusy
+											? 'Opening...'
+											: 'Browse'}
 									</button>
 								</div>
 								<input
@@ -1598,9 +1764,9 @@ function ProjectDetail() {
 									placeholder='Leave blank to use the default dashboard projects folder'
 								/>
 								<small className='field-help'>
-									Edit this folder to move the project. The final
-									project path will use the project name as the last
-									segment.
+									Edit this folder to move the project. The
+									final project path will use the project name
+									as the last segment.
 								</small>
 							</label>
 							<label className='field-group'>
@@ -1608,7 +1774,10 @@ function ProjectDetail() {
 								<input
 									value={edited.version || ''}
 									onChange={(event) =>
-										handleChange('version', event.target.value)
+										handleChange(
+											'version',
+											event.target.value,
+										)
 									}
 									placeholder='0.1.0'
 								/>
@@ -1618,7 +1787,10 @@ function ProjectDetail() {
 								<textarea
 									value={edited.description || ''}
 									onChange={(event) =>
-										handleChange('description', event.target.value)
+										handleChange(
+											'description',
+											event.target.value,
+										)
 									}
 									rows={4}
 									placeholder='Describe what this project is for and what it does.'
@@ -1730,9 +1902,10 @@ function ProjectDetail() {
 						</div>
 					) : (
 						<p className='detail-copy'>
-							Enter edit mode when you need to rename the workspace, update
-							its folder, description, or version, or adjust Java and Maven
-							scaffold settings so the generated files stay aligned with the
+							Enter edit mode when you need to rename the
+							workspace, update its folder, description, or
+							version, or adjust Java and Maven scaffold settings
+							so the generated files stay aligned with the
 							project.
 						</p>
 					)}

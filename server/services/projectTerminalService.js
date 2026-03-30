@@ -13,10 +13,17 @@ configureProcessToolEnvironment();
 const terminalExecutions = new Map();
 const MAX_OUTPUT_LENGTH = 120000;
 const POWERSHELL_COMMAND =
-	process.env.ComSpec && process.env.ComSpec.toLowerCase().includes('powershell')
+	process.env.ComSpec &&
+	process.env.ComSpec.toLowerCase().includes('powershell')
 		? process.env.ComSpec
 		: `${process.env.SystemRoot || 'C:\\Windows'}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe`;
 
+/**
+ * Loads a project record and throws when the project does not exist.
+ *
+ * @param {string} projectName - Project name to resolve.
+ * @returns {object} Matching project record.
+ */
 function getProjectRecord(projectName) {
 	const project = findProject(loadProjects(), projectName);
 	if (!project) {
@@ -26,6 +33,12 @@ function getProjectRecord(projectName) {
 	return project;
 }
 
+/**
+ * Joins a preset's command steps into one shell command while preserving failure codes.
+ *
+ * @param {string[]} steps - Individual shell commands that belong to the preset.
+ * @returns {string} Combined shell command string.
+ */
 function buildShellCommandFromSteps(steps) {
 	if (!Array.isArray(steps) || steps.length === 0) {
 		throw new Error('At least one command step is required');
@@ -43,6 +56,12 @@ function buildShellCommandFromSteps(steps) {
 	return steps.join(' && ');
 }
 
+/**
+ * Chooses the shell executable and arguments needed to run a command on the current OS.
+ *
+ * @param {string} command - Shell command string to execute.
+ * @returns {{command: string, args: string[]}} Spawn settings for the selected shell.
+ */
 function getShellInvocation(command) {
 	if (process.platform === 'win32') {
 		return {
@@ -65,6 +84,12 @@ function getShellInvocation(command) {
 	};
 }
 
+/**
+ * Limits stored terminal output so long-running commands do not grow unbounded in memory.
+ *
+ * @param {string} output - Current buffered terminal output.
+ * @returns {{output: string, truncated: boolean}} Possibly truncated output and a flag describing whether truncation occurred.
+ */
 function trimOutput(output) {
 	if (output.length <= MAX_OUTPUT_LENGTH) {
 		return {
@@ -79,6 +104,14 @@ function trimOutput(output) {
 	};
 }
 
+/**
+ * Appends stdout or stderr text to the in-memory execution record.
+ *
+ * @param {object} execution - Mutable execution record stored in `terminalExecutions`.
+ * @param {Buffer} chunk - Output chunk emitted by the child process.
+ * @param {'stdout' | 'stderr'} stream - Stream that produced the chunk.
+ * @returns {void}
+ */
 function appendOutput(execution, chunk, stream) {
 	const prefix = stream === 'stderr' ? '[stderr] ' : '';
 	const nextValue = `${execution.output}${prefix}${chunk.toString()}`;
@@ -88,6 +121,12 @@ function appendOutput(execution, chunk, stream) {
 	execution.updatedAt = new Date().toISOString();
 }
 
+/**
+ * Converts an internal execution record to the public API shape returned to the client.
+ *
+ * @param {object} execution - Internal mutable execution record.
+ * @returns {object} Serializable execution snapshot.
+ */
 function toExecutionSnapshot(execution) {
 	return {
 		id: execution.id,
@@ -106,17 +145,29 @@ function toExecutionSnapshot(execution) {
 	};
 }
 
-function startExecution(projectName, {
-	command,
-	cwd = '',
-	label = 'Custom command',
-}) {
+/**
+ * Starts a tracked shell execution inside a project workspace.
+ *
+ * @param {string} projectName - Project whose workspace should be used.
+ * @param {{command: string, cwd?: string, label?: string}} options - Terminal execution details.
+ * @param {string} options.command - Command string to execute.
+ * @param {string} [options.cwd=''] - Optional project-relative working directory.
+ * @param {string} [options.label='Custom command'] - Friendly label shown in the UI.
+ * @returns {object} Initial execution snapshot.
+ */
+function startExecution(
+	projectName,
+	{ command, cwd = '', label = 'Custom command' },
+) {
 	const trimmedCommand = String(command || '').trim();
 	if (!trimmedCommand) {
 		throw new Error('A terminal command is required');
 	}
 
-	const { normalizedPath, resolvedPath } = resolveProjectPath(projectName, cwd);
+	const { normalizedPath, resolvedPath } = resolveProjectPath(
+		projectName,
+		cwd,
+	);
 	if (!fs.existsSync(resolvedPath)) {
 		throw new Error('The selected working directory does not exist');
 	}
@@ -152,11 +203,15 @@ function startExecution(projectName, {
 	terminalExecutions.set(execution.id, execution);
 
 	if (proc.stdout) {
-		proc.stdout.on('data', (chunk) => appendOutput(execution, chunk, 'stdout'));
+		proc.stdout.on('data', (chunk) =>
+			appendOutput(execution, chunk, 'stdout'),
+		);
 	}
 
 	if (proc.stderr) {
-		proc.stderr.on('data', (chunk) => appendOutput(execution, chunk, 'stderr'));
+		proc.stderr.on('data', (chunk) =>
+			appendOutput(execution, chunk, 'stderr'),
+		);
 	}
 
 	proc.on('error', (error) => {
@@ -183,6 +238,14 @@ function startExecution(projectName, {
 	return toExecutionSnapshot(execution);
 }
 
+/**
+ * Runs an ad-hoc command entered by the user for a specific project.
+ *
+ * @param {string} projectName - Project whose workspace should be used.
+ * @param {string} command - Command string entered by the user.
+ * @param {{cwd?: string, label?: string}} [options={}] - Optional execution metadata.
+ * @returns {object} Initial execution snapshot.
+ */
 function runProjectCommand(projectName, command, options = {}) {
 	getProjectRecord(projectName);
 	return startExecution(projectName, {
@@ -192,6 +255,13 @@ function runProjectCommand(projectName, command, options = {}) {
 	});
 }
 
+/**
+ * Runs a predefined command preset for a project.
+ *
+ * @param {string} projectName - Project whose preset should be executed.
+ * @param {string} presetId - Preset id from `getProjectCommandPresets`.
+ * @returns {object} Initial execution snapshot.
+ */
 function runProjectPreset(projectName, presetId) {
 	const project = getProjectRecord(projectName);
 	const preset = getProjectCommandPresets(project).find(
@@ -209,6 +279,13 @@ function runProjectPreset(projectName, presetId) {
 	});
 }
 
+/**
+ * Returns the latest snapshot for a tracked terminal execution.
+ *
+ * @param {string} projectName - Project that owns the execution.
+ * @param {string} executionId - Execution id returned by `runProjectCommand` or `runProjectPreset`.
+ * @returns {object} Current execution snapshot.
+ */
 function getProjectExecution(projectName, executionId) {
 	getProjectRecord(projectName);
 
@@ -220,6 +297,13 @@ function getProjectExecution(projectName, executionId) {
 	return toExecutionSnapshot(execution);
 }
 
+/**
+ * Requests termination for a tracked terminal execution.
+ *
+ * @param {string} projectName - Project that owns the execution.
+ * @param {string} executionId - Execution id returned by `runProjectCommand` or `runProjectPreset`.
+ * @returns {Promise<object>} Final or in-progress execution snapshot after the stop signal is sent.
+ */
 function stopProjectExecution(projectName, executionId) {
 	getProjectRecord(projectName);
 

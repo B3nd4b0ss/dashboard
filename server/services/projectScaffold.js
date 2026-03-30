@@ -7,6 +7,13 @@ const DEFAULT_JAVA_GROUP_ID = 'com.dashboard';
 const DEFAULT_JAVA_VERSION = '11';
 const DEFAULT_JAVA_MAIN_CLASS = 'App';
 
+/**
+ * Normalizes freeform text fields used in project scaffolding.
+ *
+ * @param {unknown} value - Raw value from the API payload.
+ * @param {string} [fallback=''] - Value to use when the input is missing.
+ * @returns {string} Trimmed string or the fallback.
+ */
 function normalizeText(value, fallback = '') {
 	if (typeof value !== 'string') {
 		return fallback;
@@ -16,6 +23,13 @@ function normalizeText(value, fallback = '') {
 	return trimmed || fallback;
 }
 
+/**
+ * Converts a text value into a filesystem and package friendly slug.
+ *
+ * @param {unknown} value - Raw input value.
+ * @param {string} [fallback='workspace-app'] - Value to use when the input is empty after normalization.
+ * @returns {string} Lower-case slug containing only letters, numbers, and dashes.
+ */
 function slugifyToken(value, fallback = 'workspace-app') {
 	const normalized = normalizeText(value, fallback)
 		.toLowerCase()
@@ -25,6 +39,13 @@ function slugifyToken(value, fallback = 'workspace-app') {
 	return normalized || fallback;
 }
 
+/**
+ * Validates a project version string used in generated manifests.
+ *
+ * @param {unknown} value - Raw version value.
+ * @param {string} [fallback=DEFAULT_PROJECT_VERSION] - Value to use when validation fails.
+ * @returns {string} Safe version string.
+ */
 function normalizeVersion(value, fallback = DEFAULT_PROJECT_VERSION) {
 	const normalized = normalizeText(value, fallback);
 	return /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(normalized)
@@ -32,6 +53,13 @@ function normalizeVersion(value, fallback = DEFAULT_PROJECT_VERSION) {
 		: fallback;
 }
 
+/**
+ * Normalizes a Java group id to a dot-separated package namespace.
+ *
+ * @param {unknown} value - Raw group id input.
+ * @param {string} [fallback=DEFAULT_JAVA_GROUP_ID] - Value to use when the input is empty.
+ * @returns {string} Normalized Java group id.
+ */
 function normalizeJavaGroupId(value, fallback = DEFAULT_JAVA_GROUP_ID) {
 	const normalized = normalizeText(value, fallback)
 		.toLowerCase()
@@ -43,6 +71,13 @@ function normalizeJavaGroupId(value, fallback = DEFAULT_JAVA_GROUP_ID) {
 	return normalized || fallback;
 }
 
+/**
+ * Normalizes a Java package name so each segment is valid source code.
+ *
+ * @param {unknown} value - Raw package name input.
+ * @param {string} fallback - Value to use when the input cannot produce a valid package.
+ * @returns {string} Normalized Java package name.
+ */
 function normalizeJavaPackageName(value, fallback) {
 	const packageFallback = fallback || `${DEFAULT_JAVA_GROUP_ID}.app`;
 	const candidate = normalizeText(value, packageFallback);
@@ -59,6 +94,13 @@ function normalizeJavaPackageName(value, fallback) {
 	return segments.length > 0 ? segments.join('.') : packageFallback;
 }
 
+/**
+ * Normalizes a Java main class name into PascalCase.
+ *
+ * @param {unknown} value - Raw class name input.
+ * @param {string} [fallback=DEFAULT_JAVA_MAIN_CLASS] - Value to use when the input is invalid.
+ * @returns {string} Valid Java class name.
+ */
 function normalizeJavaClassName(value, fallback = DEFAULT_JAVA_MAIN_CLASS) {
 	const candidate = normalizeText(value, fallback)
 		.replace(/[^A-Za-z0-9_$]+/g, ' ')
@@ -71,17 +113,34 @@ function normalizeJavaClassName(value, fallback = DEFAULT_JAVA_MAIN_CLASS) {
 	return /^[A-Za-z_$]/.test(normalized) ? normalized : fallback;
 }
 
+/**
+ * Validates the Java version used in generated compile commands.
+ *
+ * @param {unknown} value - Raw Java version input.
+ * @param {string} [fallback=DEFAULT_JAVA_VERSION] - Value to use when the input is invalid.
+ * @returns {string} Numeric Java version string.
+ */
 function normalizeJavaVersion(value, fallback = DEFAULT_JAVA_VERSION) {
 	const normalized = normalizeText(value, fallback);
 	return /^\d{1,2}$/.test(normalized) ? normalized : fallback;
 }
 
+/**
+ * Resolves scaffold metadata for a project by merging explicit input with existing values and defaults.
+ *
+ * @param {object} [input={}] - Incoming project payload that may include top-level scaffold fields or a nested `scaffold` object.
+ * @param {object} [existingProject={}] - Existing project record used as a fallback during updates.
+ * @returns {{description: string, projectSlug: string, version: string, javaArtifactId: string, javaGroupId: string, javaMainClass: string, javaPackageName: string, javaPackagePath: string, javaQualifiedMainClass: string, javaVersion: string}} Normalized scaffold metadata.
+ */
 function resolveProjectScaffold(input = {}, existingProject = {}) {
 	const existingScaffold = existingProject?.scaffold || {};
 	const scaffoldInput = input?.scaffold || {};
 	const name = normalizeText(input.name, existingProject.name || 'workspace');
 	const projectSlug = slugifyToken(
-		scaffoldInput.projectSlug ?? input.projectSlug ?? existingScaffold.projectSlug ?? name,
+		scaffoldInput.projectSlug ??
+			input.projectSlug ??
+			existingScaffold.projectSlug ??
+			name,
 	);
 	const javaGroupId = normalizeJavaGroupId(
 		scaffoldInput.javaGroupId ??
@@ -141,10 +200,23 @@ function resolveProjectScaffold(input = {}, existingProject = {}) {
 	};
 }
 
+/**
+ * Returns the normalized scaffold metadata already associated with a project.
+ *
+ * @param {object} [project={}] - Project record that may contain a `scaffold` section.
+ * @returns {object} Normalized scaffold metadata.
+ */
 function getProjectScaffold(project = {}) {
 	return resolveProjectScaffold(project, project);
 }
 
+/**
+ * Builds the relative path to the generated Java source entry file.
+ *
+ * @param {object} scaffold - Project scaffold metadata or a partial scaffold object.
+ * @param {{mavenLayout?: boolean}} [options={}] - When true, uses Maven's `src/main/java` layout.
+ * @returns {string} POSIX-style relative path to the Java source file.
+ */
 function getJavaSourceRelativePath(scaffold, options = {}) {
 	const normalizedScaffold = resolveProjectScaffold({ scaffold });
 	const sourceRoot = options.mavenLayout ? 'src/main/java' : 'src';
@@ -155,6 +227,12 @@ function getJavaSourceRelativePath(scaffold, options = {}) {
 	);
 }
 
+/**
+ * Returns the fully qualified Java main class for a scaffold definition.
+ *
+ * @param {object} scaffold - Project scaffold metadata or a partial scaffold object.
+ * @returns {string} Java package plus main class name.
+ */
 function getJavaQualifiedMainClass(scaffold) {
 	return resolveProjectScaffold({ scaffold }).javaQualifiedMainClass;
 }

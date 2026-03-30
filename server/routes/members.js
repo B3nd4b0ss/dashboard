@@ -2,11 +2,15 @@ const express = require('express');
 const router = express.Router();
 const memberService = require('../services/memberService');
 
+// `GET /members`
+// Returns every team member with their task summary metadata.
 router.get('/', (req, res) => {
 	const members = memberService.getAllMembers();
 	res.json(members);
 });
 
+// `GET /members/:id`
+// Route params: `id` is the member id.
 router.get('/:id', (req, res) => {
 	const member = memberService.getMemberById(req.params.id);
 	if (!member) {
@@ -16,6 +20,8 @@ router.get('/:id', (req, res) => {
 	return res.json(member);
 });
 
+// `POST /members`
+// Body params: `name` is required. Optional params are `role`, `email`, and `accent`.
 router.post('/', (req, res) => {
 	try {
 		const member = memberService.createMember(req.body);
@@ -25,6 +31,9 @@ router.post('/', (req, res) => {
 	}
 });
 
+// `PATCH /members/:id`
+// Route params: `id` is the member id.
+// Body params: any editable member fields from the create payload.
 router.patch('/:id', (req, res) => {
 	try {
 		const member = memberService.updateMember(req.params.id, req.body);
@@ -35,6 +44,8 @@ router.patch('/:id', (req, res) => {
 	}
 });
 
+// `DELETE /members/:id`
+// Route params: `id` is the member id.
 router.delete('/:id', (req, res) => {
 	const deleted = memberService.deleteMember(req.params.id);
 	if (!deleted) {

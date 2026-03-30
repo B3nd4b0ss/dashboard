@@ -25,6 +25,12 @@ const DEFAULT_DATABASE_PORTS = {
 	mongodb: 27017,
 };
 
+/**
+ * Checks whether a database record is backed by a Docker Compose stack.
+ *
+ * @param {object} db - Database record to inspect.
+ * @returns {boolean} True when the database uses compose orchestration metadata.
+ */
 function isComposeDatabase(db) {
 	return (
 		db?.orchestration === 'compose' &&
@@ -33,15 +39,33 @@ function isComposeDatabase(db) {
 	);
 }
 
+/**
+ * Looks up a single database by id.
+ *
+ * @param {string} id - Database id to retrieve.
+ * @returns {object | undefined} Matching database record when found.
+ */
 function getDatabaseById(id) {
 	const databases = loadDatabases();
 	return databases.find((db) => db.id === id);
 }
 
+/**
+ * Returns every persisted database record.
+ *
+ * @returns {Array<object>} Stored database records.
+ */
 function getAllDatabases() {
 	return loadDatabases();
 }
 
+/**
+ * Validates a requested database port or finds the next safe default.
+ *
+ * @param {'postgres' | 'mysql' | 'mongodb'} type - Database engine type.
+ * @param {string | number | null | undefined} port - Optional requested host port.
+ * @returns {number} Safe database port to use.
+ */
 function resolveDatabasePort(type, port) {
 	if (port) {
 		return assertPortAvailable(port, { label: 'Database port' });
@@ -52,6 +76,12 @@ function resolveDatabasePort(type, port) {
 	});
 }
 
+/**
+ * Finds a safe Adminer client port derived from the database port.
+ *
+ * @param {number} databasePort - Host port assigned to the database.
+ * @returns {number} Safe client port for the Adminer UI.
+ */
 function resolveClientPort(databasePort) {
 	const preferredClientPort = databasePort + 1000;
 
@@ -65,6 +95,14 @@ function resolveClientPort(databasePort) {
 	});
 }
 
+/**
+ * Builds the connection metadata stored with a generated database.
+ *
+ * @param {string} name - Database display name.
+ * @param {'postgres' | 'mysql' | 'mongodb'} type - Database engine type.
+ * @param {number} port - Host port assigned to the database.
+ * @returns {object} Connection credentials and host metadata.
+ */
 function buildCredentials(name, type, port) {
 	if (type === 'mongodb') {
 		return {
@@ -83,6 +121,12 @@ function buildCredentials(name, type, port) {
 	};
 }
 
+/**
+ * Converts a database name into a compose-safe stack slug.
+ *
+ * @param {string} name - Database display name.
+ * @returns {string} Lower-case stack slug.
+ */
 function sanitizeStackName(name) {
 	return name
 		.trim()
@@ -91,18 +135,43 @@ function sanitizeStackName(name) {
 		.replace(/^-+|-+$/g, '');
 }
 
+/**
+ * Builds the database container name derived from the user-facing database name.
+ *
+ * @param {string} name - Database display name.
+ * @returns {string} Docker container name for the database service.
+ */
 function buildContainerName(name) {
 	return `db_${name.replace(/[^a-z0-9]/gi, '_')}`;
 }
 
+/**
+ * Builds the companion client container name for a database container.
+ *
+ * @param {string} containerName - Database container name.
+ * @returns {string} Docker container name for the client service.
+ */
 function buildClientContainerName(containerName) {
 	return `client_${containerName}`;
 }
 
+/**
+ * Builds a named volume for a compose-managed database stack.
+ *
+ * @param {string} projectName - Compose project name.
+ * @param {string} suffix - Volume suffix describing its purpose.
+ * @returns {string} Named volume identifier.
+ */
 function buildComposeVolumeName(projectName, suffix) {
 	return `${projectName.replace(/[^a-z0-9]/gi, '_')}_${suffix}`;
 }
 
+/**
+ * Builds the docker-compose.yml content for a database stack.
+ *
+ * @param {{type: 'postgres' | 'mysql' | 'mongodb', password: string, containerName: string, clientContainerName?: string | null, databasePort: number, clientPort?: number | null, composeProjectName: string}} options - Compose configuration inputs.
+ * @returns {string} Serialized YAML content for the compose file.
+ */
 function buildComposeConfig({
 	type,
 	password,
@@ -189,6 +258,12 @@ function buildComposeConfig({
 	return `${serializeYaml(composeDocument)}\n`;
 }
 
+/**
+ * Serializes a primitive value for the tiny YAML serializer below.
+ *
+ * @param {unknown} value - Primitive value to serialize.
+ * @returns {string} YAML-safe scalar string.
+ */
 function formatYamlScalar(value) {
 	if (typeof value === 'string') {
 		return JSON.stringify(value);
@@ -197,6 +272,13 @@ function formatYamlScalar(value) {
 	return String(value);
 }
 
+/**
+ * Serializes a limited subset of JS values into YAML.
+ *
+ * @param {unknown} value - Object, array, or scalar to serialize.
+ * @param {number} [indentLevel=0] - Current indentation depth used during recursion.
+ * @returns {string} YAML string.
+ */
 function serializeYaml(value, indentLevel = 0) {
 	const indent = '  '.repeat(indentLevel);
 
@@ -241,6 +323,16 @@ function serializeYaml(value, indentLevel = 0) {
 	return `${indent}${formatYamlScalar(value)}`;
 }
 
+/**
+ * Prevents new database stacks from reusing existing compose or container identifiers.
+ *
+ * @param {Array<object>} databases - Existing database records.
+ * @param {string} containerName - Proposed database container name.
+ * @param {string | null} clientContainerName - Proposed client container name.
+ * @param {string} composeProjectName - Proposed compose project name.
+ * @param {string} stackDirectory - Proposed stack directory.
+ * @returns {void}
+ */
 function assertDatabaseIdentifiersAvailable(
 	databases,
 	containerName,
@@ -271,6 +363,12 @@ function assertDatabaseIdentifiersAvailable(
 	}
 }
 
+/**
+ * Confirms that a compose-managed database still has its compose file on disk.
+ *
+ * @param {object} db - Compose-managed database record.
+ * @returns {Promise<void>}
+ */
 async function ensureComposeFileExists(db) {
 	const composeFilePath = db.composeFilePath;
 
@@ -281,6 +379,12 @@ async function ensureComposeFileExists(db) {
 	}
 }
 
+/**
+ * Shared database creation workflow used by both regular and streaming endpoints.
+ *
+ * @param {{name: string, type: 'postgres' | 'mysql' | 'mongodb', port?: string | number, withClient?: boolean, onLog?: (message: string) => void}} options - Database creation inputs.
+ * @returns {Promise<object>} Newly created database record.
+ */
 async function createDatabaseInternal({
 	name,
 	type,
@@ -387,6 +491,15 @@ async function createDatabaseInternal({
 	return newDatabase;
 }
 
+/**
+ * Creates a database and returns the persisted record.
+ *
+ * @param {string} name - Database display name.
+ * @param {'postgres' | 'mysql' | 'mongodb'} type - Database engine type.
+ * @param {string | number | null | undefined} port - Optional requested host port.
+ * @param {boolean} [withClient=false] - Whether to create an Adminer client when supported.
+ * @returns {Promise<object>} Newly created database record.
+ */
 async function createDatabase(name, type, port, withClient = false) {
 	return createDatabaseInternal({
 		name,
@@ -396,6 +509,13 @@ async function createDatabase(name, type, port, withClient = false) {
 	});
 }
 
+/**
+ * Creates a database while emitting progress events for an SSE stream.
+ *
+ * @param {{name: string, type: 'postgres' | 'mysql' | 'mongodb', port?: string | number, withClient?: boolean}} data - Database creation payload.
+ * @param {import('events').EventEmitter} eventEmitter - Event emitter used by the SSE route.
+ * @returns {Promise<object>} Newly created database record.
+ */
 async function createDatabaseWithStream(data, eventEmitter) {
 	try {
 		const database = await createDatabaseInternal({
@@ -411,6 +531,12 @@ async function createDatabaseWithStream(data, eventEmitter) {
 	}
 }
 
+/**
+ * Deletes a database stack and removes its persisted record.
+ *
+ * @param {string} id - Database id to delete.
+ * @returns {Promise<boolean>} True when the database record existed and was removed.
+ */
 async function deleteDatabase(id) {
 	const databases = loadDatabases();
 	const dbIndex = databases.findIndex((db) => db.id === id);
@@ -438,6 +564,12 @@ async function deleteDatabase(id) {
 	return true;
 }
 
+/**
+ * Starts the database service for a persisted database record.
+ *
+ * @param {string} id - Database id to start.
+ * @returns {Promise<void>}
+ */
 async function startDatabaseContainer(id) {
 	const db = getDatabaseById(id);
 	if (!db) throw new Error('Database not found');
@@ -488,6 +620,12 @@ async function startDatabaseContainer(id) {
 	}
 }
 
+/**
+ * Stops the database service for a persisted database record.
+ *
+ * @param {string} id - Database id to stop.
+ * @returns {Promise<void>}
+ */
 async function stopDatabaseContainer(id) {
 	const db = getDatabaseById(id);
 	if (!db) throw new Error('Database not found');
@@ -509,12 +647,24 @@ async function stopDatabaseContainer(id) {
 	}
 }
 
+/**
+ * Reads the runtime status of a persisted database container.
+ *
+ * @param {string} id - Database id to inspect.
+ * @returns {Promise<string>} Container state reported by Docker.
+ */
 async function getDatabaseStatus(id) {
 	const db = getDatabaseById(id);
 	if (!db) throw new Error('Database not found');
 	return await getContainerStatus(db.containerName);
 }
 
+/**
+ * Starts the optional database client service for a database record.
+ *
+ * @param {string} id - Database id whose client should start.
+ * @returns {Promise<void>}
+ */
 async function startClientContainer(id) {
 	const db = getDatabaseById(id);
 	if (!db || !db.clientContainerName) throw new Error('No client container');
@@ -545,6 +695,12 @@ async function startClientContainer(id) {
 	await startContainer(db.clientContainerName);
 }
 
+/**
+ * Stops the optional database client service for a database record.
+ *
+ * @param {string} id - Database id whose client should stop.
+ * @returns {Promise<void>}
+ */
 async function stopClientContainer(id) {
 	const db = getDatabaseById(id);
 	if (!db || !db.clientContainerName) throw new Error('No client container');

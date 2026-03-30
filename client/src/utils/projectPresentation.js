@@ -16,7 +16,11 @@ export const TEMPLATE_LABELS = {
 	'java-maven': 'Java + Maven App',
 };
 
-export const CLI_BACKEND_TEMPLATES = ['python-cli', 'java-console', 'java-maven'];
+export const CLI_BACKEND_TEMPLATES = [
+	'python-cli',
+	'java-console',
+	'java-maven',
+];
 export const MANAGED_APP_BACKEND_TEMPLATES = [
 	'node',
 	'fastify',
@@ -26,6 +30,13 @@ export const MANAGED_APP_BACKEND_TEMPLATES = [
 	'java',
 ];
 
+/**
+ * Converts a display value into a lower-case slug used by generated projects.
+ *
+ * @param {unknown} value - Raw text value to normalize.
+ * @param {string} [fallback='workspace-app'] - Value to use when the input is empty.
+ * @returns {string} Lower-case slug containing only letters, numbers, and dashes.
+ */
 export function slugifyToken(value, fallback = 'workspace-app') {
 	const normalized = String(value || fallback)
 		.toLowerCase()
@@ -35,18 +46,42 @@ export function slugifyToken(value, fallback = 'workspace-app') {
 	return normalized || fallback;
 }
 
+/**
+ * Returns the user-facing label for a project template id.
+ *
+ * @param {string | null | undefined} template - Template id stored on a project.
+ * @returns {string} Human-readable template label.
+ */
 export function getTemplateLabel(template) {
 	return TEMPLATE_LABELS[template] || template || 'None';
 }
 
+/**
+ * Reports whether a backend template is terminal-driven instead of dashboard-managed.
+ *
+ * @param {string | null | undefined} template - Backend template id to inspect.
+ * @returns {boolean} True when the backend runs from the editor terminal.
+ */
 export function isCliBackendTemplate(template) {
 	return CLI_BACKEND_TEMPLATES.includes(template);
 }
 
+/**
+ * Reports whether a backend template is a managed runtime process.
+ *
+ * @param {string | null | undefined} template - Backend template id to inspect.
+ * @returns {boolean} True when the dashboard can start and stop the backend.
+ */
 export function isManagedAppBackendTemplate(template) {
 	return MANAGED_APP_BACKEND_TEMPLATES.includes(template);
 }
 
+/**
+ * Normalizes scaffold metadata from a project response for use in the UI.
+ *
+ * @param {object} [project={}] - Project record returned by the API.
+ * @returns {{description: string, version: string, projectSlug: string, javaGroupId: string, javaPackageName: string, javaMainClass: string, javaQualifiedMainClass: string, javaArtifactId: string, javaVersion: string}} Normalized scaffold metadata.
+ */
 export function getProjectScaffold(project = {}) {
 	const scaffold = project.scaffold || {};
 	const name = project.name || 'workspace';
@@ -70,16 +105,34 @@ export function getProjectScaffold(project = {}) {
 	};
 }
 
+/**
+ * Reports whether the project exposes operational monitoring metrics.
+ *
+ * @param {object} [project={}] - Project record returned by the API.
+ * @returns {boolean} True when the project has managed services to monitor.
+ */
 export function hasOperationalMonitoring(project = {}) {
 	return Boolean(
 		project.hasManagedServices || project.runtime?.expectedServiceCount > 0,
 	);
 }
 
+/**
+ * Reports whether the project should show website-focused monitoring UI.
+ *
+ * @param {object} [project={}] - Project record returned by the API.
+ * @returns {boolean} True when the project has a frontend and managed monitoring.
+ */
 export function hasWebsiteMonitoring(project = {}) {
 	return Boolean(project.frontend) && hasOperationalMonitoring(project);
 }
 
+/**
+ * Builds a short launch-mode label for a project card.
+ *
+ * @param {object} [project={}] - Project record returned by the API.
+ * @returns {string} Human-readable launch category.
+ */
 export function getProjectLaunchLabel(project = {}) {
 	const hasFrontend = Boolean(project.frontend);
 	const hasManagedBackend = isManagedAppBackendTemplate(project.backend);
@@ -104,6 +157,12 @@ export function getProjectLaunchLabel(project = {}) {
 	return 'Custom workspace';
 }
 
+/**
+ * Returns the primary file, class, or command a user should open first for a project.
+ *
+ * @param {object} [project={}] - Project record returned by the API.
+ * @returns {string} Primary entry label shown in the UI.
+ */
 export function getProjectPrimaryEntry(project = {}) {
 	const scaffold = getProjectScaffold(project);
 
@@ -135,6 +194,12 @@ export function getProjectPrimaryEntry(project = {}) {
 	}
 }
 
+/**
+ * Returns the first executable command for a project's command presets.
+ *
+ * @param {object} [project={}] - Project record returned by the API.
+ * @returns {string | null} Primary command string, or null when no presets exist.
+ */
 export function getProjectPrimaryCommand(project = {}) {
 	const preset =
 		project.commandPresets?.find((entry) => entry.primary) ||
@@ -144,6 +209,12 @@ export function getProjectPrimaryCommand(project = {}) {
 	return preset?.steps?.[0] || null;
 }
 
+/**
+ * Returns a user-facing label for the main way to run or open a project.
+ *
+ * @param {object} [project={}] - Project record returned by the API.
+ * @returns {string} Primary command label.
+ */
 export function getProjectCommandLabel(project = {}) {
 	return (
 		getProjectPrimaryCommand(project) ||
@@ -153,6 +224,12 @@ export function getProjectCommandLabel(project = {}) {
 	);
 }
 
+/**
+ * Builds a concise runtime label for a project card.
+ *
+ * @param {object} [project={}] - Project record returned by the API.
+ * @returns {string} Runtime summary label.
+ */
 export function getProjectRuntimeLabel(project = {}) {
 	const scaffold = getProjectScaffold(project);
 

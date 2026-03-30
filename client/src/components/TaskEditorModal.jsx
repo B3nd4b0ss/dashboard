@@ -7,6 +7,12 @@ import {
 	buildTaskKeyPreview,
 } from '../utils/taskPresentation';
 
+/**
+ * Renders the reusable task create/edit modal.
+ *
+ * @param {{open: boolean, mode?: string, title?: string, form: object, members?: object[], projects?: object[], tasks?: object[], editingTask?: object | null, onClose: () => void, onChange: (nextForm: object) => void, onSubmit: (event: React.FormEvent) => void, saving?: boolean, error?: string}} props - Component props.
+ * @returns {JSX.Element | null} Modal content when open.
+ */
 function TaskEditorModal({
 	open,
 	onClose,
@@ -57,11 +63,14 @@ function TaskEditorModal({
 						<span className='section-tag muted'>Ticket Editor</span>
 						<h3>{editingTask ? 'Edit ticket' : 'Create ticket'}</h3>
 						<p>
-							Keep the ticket details here, then use the detail page
-							for the full context and workflow actions.
+							Keep the ticket details here, then use the detail
+							page for the full context and workflow actions.
 						</p>
 					</div>
-					<button type='button' className='ghost-button' onClick={onClose}>
+					<button
+						type='button'
+						className='ghost-button'
+						onClick={onClose}>
 						Close
 					</button>
 				</div>
@@ -69,7 +78,9 @@ function TaskEditorModal({
 				<div className='task-ticket-preview-grid'>
 					<div className='task-ticket-preview-card'>
 						<span>Ticket key</span>
-						<strong>{editingTask?.ticketKey || ticketKeyPreview}</strong>
+						<strong>
+							{editingTask?.ticketKey || ticketKeyPreview}
+						</strong>
 						<p>
 							{taskForm.projectName
 								? 'Uses the linked project name as the ticket prefix.'
@@ -189,7 +200,10 @@ function TaskEditorModal({
 				</div>
 
 				<div className='task-modal-actions'>
-					<button type='button' className='ghost-button' onClick={onClose}>
+					<button
+						type='button'
+						className='ghost-button'
+						onClick={onClose}>
 						Cancel
 					</button>
 					<button
@@ -210,4 +224,3 @@ function TaskEditorModal({
 }
 
 export default TaskEditorModal;
-

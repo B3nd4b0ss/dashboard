@@ -4,6 +4,11 @@ import ArrowOutwardRounded from '@mui/icons-material/ArrowOutwardRounded';
 import ProjectWorkspace from './ProjectWorkspace';
 import './ProjectEditorPage.css';
 
+/**
+ * Renders the standalone full-page project editor route.
+ *
+ * @returns {JSX.Element} Project editor page.
+ */
 function ProjectEditorPage() {
 	const { name } = useParams();
 	const projectName = name || '';
@@ -17,7 +22,9 @@ function ProjectEditorPage() {
 					<ArrowBackRounded fontSize='small' />
 					Back to project
 				</Link>
-				<Link to='/projects' className='project-editor-back-link subtle'>
+				<Link
+					to='/projects'
+					className='project-editor-back-link subtle'>
 					<ArrowOutwardRounded fontSize='small' />
 					All projects
 				</Link>

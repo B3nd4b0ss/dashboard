@@ -4,6 +4,9 @@ $ErrorActionPreference = 'Stop'
 $rootDir = Split-Path -Parent $PSScriptRoot
 $logsDir = Join-Path $rootDir 'logs'
 $stateFile = Join-Path $logsDir 'dashboard-processes.json'
+$dashboardConfigFile = Join-Path $rootDir 'dashboard.config.json'
+$dashboardConfig = Get-Content -Path $dashboardConfigFile -Raw | ConvertFrom-Json -ErrorAction Stop
+$dashboardPorts = @([int]$dashboardConfig.ports.backend, [int]$dashboardConfig.ports.frontend)
 
 function Test-ProcessAlive {
   param([int]$ProcessId)
@@ -55,7 +58,7 @@ function Get-ListeningTcpPids {
 }
 
 $state = Get-DashboardState
-$portPids = @(Get-ListeningTcpPids -Ports @(4000, 5173))
+$portPids = @(Get-ListeningTcpPids -Ports $dashboardPorts)
 
 if ($null -eq $state) {
   if ($portPids.Count -gt 0) {

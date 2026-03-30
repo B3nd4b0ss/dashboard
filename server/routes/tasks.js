@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const taskService = require('../services/taskService');
 
+// `GET /tasks`
+// Query params: `projectName`, `status`, `assigneeId`, and `type` are optional task filters.
 router.get('/', (req, res) => {
 	try {
 		const tasks = taskService.getAllTasks({
@@ -16,6 +18,8 @@ router.get('/', (req, res) => {
 	}
 });
 
+// `GET /tasks/:id`
+// Route params: `id` is the task id.
 router.get('/:id', (req, res) => {
 	const task = taskService.getTaskById(req.params.id);
 	if (!task) {
@@ -25,6 +29,9 @@ router.get('/:id', (req, res) => {
 	return res.json(task);
 });
 
+// `POST /tasks`
+// Body params: `title` is required. Optional params are `description`, `projectName`, `status`,
+// `priority`, `type`, `assigneeId`, and `dueDate` (`YYYY-MM-DD`).
 router.post('/', (req, res) => {
 	try {
 		const task = taskService.createTask(req.body);
@@ -34,6 +41,9 @@ router.post('/', (req, res) => {
 	}
 });
 
+// `PATCH /tasks/:id`
+// Route params: `id` is the task id.
+// Body params: any editable task fields from the create payload.
 router.patch('/:id', (req, res) => {
 	try {
 		const task = taskService.updateTask(req.params.id, req.body);
@@ -44,6 +54,8 @@ router.patch('/:id', (req, res) => {
 	}
 });
 
+// `POST /tasks/:id/branch`
+// Route params: `id` is the task id whose linked project branch should be created or synced.
 router.post('/:id/branch', async (req, res) => {
 	try {
 		const task = await taskService.createBranchForTask(req.params.id);
@@ -54,6 +66,8 @@ router.post('/:id/branch', async (req, res) => {
 	}
 });
 
+// `DELETE /tasks/:id`
+// Route params: `id` is the task id.
 router.delete('/:id', (req, res) => {
 	const deleted = taskService.deleteTask(req.params.id);
 	if (!deleted) {

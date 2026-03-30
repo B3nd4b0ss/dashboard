@@ -3,20 +3,22 @@ const router = express.Router();
 const databaseService = require('../services/databaseService');
 const { dockerAvailable } = require('../services/docker');
 
-// Get all databases
+// `GET /databases`
+// Returns every persisted database record.
 router.get('/', (req, res) => {
 	const databases = databaseService.getAllDatabases();
 	res.json(databases);
 });
 
-// Create database
+// `POST /databases`
+// Body params: `name` and `type` are required. Optional params are `port` and `withClient`.
 router.post('/', async (req, res) => {
 	const { name, type, port, withClient } = req.body;
 	if (!name || !type) {
 		return res.status(400).json({ error: 'Name and type required' });
 	}
 
-	// Check if Docker is available
+	// Database creation depends on Docker being available locally.
 	if (!(await dockerAvailable())) {
 		return res.status(503).json({
 			error: 'Docker is not running. Please start Docker Desktop and try again.',
@@ -38,6 +40,7 @@ router.post('/', async (req, res) => {
 });
 
 router.post('/create-stream', async (req, res) => {
+	// Keep the HTTP connection open so the client can receive progress events during database creation.
 	res.writeHead(200, {
 		'Content-Type': 'text/event-stream',
 		'Cache-Control': 'no-cache',
@@ -89,7 +92,8 @@ router.post('/create-stream', async (req, res) => {
 	}
 });
 
-// Delete database
+// `DELETE /databases/:id`
+// Route params: `id` is the persisted database id.
 router.delete('/:id', async (req, res) => {
 	try {
 		await databaseService.deleteDatabase(req.params.id);
@@ -99,7 +103,8 @@ router.delete('/:id', async (req, res) => {
 	}
 });
 
-// Start database container
+// `POST /databases/:id/start`
+// Route params: `id` is the persisted database id.
 router.post('/:id/start', async (req, res) => {
 	try {
 		await databaseService.startDatabaseContainer(req.params.id);
@@ -109,7 +114,8 @@ router.post('/:id/start', async (req, res) => {
 	}
 });
 
-// Stop database container
+// `POST /databases/:id/stop`
+// Route params: `id` is the persisted database id.
 router.post('/:id/stop', async (req, res) => {
 	try {
 		await databaseService.stopDatabaseContainer(req.params.id);
@@ -119,7 +125,8 @@ router.post('/:id/stop', async (req, res) => {
 	}
 });
 
-// Start client container
+// `POST /databases/:id/client/start`
+// Route params: `id` is the persisted database id with an optional client service.
 router.post('/:id/client/start', async (req, res) => {
 	try {
 		await databaseService.startClientContainer(req.params.id);
@@ -129,7 +136,8 @@ router.post('/:id/client/start', async (req, res) => {
 	}
 });
 
-// Stop client container
+// `POST /databases/:id/client/stop`
+// Route params: `id` is the persisted database id with an optional client service.
 router.post('/:id/client/stop', async (req, res) => {
 	try {
 		await databaseService.stopClientContainer(req.params.id);
@@ -139,7 +147,8 @@ router.post('/:id/client/stop', async (req, res) => {
 	}
 });
 
-// Get database status
+// `GET /databases/:id/status`
+// Route params: `id` is the persisted database id.
 router.get('/:id/status', async (req, res) => {
 	try {
 		const db = databaseService.getDatabaseById(req.params.id);

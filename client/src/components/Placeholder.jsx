@@ -2,6 +2,12 @@ import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import ArrowForwardRounded from '@mui/icons-material/ArrowForwardRounded';
 import './Placeholder.css';
 
+/**
+ * Renders one of the placeholder preview variants shown in empty states.
+ *
+ * @param {string | React.ReactNode} preview - Preview identifier or custom preview node.
+ * @returns {React.ReactNode} Preview content for the placeholder card.
+ */
 function renderPreview(preview) {
 	if (preview === 'people') {
 		return (
@@ -79,6 +85,12 @@ function renderPreview(preview) {
 	);
 }
 
+/**
+ * Renders a reusable empty-state block for unfinished or missing dashboard surfaces.
+ *
+ * @param {{eyebrow?: string, title: string, description?: string, preview?: string | React.ReactNode, action?: React.ReactNode}} props - Component props.
+ * @returns {JSX.Element} Placeholder content block.
+ */
 function Placeholder({
 	title,
 	eyebrow = 'Coming Next',

@@ -9,16 +9,23 @@ import StorageRounded from '@mui/icons-material/StorageRounded';
 import ViewKanbanRounded from '@mui/icons-material/ViewKanbanRounded';
 import BoltRounded from '@mui/icons-material/BoltRounded';
 import AssignmentLateRounded from '@mui/icons-material/AssignmentLateRounded';
+import { API_BASE_URL } from '../config/api';
 import { getSearchParamValue } from '../utils/searchParams';
 import './DashboardHome.css';
 
-const API = 'http://localhost:4000';
+const API = API_BASE_URL;
 const TASK_COLUMNS = [
 	{ key: 'backlog', title: 'Backlog' },
 	{ key: 'in_progress', title: 'In progress' },
 	{ key: 'review', title: 'Review' },
 ];
 
+/**
+ * Builds the progress percentage shown on project cards in the dashboard hero.
+ *
+ * @param {object} project - Project record returned by the API.
+ * @returns {number} Progress percentage derived from tasks or runtime state.
+ */
 function getProjectProgress(project) {
 	if (project.taskSummary?.total > 0) {
 		return project.taskSummary.progressPercentage;
@@ -42,6 +49,12 @@ function getProjectProgress(project) {
 	return 22;
 }
 
+/**
+ * Converts a raw runtime status into the badge label shown in the UI.
+ *
+ * @param {string} status - Raw project runtime status.
+ * @returns {string} User-facing status label.
+ */
 function getStatusLabel(status) {
 	switch (status) {
 		case 'running':
@@ -53,6 +66,12 @@ function getStatusLabel(status) {
 	}
 }
 
+/**
+ * Builds the normalized search text used to filter dashboard project cards.
+ *
+ * @param {object} project - Project record returned by the API.
+ * @returns {string} Lower-case searchable text blob.
+ */
 function getDashboardProjectSearchText(project) {
 	return [
 		project.name,
@@ -67,6 +86,12 @@ function getDashboardProjectSearchText(project) {
 		.toLowerCase();
 }
 
+/**
+ * Builds the normalized search text used to filter dashboard task cards.
+ *
+ * @param {object} task - Task record returned by the API.
+ * @returns {string} Lower-case searchable text blob.
+ */
 function getDashboardTaskSearchText(task) {
 	return [
 		task.title,
@@ -81,6 +106,12 @@ function getDashboardTaskSearchText(task) {
 		.toLowerCase();
 }
 
+/**
+ * Builds the normalized search text used to filter dashboard database cards.
+ *
+ * @param {object} database - Database record returned by the API.
+ * @returns {string} Lower-case searchable text blob.
+ */
 function getDashboardDatabaseSearchText(database) {
 	return [
 		database.name,
@@ -94,6 +125,11 @@ function getDashboardDatabaseSearchText(database) {
 		.toLowerCase();
 }
 
+/**
+ * Renders the dashboard landing page with cross-surface summaries for projects, tasks, and databases.
+ *
+ * @returns {JSX.Element} Dashboard home screen.
+ */
 function DashboardHome() {
 	const [searchParams] = useSearchParams();
 	const [projects, setProjects] = useState([]);
@@ -131,7 +167,9 @@ function DashboardHome() {
 
 	const filteredProjects = normalizedQuery
 		? projects.filter((project) =>
-				getDashboardProjectSearchText(project).includes(normalizedQuery),
+				getDashboardProjectSearchText(project).includes(
+					normalizedQuery,
+				),
 			)
 		: projects;
 	const filteredTasks = normalizedQuery
@@ -141,7 +179,9 @@ function DashboardHome() {
 		: tasks;
 	const filteredDatabases = normalizedQuery
 		? databases.filter((database) =>
-				getDashboardDatabaseSearchText(database).includes(normalizedQuery),
+				getDashboardDatabaseSearchText(database).includes(
+					normalizedQuery,
+				),
 			)
 		: databases;
 	const activeProjects = filteredProjects.filter(
@@ -222,9 +262,7 @@ function DashboardHome() {
 					</div>
 					<div>
 						<span>Tasks Completed</span>
-						<strong>
-							{completedTasks.toString()}
-						</strong>
+						<strong>{completedTasks.toString()}</strong>
 						<p>Real completed work across all projects.</p>
 					</div>
 				</article>
@@ -234,9 +272,7 @@ function DashboardHome() {
 					</div>
 					<div>
 						<span>Tasks Pending</span>
-						<strong>
-							{pendingTasks.toString()}
-						</strong>
+						<strong>{pendingTasks.toString()}</strong>
 						<p>Open work items still moving through delivery.</p>
 					</div>
 				</article>
@@ -246,9 +282,7 @@ function DashboardHome() {
 					</div>
 					<div>
 						<span>Live Services</span>
-						<strong>
-							{activeServices.toString()}
-						</strong>
+						<strong>{activeServices.toString()}</strong>
 						<p>
 							{expectedServices || 0} tracked services across all
 							projects.
@@ -359,7 +393,9 @@ function DashboardHome() {
 								<StorageRounded />
 							</div>
 							<div>
-								<h4>{filteredDatabases.length} tracked databases</h4>
+								<h4>
+									{filteredDatabases.length} tracked databases
+								</h4>
 								<p>
 									Keep local infrastructure linked to projects
 									without leaving the dashboard.

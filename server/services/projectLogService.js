@@ -11,12 +11,24 @@ const DEFAULT_LINE_LIMIT = 220;
 const MAX_TAIL_BYTES = 96 * 1024;
 const ANSI_PATTERN = /\u001B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
 
+/**
+ * Validates that a runtime log request only targets supported managed services.
+ *
+ * @param {string} serviceName - Service identifier supplied by the caller.
+ * @returns {void}
+ */
 function assertServiceName(serviceName) {
 	if (!SUPPORTED_PROJECT_SERVICES.includes(serviceName)) {
 		throw new Error(`Unsupported project service: ${serviceName}`);
 	}
 }
 
+/**
+ * Resolves the runtime log folder for a project.
+ *
+ * @param {object} project - Persisted project record.
+ * @returns {string} Absolute path to the runtime log directory.
+ */
 function getProjectLogDirectory(project) {
 	return path.join(
 		getProjectPath(project),
@@ -25,17 +37,36 @@ function getProjectLogDirectory(project) {
 	);
 }
 
+/**
+ * Resolves the runtime log file path for a project service.
+ *
+ * @param {object} project - Persisted project record.
+ * @param {'frontend' | 'backend'} serviceName - Managed service name.
+ * @returns {string} Absolute path to the service log file.
+ */
 function getProjectServiceLogPath(project, serviceName) {
 	assertServiceName(serviceName);
 	return path.join(getProjectLogDirectory(project), `${serviceName}.log`);
 }
 
+/**
+ * Ensures the runtime log directory exists for a project.
+ *
+ * @param {object} project - Persisted project record.
+ * @returns {string} Absolute path to the runtime log directory.
+ */
 function ensureRuntimeLogDirectory(project) {
 	const logDirectory = getProjectLogDirectory(project);
 	fs.mkdirSync(logDirectory, { recursive: true });
 	return logDirectory;
 }
 
+/**
+ * Removes terminal control characters and null bytes from log text.
+ *
+ * @param {unknown} value - Raw log text or chunk.
+ * @returns {string} Sanitized log text safe to persist and display.
+ */
 function sanitizeLogText(value) {
 	return String(value ?? '')
 		.replace(/\u0000/g, '')
@@ -44,10 +75,25 @@ function sanitizeLogText(value) {
 		.replace(/\r/g, '');
 }
 
+/**
+ * Formats a single log line using the dashboard's timestamped structure.
+ *
+ * @param {string} label - Log source label such as `stdout`, `stderr`, or `system`.
+ * @param {string} message - Message content to append.
+ * @returns {string} Formatted log line including a trailing newline.
+ */
 function formatLogLine(label, message) {
 	return `${new Date().toISOString()} [${label}] ${message}\n`;
 }
 
+/**
+ * Writes multiple sanitized log lines to an open stream.
+ *
+ * @param {fs.WriteStream} stream - Writable stream for the log file.
+ * @param {string} label - Log source label such as `stdout`, `stderr`, or `system`.
+ * @param {string[]} lines - Raw lines to append.
+ * @returns {void}
+ */
 function appendFormattedLines(stream, label, lines) {
 	for (const rawLine of lines) {
 		const message = sanitizeLogText(rawLine);
@@ -59,6 +105,15 @@ function appendFormattedLines(stream, label, lines) {
 	}
 }
 
+/**
+ * Appends a one-off runtime log event directly to a service log file.
+ *
+ * @param {string} projectName - Project whose log file should be updated.
+ * @param {'frontend' | 'backend'} serviceName - Managed service name.
+ * @param {string} message - Log text to append.
+ * @param {string} [label='system'] - Log source label written into each line.
+ * @returns {string} Absolute path to the log file that was written.
+ */
 function appendRuntimeLogEvent(
 	projectName,
 	serviceName,
@@ -79,6 +134,14 @@ function appendRuntimeLogEvent(
 	return logPath;
 }
 
+/**
+ * Creates a streaming log session used while a managed service starts and runs.
+ *
+ * @param {string} projectName - Project whose runtime logs should be updated.
+ * @param {'frontend' | 'backend'} serviceName - Managed service name.
+ * @param {{port?: number, cwd?: string, command?: string, args?: string[]}} [context={}] - Context shown at the top of the log file.
+ * @returns {{logPath: string, writeOutput: (bufferKey: 'stdout' | 'stderr', chunk: Buffer) => void, writeEvent: (message: string, label?: string) => void, close: (finalMessage?: string) => void}} Runtime log session helpers.
+ */
 function createRuntimeLogSession(projectName, serviceName, context = {}) {
 	const project = ensureProjectExists(projectName);
 	const logPath = getProjectServiceLogPath(project, serviceName);
@@ -161,6 +224,12 @@ function createRuntimeLogSession(projectName, serviceName, context = {}) {
 	};
 }
 
+/**
+ * Confirms that a project exists before reading or writing its runtime logs.
+ *
+ * @param {string} projectName - Project name to resolve.
+ * @returns {object} Matching project record.
+ */
 function ensureProjectExists(projectName) {
 	const projects = loadProjects();
 	const project = findProject(projects, projectName);
@@ -172,6 +241,13 @@ function ensureProjectExists(projectName) {
 	return project;
 }
 
+/**
+ * Reads the tail end of a file without loading the whole file into memory.
+ *
+ * @param {string} filePath - Absolute file path to read.
+ * @param {number} [maxBytes=MAX_TAIL_BYTES] - Maximum number of bytes to keep from the end of the file.
+ * @returns {Promise<{content: string, truncated: boolean, size: number, updatedAt: string}>} Tail content plus file metadata.
+ */
 async function readTailText(filePath, maxBytes = MAX_TAIL_BYTES) {
 	const stats = await fs.promises.stat(filePath);
 	const start = Math.max(0, stats.size - maxBytes);
@@ -201,6 +277,14 @@ async function readTailText(filePath, maxBytes = MAX_TAIL_BYTES) {
 	}
 }
 
+/**
+ * Reads the runtime log for a single project service.
+ *
+ * @param {string} projectName - Project whose service log should be read.
+ * @param {'frontend' | 'backend'} serviceName - Managed service name.
+ * @param {number} lineLimit - Number of recent log lines to keep.
+ * @returns {Promise<object>} Service log payload for the API.
+ */
 async function readServiceRuntimeLog(projectName, serviceName, lineLimit) {
 	const project = ensureProjectExists(projectName);
 	const logPath = getProjectServiceLogPath(project, serviceName);
@@ -242,6 +326,13 @@ async function readServiceRuntimeLog(projectName, serviceName, lineLimit) {
 	}
 }
 
+/**
+ * Reads runtime logs for one project, optionally filtered to a single service.
+ *
+ * @param {string} projectName - Project whose runtime logs should be read.
+ * @param {{serviceName?: string | null, lineLimit?: number}} [options={}] - Optional service filter and line limit.
+ * @returns {Promise<{projectName: string, fetchedAt: string, services: {frontend: object | null, backend: object | null}}>} Runtime log payload grouped by service.
+ */
 async function readProjectRuntimeLogs(
 	projectName,
 	{ serviceName = null, lineLimit = DEFAULT_LINE_LIMIT } = {},

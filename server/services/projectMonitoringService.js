@@ -31,12 +31,24 @@ const serviceStates = {};
 const processCpuSamples = new Map();
 const workspaceCache = new Map();
 
+/**
+ * Normalizes project names for use as internal monitoring map keys.
+ *
+ * @param {string} projectName - Project name to normalize.
+ * @returns {string} Lower-cased project key.
+ */
 function getProjectKey(projectName) {
 	return String(projectName || '')
 		.trim()
 		.toLowerCase();
 }
 
+/**
+ * Ensures a monitoring state bucket exists for a project.
+ *
+ * @param {string} projectName - Project whose state bucket should exist.
+ * @returns {Record<string, object>} Mutable project monitoring state.
+ */
 function ensureProjectState(projectName) {
 	const projectKey = getProjectKey(projectName);
 	if (!serviceStates[projectKey]) {
@@ -46,6 +58,11 @@ function ensureProjectState(projectName) {
 	return serviceStates[projectKey];
 }
 
+/**
+ * Creates the default monitoring state for one managed service.
+ *
+ * @returns {object} Fresh monitoring state object.
+ */
 function createDefaultServiceState() {
 	return {
 		launchCount: 0,
@@ -69,6 +86,13 @@ function createDefaultServiceState() {
 	};
 }
 
+/**
+ * Ensures a monitoring state entry exists for a specific project service.
+ *
+ * @param {string} projectName - Project that owns the service.
+ * @param {'frontend' | 'backend'} serviceName - Managed service name.
+ * @returns {object} Mutable service monitoring state.
+ */
 function ensureServiceState(projectName, serviceName) {
 	const projectState = ensureProjectState(projectName);
 	if (!projectState[serviceName]) {
@@ -82,12 +106,25 @@ function getRestartCount(serviceState) {
 	return Math.max(0, serviceState.launchCount - 1);
 }
 
+/**
+ * Clears cached monitoring data for a project.
+ *
+ * @param {string} projectName - Project whose monitoring state should be reset.
+ * @returns {void}
+ */
 function clearProjectMonitoringState(projectName) {
 	const projectKey = getProjectKey(projectName);
 	delete serviceStates[projectKey];
 	workspaceCache.delete(projectKey);
 }
 
+/**
+ * Moves monitoring state to a new project name after a rename.
+ *
+ * @param {string} oldName - Previous project name.
+ * @param {string} nextName - New project name.
+ * @returns {void}
+ */
 function renameProjectMonitoringState(oldName, nextName) {
 	const oldKey = getProjectKey(oldName);
 	const nextKey = getProjectKey(nextName);
@@ -107,10 +144,24 @@ function renameProjectMonitoringState(oldName, nextName) {
 	}
 }
 
+/**
+ * Invalidates cached workspace disk metrics for a project.
+ *
+ * @param {string} projectName - Project whose cached workspace metrics should be cleared.
+ * @returns {void}
+ */
 function invalidateProjectWorkspaceMetrics(projectName) {
 	workspaceCache.delete(getProjectKey(projectName));
 }
 
+/**
+ * Records that a managed service has been launched.
+ *
+ * @param {string} projectName - Project that owns the service.
+ * @param {'frontend' | 'backend'} serviceName - Managed service name.
+ * @param {import('child_process').ChildProcess | null} proc - Spawned child process.
+ * @returns {void}
+ */
 function recordServiceLaunch(projectName, serviceName, proc) {
 	const serviceState = ensureServiceState(projectName, serviceName);
 	serviceState.launchCount += 1;
@@ -132,11 +183,26 @@ function recordServiceLaunch(projectName, serviceName, proc) {
 	}
 }
 
+/**
+ * Records that the dashboard requested a managed service to stop.
+ *
+ * @param {string} projectName - Project that owns the service.
+ * @param {'frontend' | 'backend'} serviceName - Managed service name.
+ * @returns {void}
+ */
 function recordServiceStopRequest(projectName, serviceName) {
 	const serviceState = ensureServiceState(projectName, serviceName);
 	serviceState.lastStopRequestedAt = new Date().toISOString();
 }
 
+/**
+ * Records how a managed service exited.
+ *
+ * @param {string} projectName - Project that owns the service.
+ * @param {'frontend' | 'backend'} serviceName - Managed service name.
+ * @param {{code?: number | null, signal?: string | null, expected?: boolean, pid?: number | null, errorMessage?: string | null}} [details={}] - Exit details collected from the child process.
+ * @returns {void}
+ */
 function recordServiceExit(
 	projectName,
 	serviceName,
@@ -558,6 +624,13 @@ function buildServiceMonitoringSnapshot(
 	};
 }
 
+/**
+ * Builds a monitoring snapshot from the current in-memory runtime state.
+ *
+ * @param {object} project - Project record to summarize.
+ * @param {object} runtimeSnapshot - Runtime snapshot previously built for the project.
+ * @returns {object} Monitoring snapshot suitable for fast API responses.
+ */
 function createProjectMonitoringSnapshot(project, runtimeSnapshot) {
 	const serviceSnapshots = {};
 
@@ -647,6 +720,13 @@ function createProjectMonitoringSnapshot(project, runtimeSnapshot) {
 	};
 }
 
+/**
+ * Builds monitoring snapshots for a list of projects, including health and workspace metrics.
+ *
+ * @param {Array<object>} projects - Projects to inspect.
+ * @param {Map<string, object> | null} [runtimeSnapshotMap=null] - Optional precomputed runtime snapshots keyed by lower-cased project name.
+ * @returns {Promise<Map<string, object>>} Monitoring snapshots keyed by lower-cased project name.
+ */
 async function getProjectMonitoringMap(projects, runtimeSnapshotMap = null) {
 	const serviceDescriptors = [];
 

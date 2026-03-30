@@ -1,6 +1,12 @@
 const path = require('path');
 const { dockerAvailable, runDockerCommand } = require('./docker');
 
+/**
+ * Parses line-delimited JSON output returned by formatted Docker commands.
+ *
+ * @param {string} output - Raw stdout from a Docker command.
+ * @returns {Array<object>} Parsed JSON rows, ignoring invalid lines.
+ */
 function parseJsonLines(output) {
 	return String(output || '')
 		.split(/\r?\n/)
@@ -16,6 +22,13 @@ function parseJsonLines(output) {
 		.filter(Boolean);
 }
 
+/**
+ * Parses JSON output while returning a fallback value on failure.
+ *
+ * @param {string} output - Raw JSON string.
+ * @param {any} [fallback=null] - Value to return when parsing fails.
+ * @returns {any} Parsed JSON value or the fallback.
+ */
 function parseJson(output, fallback = null) {
 	try {
 		return JSON.parse(String(output || '').trim());
@@ -24,11 +37,24 @@ function parseJson(output, fallback = null) {
 	}
 }
 
+/**
+ * Parses JSON output and guarantees an array return type.
+ *
+ * @param {string} output - Raw JSON string.
+ * @param {Array<any>} [fallback=[]] - Value to return when parsing does not produce an array.
+ * @returns {Array<any>} Parsed array or the fallback.
+ */
 function parseJsonArray(output, fallback = []) {
 	const parsed = parseJson(output, fallback);
 	return Array.isArray(parsed) ? parsed : fallback;
 }
 
+/**
+ * Classifies a container into the dashboard's high-level categories.
+ *
+ * @param {string} name - Docker container name.
+ * @returns {'database' | 'client' | 'runtime'} Container category.
+ */
 function inferContainerCategory(name) {
 	if (name.startsWith('db_')) {
 		return 'database';
@@ -41,6 +67,12 @@ function inferContainerCategory(name) {
 	return 'runtime';
 }
 
+/**
+ * Extracts exposed host ports from Docker's port summary string.
+ *
+ * @param {string} portText - Docker port description text.
+ * @returns {Array<{hostPort: number, protocol: string}>} Parsed host port mappings.
+ */
 function parseHostPorts(portText) {
 	const ports = [];
 	const matcher = /(\d+)->\d+\/(tcp|udp)/g;
@@ -76,6 +108,14 @@ function normalizeComposeInfo(labels) {
 	};
 }
 
+/**
+ * Converts Docker CLI container data into the normalized API shape used by the UI.
+ *
+ * @param {object} entry - Container row from `docker ps`.
+ * @param {Map<string, object>} statsMap - Stats keyed by container name or id.
+ * @param {object | null} [inspectEntry=null] - Optional inspect payload for the same container.
+ * @returns {object} Normalized container record.
+ */
 function normalizeContainer(entry, statsMap, inspectEntry = null) {
 	const name = entry.Names || entry.ID;
 	const labels = inspectEntry?.Config?.Labels || {};
@@ -116,6 +156,12 @@ function normalizeContainer(entry, statsMap, inspectEntry = null) {
 	};
 }
 
+/**
+ * Converts Docker image CLI output into the normalized API shape used by the UI.
+ *
+ * @param {object} entry - Image row from `docker images`.
+ * @returns {object} Normalized image record.
+ */
 function normalizeImage(entry) {
 	const repository = entry.Repository || '<none>';
 	const tag = entry.Tag || 'latest';
@@ -132,6 +178,11 @@ function normalizeImage(entry) {
 	};
 }
 
+/**
+ * Reads high-level Docker daemon information and capacity metrics.
+ *
+ * @returns {Promise<object>} Normalized Docker daemon info.
+ */
 async function getDockerInfo() {
 	const output = await runDockerCommand(
 		['info', '--format', '{{json .}}'],
@@ -156,6 +207,11 @@ async function getDockerInfo() {
 	};
 }
 
+/**
+ * Reads container resource stats keyed by container name.
+ *
+ * @returns {Promise<Map<string, object>>} Container stats map.
+ */
 async function getContainerStatsMap() {
 	try {
 		const output = await runDockerCommand(
@@ -183,6 +239,12 @@ async function getContainerStatsMap() {
 	}
 }
 
+/**
+ * Loads Docker inspect data for a set of container ids.
+ *
+ * @param {string[]} containerIds - Container ids to inspect.
+ * @returns {Promise<Map<string, object>>} Inspect payloads keyed by container id.
+ */
 async function getContainerInspectMap(containerIds) {
 	if (!Array.isArray(containerIds) || containerIds.length === 0) {
 		return new Map();
@@ -209,6 +271,11 @@ async function getContainerInspectMap(containerIds) {
 	}
 }
 
+/**
+ * Lists all containers and enriches them with stats and compose metadata.
+ *
+ * @returns {Promise<Array<object>>} Normalized container records.
+ */
 async function listContainers() {
 	const [output, statsMap] = await Promise.all([
 		runDockerCommand(
@@ -395,6 +462,11 @@ function groupContainersByComposeProject(containers) {
 	};
 }
 
+/**
+ * Lists locally available Docker images.
+ *
+ * @returns {Promise<Array<object>>} Normalized image records.
+ */
 async function listImages() {
 	const output = await runDockerCommand(
 		['images', '--format', '{{json .}}'],
@@ -407,6 +479,11 @@ async function listImages() {
 		.sort((left, right) => left.repository.localeCompare(right.repository));
 }
 
+/**
+ * Builds the full Docker overview payload used by the dashboard.
+ *
+ * @returns {Promise<object>} Docker availability, daemon info, stacks, containers, and images.
+ */
 async function getDockerOverview() {
 	const available = await dockerAvailable();
 
@@ -465,6 +542,12 @@ async function getDockerOverview() {
 	};
 }
 
+/**
+ * Returns the normalized compose stack view for one compose project.
+ *
+ * @param {string} projectName - Compose project name or derived stack id.
+ * @returns {Promise<object>} Normalized compose stack details.
+ */
 async function getDockerStack(projectName) {
 	await assertDockerReady();
 	const containers = await listContainers();
@@ -480,6 +563,11 @@ async function getDockerStack(projectName) {
 	return stack;
 }
 
+/**
+ * Throws when Docker Desktop is unavailable.
+ *
+ * @returns {Promise<void>}
+ */
 async function assertDockerReady() {
 	if (!(await dockerAvailable())) {
 		throw new Error(
@@ -488,21 +576,46 @@ async function assertDockerReady() {
 	}
 }
 
+/**
+ * Starts a Docker container after validating Docker availability.
+ *
+ * @param {string} containerName - Container name to start.
+ * @returns {Promise<void>}
+ */
 async function startDockerContainer(containerName) {
 	await assertDockerReady();
 	await runDockerCommand(['start', containerName]);
 }
 
+/**
+ * Stops a Docker container after validating Docker availability.
+ *
+ * @param {string} containerName - Container name to stop.
+ * @returns {Promise<void>}
+ */
 async function stopDockerContainer(containerName) {
 	await assertDockerReady();
 	await runDockerCommand(['stop', containerName]);
 }
 
+/**
+ * Restarts a Docker container after validating Docker availability.
+ *
+ * @param {string} containerName - Container name to restart.
+ * @returns {Promise<void>}
+ */
 async function restartDockerContainer(containerName) {
 	await assertDockerReady();
 	await runDockerCommand(['restart', containerName]);
 }
 
+/**
+ * Reads recent logs for a Docker container.
+ *
+ * @param {string} containerName - Container name to inspect.
+ * @param {number} [tail=160] - Requested number of lines to read, clamped to a safe range.
+ * @returns {Promise<{containerName: string, tail: number, logs: string}>} Container logs payload.
+ */
 async function getDockerContainerLogs(containerName, tail = 160) {
 	await assertDockerReady();
 	const safeTail = Number.isFinite(Number(tail))

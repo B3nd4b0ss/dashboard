@@ -8,6 +8,12 @@ const { unassignTasksForMember } = require('./taskService');
 
 const MEMBER_ACCENTS = ['blue', 'green', 'amber', 'slate'];
 
+/**
+ * Normalizes optional text fields so empty values are stored as `null`.
+ *
+ * @param {unknown} value - Raw text-like value from the API payload.
+ * @returns {string | null} Trimmed string, or null when the value is empty.
+ */
 function normalizeOptionalText(value) {
 	if (value === null || typeof value === 'undefined') {
 		return null;
@@ -17,6 +23,12 @@ function normalizeOptionalText(value) {
 	return trimmed || null;
 }
 
+/**
+ * Normalizes and validates an email address.
+ *
+ * @param {unknown} value - Raw email value from the API payload.
+ * @returns {string | null} Lower-cased email address, or null when omitted.
+ */
 function normalizeEmail(value) {
 	const normalizedEmail = normalizeOptionalText(value);
 
@@ -32,6 +44,13 @@ function normalizeEmail(value) {
 	return loweredEmail;
 }
 
+/**
+ * Builds task stats for a single team member.
+ *
+ * @param {string} memberId - Member id whose assignments should be summarized.
+ * @param {Array<object>} [tasks=loadTasks()] - Task collection to summarize.
+ * @returns {{total: number, completed: number, active: number, projects: string[]}} Aggregated task counts and related projects.
+ */
 function getMemberTaskSummary(memberId, tasks = loadTasks()) {
 	const memberTasks = tasks.filter((task) => task.assigneeId === memberId);
 	const projectNames = [
@@ -46,6 +65,13 @@ function getMemberTaskSummary(memberId, tasks = loadTasks()) {
 	};
 }
 
+/**
+ * Adds derived task summary data to a persisted member record.
+ *
+ * @param {object} member - Stored member record.
+ * @param {Array<object>} [tasks=loadTasks()] - Task collection used to calculate assignment stats.
+ * @returns {object} Decorated member record for API responses.
+ */
 function decorateMember(member, tasks = loadTasks()) {
 	const taskSummary = getMemberTaskSummary(member.id, tasks);
 
@@ -55,6 +81,11 @@ function decorateMember(member, tasks = loadTasks()) {
 	};
 }
 
+/**
+ * Returns all members sorted by name with task summary metadata attached.
+ *
+ * @returns {object[]} Decorated member records.
+ */
 function getAllMembers() {
 	const tasks = loadTasks();
 	return loadMembers()
@@ -62,11 +93,23 @@ function getAllMembers() {
 		.sort((left, right) => left.name.localeCompare(right.name));
 }
 
+/**
+ * Looks up a single member by id.
+ *
+ * @param {string} id - Member id to load.
+ * @returns {object | null} Decorated member record, or null when it does not exist.
+ */
 function getMemberById(id) {
 	const member = loadMembers().find((entry) => entry.id === id);
 	return member ? decorateMember(member) : null;
 }
 
+/**
+ * Creates a new team member and assigns defaults for any optional fields.
+ *
+ * @param {{name: string, role?: string, email?: string, accent?: string}} data - Member payload from the client.
+ * @returns {object} Newly created decorated member record.
+ */
 function createMember(data) {
 	const name = normalizeOptionalText(data.name);
 	if (!name) {
@@ -101,6 +144,13 @@ function createMember(data) {
 	return decorateMember(member);
 }
 
+/**
+ * Applies partial updates to a member record.
+ *
+ * @param {string} id - Member id to update.
+ * @param {{name?: string, role?: string, email?: string, accent?: string}} updates - Partial member fields to overwrite.
+ * @returns {object} Updated decorated member record.
+ */
 function updateMember(id, updates) {
 	const members = loadMembers();
 	const memberIndex = members.findIndex((entry) => entry.id === id);
@@ -151,6 +201,12 @@ function updateMember(id, updates) {
 	return decorateMember(member);
 }
 
+/**
+ * Deletes a member and unassigns any tasks that pointed to them.
+ *
+ * @param {string} id - Member id to remove.
+ * @returns {boolean} True when a member was deleted.
+ */
 function deleteMember(id) {
 	const members = loadMembers();
 	const memberIndex = members.findIndex((entry) => entry.id === id);

@@ -13,11 +13,18 @@ import HubRounded from '@mui/icons-material/HubRounded';
 import StorageRounded from '@mui/icons-material/StorageRounded';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
+import { API_BASE_URL } from '../config/api';
 import './DockerHub.css';
 
-const API = 'http://localhost:4000';
+const API = API_BASE_URL;
 const REFRESH_INTERVAL_MS = 12000;
 
+/**
+ * Converts a Docker container state into the user-facing badge label.
+ *
+ * @param {string} state - Raw Docker container state.
+ * @returns {string} User-facing status label.
+ */
 function getContainerStateLabel(state) {
 	switch (state) {
 		case 'running':
@@ -33,6 +40,12 @@ function getContainerStateLabel(state) {
 	}
 }
 
+/**
+ * Converts an aggregate stack state into the user-facing badge label.
+ *
+ * @param {string} state - Aggregate stack state.
+ * @returns {string} User-facing status label.
+ */
 function getStackStateLabel(state) {
 	switch (state) {
 		case 'running':
@@ -44,6 +57,12 @@ function getStackStateLabel(state) {
 	}
 }
 
+/**
+ * Converts the dashboard's internal container category into display text.
+ *
+ * @param {string} category - Container category identifier.
+ * @returns {string} Human-readable category label.
+ */
 function getCategoryLabel(category) {
 	switch (category) {
 		case 'database':
@@ -55,6 +74,13 @@ function getCategoryLabel(category) {
 	}
 }
 
+/**
+ * Formats exposed host ports for the stack detail cards.
+ *
+ * @param {Array<{hostPort: number, protocol: string}>} hostPorts - Host port mappings returned by the API.
+ * @param {string} [emptyLabel='No exposed ports'] - Fallback label when no mappings exist.
+ * @returns {string} Human-readable host port list.
+ */
 function formatHostPorts(hostPorts, emptyLabel = 'No exposed ports') {
 	if (!hostPorts || hostPorts.length === 0) {
 		return emptyLabel;
@@ -65,6 +91,11 @@ function formatHostPorts(hostPorts, emptyLabel = 'No exposed ports') {
 		.join(' • ');
 }
 
+/**
+ * Renders the detail page for a single Docker compose stack.
+ *
+ * @returns {JSX.Element} Docker stack detail page.
+ */
 function DockerStackDetail() {
 	const { stackId } = useParams();
 	const [stack, setStack] = useState(null);

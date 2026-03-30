@@ -39,6 +39,13 @@ const PROTECTED_PORT_REASONS = new Map([
 	[5355, 'LLMNR commonly uses this port'],
 ]);
 
+/**
+ * Normalizes and validates a TCP/UDP port number.
+ *
+ * @param {string | number} port - Port entered by the user or read from stored data.
+ * @param {string} [label='Port'] - Friendly label used in validation errors.
+ * @returns {number} Normalized integer port number.
+ */
 function normalizePort(port, label = 'Port') {
 	const parsedPort = Number.parseInt(port, 10);
 
@@ -49,6 +56,12 @@ function normalizePort(port, label = 'Port') {
 	return parsedPort;
 }
 
+/**
+ * Extracts the numeric port from a `host:port` style address string.
+ *
+ * @param {string} localAddress - Local address from `netstat`.
+ * @returns {number | null} Parsed port when present.
+ */
 function extractPort(localAddress) {
 	if (!localAddress) {
 		return null;
@@ -60,6 +73,16 @@ function extractPort(localAddress) {
 	return match ? Number.parseInt(match[1], 10) : null;
 }
 
+/**
+ * Adds a system-level port binding to the aggregation map used during conflict checks.
+ *
+ * @param {Map<number, {protocols: Set<string>, bindings: Array<object>}>} bindingMap - Mutable binding registry.
+ * @param {number | null} port - Port to add.
+ * @param {string} protocol - Network protocol such as TCP or UDP.
+ * @param {string} localAddress - Original local address reported by the OS.
+ * @param {string} pid - Process id reported by the OS.
+ * @returns {void}
+ */
 function addSystemBinding(bindingMap, port, protocol, localAddress, pid) {
 	if (!port) {
 		return;
@@ -81,6 +104,11 @@ function addSystemBinding(bindingMap, port, protocol, localAddress, pid) {
 	});
 }
 
+/**
+ * Reads the host machine's listening TCP/UDP bindings using `netstat`.
+ *
+ * @returns {Map<number, {protocols: Set<string>, bindings: Array<object>}>} System bindings keyed by port.
+ */
 function listSystemPortBindings() {
 	const result = spawnSync('netstat', ['-ano'], {
 		encoding: 'utf8',
@@ -138,6 +166,12 @@ function listSystemPortBindings() {
 	return bindingMap;
 }
 
+/**
+ * Builds the set of ports already reserved by persisted projects and databases.
+ *
+ * @param {{excludeProjectName?: string | null, excludeDatabaseId?: string | null, ignorePorts?: Array<string | number>}} [options={}] - Exclusions used while validating edits.
+ * @returns {Map<number, string[]>} Configured port usages keyed by port number.
+ */
 function listConfiguredPortBindings(options = {}) {
 	const {
 		excludeProjectName = null,
@@ -217,6 +251,13 @@ function listConfiguredPortBindings(options = {}) {
 	return bindings;
 }
 
+/**
+ * Produces a detailed availability report for a candidate port.
+ *
+ * @param {string | number} port - Port to inspect.
+ * @param {{label?: string, excludeProjectName?: string | null, excludeDatabaseId?: string | null, ignorePorts?: Array<string | number>}} [options={}] - Validation settings and exclusions.
+ * @returns {{port: number, available: boolean, conflicts: string[]}} Availability report with human-readable conflicts.
+ */
 function inspectPort(port, options = {}) {
 	const {
 		label = 'Port',
@@ -263,6 +304,13 @@ function inspectPort(port, options = {}) {
 	};
 }
 
+/**
+ * Throws when a port is not safe for assignment and otherwise returns the normalized port.
+ *
+ * @param {string | number} port - Candidate port to validate.
+ * @param {{label?: string, excludeProjectName?: string | null, excludeDatabaseId?: string | null, ignorePorts?: Array<string | number>}} [options={}] - Validation settings and exclusions.
+ * @returns {number} Validated port number.
+ */
 function assertPortAvailable(port, options = {}) {
 	const report = inspectPort(port, options);
 
@@ -275,6 +323,13 @@ function assertPortAvailable(port, options = {}) {
 	return report.port;
 }
 
+/**
+ * Scans upward from a starting port until a safe port is found.
+ *
+ * @param {string | number} startPort - First port to try.
+ * @param {{label?: string, excludeProjectName?: string | null, excludeDatabaseId?: string | null, ignorePorts?: Array<string | number>}} [options={}] - Validation settings and exclusions.
+ * @returns {number} First safe available port at or above the starting value.
+ */
 function findNextAvailablePort(startPort, options = {}) {
 	let candidate = normalizePort(startPort, options.label || 'Port');
 

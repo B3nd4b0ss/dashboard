@@ -42,10 +42,23 @@ const { configureProcessToolEnvironment } = require('./developmentToolchain');
 
 configureProcessToolEnvironment();
 
+/**
+ * Waits for a short delay during start/stop sequencing.
+ *
+ * @param {number} ms - Milliseconds to pause for.
+ * @returns {Promise<void>}
+ */
 function wait(ms) {
 	return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * Checks whether a runtime command is available on the current machine.
+ *
+ * @param {string} command - Executable to probe.
+ * @param {string[]} [args=['--version']] - Probe arguments that should exit successfully.
+ * @returns {boolean} True when the command can be started.
+ */
 function commandExists(command, args = ['--version']) {
 	const result = spawnSync(command, args, {
 		stdio: 'ignore',
@@ -55,6 +68,13 @@ function commandExists(command, args = ['--version']) {
 	return !result.error;
 }
 
+/**
+ * Chooses the first available runtime command from a list of candidates.
+ *
+ * @param {Array<{command: string, probeArgs?: string[], args?: string[]}>} candidates - Runtime command candidates in preference order.
+ * @param {string} runtimeLabel - Friendly runtime label used in error messages.
+ * @returns {{command: string, args: string[]}} Executable and static args for the first available candidate.
+ */
 function resolveAvailableCommand(candidates, runtimeLabel) {
 	for (const candidate of candidates) {
 		if (commandExists(candidate.command, candidate.probeArgs)) {
@@ -70,6 +90,11 @@ function resolveAvailableCommand(candidates, runtimeLabel) {
 	);
 }
 
+/**
+ * Resolves the Python launcher used for generated backend projects.
+ *
+ * @returns {{command: string, args: string[]}} Executable and static args for invoking Python.
+ */
 function resolvePythonCommand() {
 	if (process.platform === 'win32') {
 		return resolveAvailableCommand(
@@ -91,6 +116,11 @@ function resolvePythonCommand() {
 	);
 }
 
+/**
+ * Resolves the PHP executable used for generated backend projects.
+ *
+ * @returns {{command: string, args: string[]}} Executable and static args for invoking PHP.
+ */
 function resolvePhpCommand() {
 	return resolveAvailableCommand(
 		[{ command: 'php', probeArgs: ['-v'] }],
@@ -98,6 +128,11 @@ function resolvePhpCommand() {
 	);
 }
 
+/**
+ * Resolves the Java runtime and compiler commands used for generated Java projects.
+ *
+ * @returns {{java: {command: string, args: string[]}, javac: {command: string, args: string[]}}} Java runtime toolchain commands.
+ */
 function resolveJavaCommands() {
 	return {
 		java: resolveAvailableCommand(
@@ -111,6 +146,15 @@ function resolveJavaCommands() {
 	};
 }
 
+/**
+ * Mirrors setup command output to both the console and the runtime log session.
+ *
+ * @param {string} projectName - Project being prepared.
+ * @param {'frontend' | 'backend'} serviceName - Service being prepared.
+ * @param {import('child_process').ChildProcess} proc - Spawned setup process.
+ * @param {{writeOutput?: (stream: 'stdout' | 'stderr', chunk: Buffer) => void} | null} logSession - Optional runtime log session.
+ * @returns {void}
+ */
 function pipeSetupOutput(projectName, serviceName, proc, logSession) {
 	const prefix = `[${projectName}:${serviceName}:setup] `;
 
@@ -129,6 +173,14 @@ function pipeSetupOutput(projectName, serviceName, proc, logSession) {
 	}
 }
 
+/**
+ * Runs a prerequisite command such as dependency installation before starting a service.
+ *
+ * @param {string} command - Executable to run.
+ * @param {string[]} args - Arguments passed to the executable.
+ * @param {{cwd: string, env: NodeJS.ProcessEnv, logSession?: object, projectName: string, serviceName: 'frontend' | 'backend', description: string}} options - Execution context for the setup command.
+ * @returns {Promise<void>} Resolves when the setup command exits successfully.
+ */
 function runPreparationCommand(
 	command,
 	args,
@@ -158,6 +210,12 @@ function runPreparationCommand(
 	});
 }
 
+/**
+ * Recomputes and persists the stored project runtime status.
+ *
+ * @param {string} projectName - Project whose status should be refreshed.
+ * @returns {void}
+ */
 function updatePersistedProjectStatus(projectName) {
 	const projects = loadProjects();
 	const project = findProject(projects, projectName);
@@ -170,6 +228,13 @@ function updatePersistedProjectStatus(projectName) {
 	saveProjects(projects);
 }
 
+/**
+ * Removes a single tracked service process from the runtime registry.
+ *
+ * @param {string} projectName - Project that owns the service.
+ * @param {'frontend' | 'backend'} serviceName - Service to clear.
+ * @returns {void}
+ */
 function clearTrackedService(projectName, serviceName) {
 	const runtime = processes[projectName];
 
@@ -184,6 +249,15 @@ function clearTrackedService(projectName, serviceName) {
 	}
 }
 
+/**
+ * Hooks a spawned managed service into monitoring, logging, and cleanup handlers.
+ *
+ * @param {string} projectName - Project that owns the service.
+ * @param {'frontend' | 'backend'} serviceName - Service to observe.
+ * @param {import('child_process').ChildProcess} proc - Spawned service process.
+ * @param {object | null} logSession - Runtime log session for the service.
+ * @returns {void}
+ */
 function attachProcessListeners(projectName, serviceName, proc, logSession) {
 	proc.on('error', (error) => {
 		if (!proc.__dashboardMonitoringExitRecorded) {
@@ -280,7 +354,9 @@ function getValidatedServicePath(projectPath, projectName, serviceName) {
 
 function resolveServiceCommand(project, servicePath, serviceName) {
 	if (serviceName === 'frontend') {
-		const templateDefinition = getFrontendTemplateDefinition(project.frontend);
+		const templateDefinition = getFrontendTemplateDefinition(
+			project.frontend,
+		);
 		if (templateDefinition?.kind === 'vite') {
 			const viteBin = path.join(
 				servicePath,
@@ -318,7 +394,9 @@ function resolveServiceCommand(project, servicePath, serviceName) {
 	}
 
 	if (serviceName === 'backend') {
-		const templateDefinition = getBackendTemplateDefinition(project.backend);
+		const templateDefinition = getBackendTemplateDefinition(
+			project.backend,
+		);
 
 		if (templateDefinition?.kind === 'node') {
 			const nodemonBin = path.join(
@@ -504,6 +582,12 @@ function terminateProcess(proc) {
 	});
 }
 
+/**
+ * Starts the managed frontend/backend services for a project and its linked database when needed.
+ *
+ * @param {string} name - Project name to start.
+ * @returns {Promise<{message: string}>} User-facing status message describing the start result.
+ */
 async function startProject(name) {
 	pruneRuntimeRegistry();
 
@@ -630,6 +714,12 @@ async function startProject(name) {
 	};
 }
 
+/**
+ * Stops the managed frontend/backend services for a project and its linked database when needed.
+ *
+ * @param {string} name - Project name to stop.
+ * @returns {Promise<{message: string}>} User-facing status message describing the stop result.
+ */
 async function stopProject(name) {
 	pruneRuntimeRegistry();
 

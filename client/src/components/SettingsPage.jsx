@@ -4,10 +4,11 @@ import GitHubIcon from '@mui/icons-material/GitHub';
 import CheckCircleRounded from '@mui/icons-material/CheckCircleRounded';
 import KeyRounded from '@mui/icons-material/KeyRounded';
 import SaveRounded from '@mui/icons-material/SaveRounded';
+import { API_BASE_URL } from '../config/api';
 import SurfaceSelect from './SurfaceSelect';
 import './SettingsPage.css';
 
-const API = 'http://localhost:4000';
+const API = API_BASE_URL;
 const DEFAULT_FORM = {
 	autoCreateRepo: true,
 	owner: '',
@@ -27,6 +28,12 @@ const VISIBILITY_OPTIONS = [
 	},
 ];
 
+/**
+ * Normalizes API settings into the editable form state used by the settings page.
+ *
+ * @param {object} [settings={}] - Public settings payload returned by the API.
+ * @returns {{autoCreateRepo: boolean, owner: string, visibility: string, token: string}} Editable form state.
+ */
 function normalizeSettingsForm(settings = {}) {
 	return {
 		autoCreateRepo:
@@ -39,6 +46,11 @@ function normalizeSettingsForm(settings = {}) {
 	};
 }
 
+/**
+ * Renders the workspace-wide settings page, including GitHub publishing defaults.
+ *
+ * @returns {JSX.Element} Settings page.
+ */
 function SettingsPage() {
 	const [form, setForm] = useState(DEFAULT_FORM);
 	const [loading, setLoading] = useState(true);
@@ -96,13 +108,18 @@ function SettingsPage() {
 				payload.github.clearToken = true;
 			}
 
-			const response = await axios.patch(`${API}/system/settings`, payload);
+			const response = await axios.patch(
+				`${API}/system/settings`,
+				payload,
+			);
 			const githubSettings = response.data?.github || {};
 			setForm(normalizeSettingsForm(githubSettings));
 			setHasSavedToken(Boolean(githubSettings.hasToken));
 			setClearSavedToken(false);
 			setError('');
-			setStatus('Settings saved. New projects will use this GitHub setup.');
+			setStatus(
+				'Settings saved. New projects will use this GitHub setup.',
+			);
 		} catch (saveError) {
 			setError(
 				saveError.response?.data?.error ||
@@ -171,8 +188,8 @@ function SettingsPage() {
 							<strong>Auto-create GitHub repos</strong>
 							<p>
 								When enabled, the dashboard creates the remote
-								repository, adds it as <code>origin</code>,
-								and pushes the first commit after project
+								repository, adds it as <code>origin</code>, and
+								pushes the first commit after project
 								scaffolding finishes.
 							</p>
 						</div>
@@ -180,7 +197,10 @@ function SettingsPage() {
 							type='checkbox'
 							checked={form.autoCreateRepo}
 							onChange={(event) =>
-								updateForm('autoCreateRepo', event.target.checked)
+								updateForm(
+									'autoCreateRepo',
+									event.target.checked,
+								)
 							}
 						/>
 					</label>
@@ -189,7 +209,9 @@ function SettingsPage() {
 						<span>GitHub owner or org</span>
 						<input
 							value={form.owner}
-							onChange={(event) => updateForm('owner', event.target.value)}
+							onChange={(event) =>
+								updateForm('owner', event.target.value)
+							}
 							placeholder='Leave blank to use the token owner'
 						/>
 					</label>
@@ -218,7 +240,9 @@ function SettingsPage() {
 						<input
 							type='password'
 							value={form.token}
-							onChange={(event) => updateForm('token', event.target.value)}
+							onChange={(event) =>
+								updateForm('token', event.target.value)
+							}
 							placeholder={
 								hasSavedToken && !clearSavedToken
 									? 'Leave blank to keep the current token'
@@ -235,12 +259,14 @@ function SettingsPage() {
 										setClearSavedToken(event.target.checked)
 									}
 								/>
-								<span>Clear the saved token on the next save</span>
+								<span>
+									Clear the saved token on the next save
+								</span>
 							</label>
 							<p>
-								The token is stored locally for this dashboard so
-								new projects can publish without prompting you
-								each time.
+								The token is stored locally for this dashboard
+								so new projects can publish without prompting
+								you each time.
 							</p>
 						</div>
 					</label>

@@ -859,11 +859,7 @@ body.dark .composer-panel {
 			rgba(48, 184, 136, 0.1),
 			transparent 26rem
 		),
-		linear-gradient(
-			180deg,
-			rgba(13, 21, 34, 0.98),
-			rgba(10, 17, 28, 0.94)
-		);
+		linear-gradient(180deg, rgba(13, 21, 34, 0.98), rgba(10, 17, 28, 0.94));
 }
 
 body.dark .composer-note {

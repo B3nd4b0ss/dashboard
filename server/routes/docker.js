@@ -2,6 +2,8 @@ const express = require('express');
 const router = express.Router();
 const dockerHubService = require('../services/dockerHubService');
 
+// `GET /docker`
+// Returns Docker daemon status, stacks, standalone containers, and images.
 router.get('/', async (req, res) => {
 	try {
 		const overview = await dockerHubService.getDockerOverview();
@@ -11,6 +13,8 @@ router.get('/', async (req, res) => {
 	}
 });
 
+// `GET /docker/stacks/:projectName`
+// Route params: `projectName` is the compose stack id shown in the Docker overview.
 router.get('/stacks/:projectName', async (req, res) => {
 	try {
 		const stack = await dockerHubService.getDockerStack(
@@ -27,6 +31,9 @@ router.get('/stacks/:projectName', async (req, res) => {
 	}
 });
 
+// `GET /docker/containers/:name/logs`
+// Route params: `name` is the Docker container name.
+// Query params: `tail` optionally controls how many recent log lines are returned.
 router.get('/containers/:name/logs', async (req, res) => {
 	try {
 		const logs = await dockerHubService.getDockerContainerLogs(
@@ -42,6 +49,8 @@ router.get('/containers/:name/logs', async (req, res) => {
 	}
 });
 
+// `POST /docker/containers/:name/start`
+// Route params: `name` is the Docker container name.
 router.post('/containers/:name/start', async (req, res) => {
 	try {
 		await dockerHubService.startDockerContainer(req.params.name);
@@ -54,6 +63,8 @@ router.post('/containers/:name/start', async (req, res) => {
 	}
 });
 
+// `POST /docker/containers/:name/stop`
+// Route params: `name` is the Docker container name.
 router.post('/containers/:name/stop', async (req, res) => {
 	try {
 		await dockerHubService.stopDockerContainer(req.params.name);
@@ -66,6 +77,8 @@ router.post('/containers/:name/stop', async (req, res) => {
 	}
 });
 
+// `POST /docker/containers/:name/restart`
+// Route params: `name` is the Docker container name.
 router.post('/containers/:name/restart', async (req, res) => {
 	try {
 		await dockerHubService.restartDockerContainer(req.params.name);

@@ -7,6 +7,8 @@ const {
 
 const router = express.Router();
 
+// `GET /system/settings`
+// Returns the client-safe dashboard settings payload.
 router.get('/settings', async (req, res) => {
 	try {
 		res.json(getPublicSettings());
@@ -15,6 +17,9 @@ router.get('/settings', async (req, res) => {
 	}
 });
 
+// `PATCH /system/settings`
+// Body params: partial settings payload under `github`, such as `autoCreateRepo`, `owner`,
+// `visibility`, `token`, or `clearToken`.
 router.patch('/settings', async (req, res) => {
 	try {
 		const settings = updateSettings(req.body || {});
@@ -24,6 +29,8 @@ router.patch('/settings', async (req, res) => {
 	}
 });
 
+// `POST /system/pick-folder`
+// Body params: optional `initialPath` and `title` used by the native folder picker dialog.
 router.post('/pick-folder', async (req, res) => {
 	try {
 		const result = await openFolderPicker({

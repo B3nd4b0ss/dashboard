@@ -4,6 +4,7 @@ $ErrorActionPreference = 'Stop'
 $rootDir = Split-Path -Parent $PSScriptRoot
 $logsDir = Join-Path $rootDir 'logs'
 $stateFile = Join-Path $logsDir 'dashboard-processes.json'
+$dashboardConfigFile = Join-Path $rootDir 'dashboard.config.json'
 $runnerScript = Join-Path $PSScriptRoot 'run-hidden-dashboard-target.ps1'
 $serverOutLog = Join-Path $logsDir 'server-dev.out.log'
 $serverErrLog = Join-Path $logsDir 'server-dev.err.log'
@@ -11,6 +12,10 @@ $clientOutLog = Join-Path $logsDir 'client-dev.out.log'
 $clientErrLog = Join-Path $logsDir 'client-dev.err.log'
 $powerShellExe = Join-Path $env:SystemRoot 'System32\WindowsPowerShell\v1.0\powershell.exe'
 $npmCmdPath = (Get-Command npm.cmd -ErrorAction Stop).Path
+$dashboardConfig = Get-Content -Path $dashboardConfigFile -Raw | ConvertFrom-Json -ErrorAction Stop
+$backendPort = [int]$dashboardConfig.ports.backend
+$frontendPort = [int]$dashboardConfig.ports.frontend
+$dashboardPorts = @($backendPort, $frontendPort)
 
 function Test-ProcessAlive {
   param([int]$ProcessId)
@@ -84,9 +89,9 @@ if ($null -ne $existingState) {
   Remove-Item -Path $stateFile -Force -ErrorAction SilentlyContinue
 }
 
-$occupiedPorts = @(Get-ListeningTcpPids -Ports @(4000, 5173))
+$occupiedPorts = @(Get-ListeningTcpPids -Ports $dashboardPorts)
 if ($occupiedPorts.Count -gt 0) {
-  Write-Error "Dashboard ports are already in use by PID(s): $($occupiedPorts -join ', '). Run npm run app:stop first, or free ports 4000 and 5173."
+  Write-Error "Dashboard ports are already in use by PID(s): $($occupiedPorts -join ', '). Run npm run app:stop first, or free ports $backendPort and $frontendPort."
 }
 
 $serverProcess = Start-Process `
@@ -107,13 +112,13 @@ Save-DashboardState @{
   startedAt = (Get-Date).ToString('o')
   server = @{
     launcherPid = $serverProcess.Id
-    port = 4000
+    port = $backendPort
     outLog = $serverOutLog
     errLog = $serverErrLog
   }
   client = @{
     launcherPid = $clientProcess.Id
-    port = 5173
+    port = $frontendPort
     outLog = $clientOutLog
     errLog = $clientErrLog
   }
@@ -135,6 +140,6 @@ if (@($failedLaunchers).Count -gt 0) {
 }
 
 Write-Host 'Dashboard started in the background.'
-Write-Host "Server: http://localhost:4000"
-Write-Host "Client: http://localhost:5173"
+Write-Host "Server: http://localhost:$backendPort"
+Write-Host "Client: http://localhost:$frontendPort"
 Write-Host "Logs: $logsDir"

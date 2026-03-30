@@ -1,15 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
-import {
-	useLocation,
-	useNavigate,
-	useSearchParams,
-} from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { API_BASE_URL } from '../config/api';
 import SurfaceSelect from './SurfaceSelect';
 import { getSearchParamValue } from '../utils/searchParams';
 import './Databases.css';
 
-const API = 'http://localhost:4000';
+const API = API_BASE_URL;
 const DATABASE_TYPE_OPTIONS = [
 	{
 		value: 'postgres',
@@ -28,6 +25,12 @@ const DATABASE_TYPE_OPTIONS = [
 	},
 ];
 
+/**
+ * Builds the normalized search text used to filter database cards.
+ *
+ * @param {object} database - Database record returned by the API.
+ * @returns {string} Lower-case searchable text blob.
+ */
 function getDatabaseSearchText(database) {
 	return [
 		database.name,
@@ -44,6 +47,11 @@ function getDatabaseSearchText(database) {
 		.toLowerCase();
 }
 
+/**
+ * Renders the database management screen, including creation and runtime actions.
+ *
+ * @returns {JSX.Element} Databases page.
+ */
 function Databases() {
 	const location = useLocation();
 	const navigate = useNavigate();
@@ -532,74 +540,75 @@ function Databases() {
 			<div className='database-list'>
 				{visibleDatabases.length > 0 ? (
 					visibleDatabases.map((db) => (
-					<div key={db.id} className='database-card'>
-						<h3>
-							{db.clientPort ? (
-								<a
-									href={`http://localhost:${db.clientPort}`}
-									target='_blank'
-									rel='noopener noreferrer'>
-									{db.name}
-								</a>
-							) : (
-								db.name
-							)}
-						</h3>
-						<p>Type: {db.type}</p>
-						<p>Port: {db.port}</p>
-						<p>Container: {db.containerName}</p>
-						<div className='status-row'>
-							<span className='status-label'>Status:</span>
-							{getStatusBadge(statuses[db.id])}
-							<button
-								className='refresh-status'
-								onClick={() => refreshStatus(db.id)}
-								title='Refresh status'>
-								⟳
-							</button>
-						</div>
-						{db.type !== 'mongodb' && (
-							<>
-								<p>User: {db.credentials.user}</p>
-								<p>Password: {db.credentials.password}</p>
-							</>
-						)}
-						{db.clientPort && (
-							<p>
-								Adminer:{' '}
-								<a
-									href={`http://localhost:${db.clientPort}`}
-									target='_blank'
-									rel='noopener noreferrer'>
-									port {db.clientPort}
-								</a>
-							</p>
-						)}
-
-						{/* Database Control Buttons */}
-						<div className='database-buttons'>
-							{statuses[db.id] === 'running' ? (
-								<button onClick={() => stopDatabase(db.id)}>
-									Stop DB
+						<div key={db.id} className='database-card'>
+							<h3>
+								{db.clientPort ? (
+									<a
+										href={`http://localhost:${db.clientPort}`}
+										target='_blank'
+										rel='noopener noreferrer'>
+										{db.name}
+									</a>
+								) : (
+									db.name
+								)}
+							</h3>
+							<p>Type: {db.type}</p>
+							<p>Port: {db.port}</p>
+							<p>Container: {db.containerName}</p>
+							<div className='status-row'>
+								<span className='status-label'>Status:</span>
+								{getStatusBadge(statuses[db.id])}
+								<button
+									className='refresh-status'
+									onClick={() => refreshStatus(db.id)}
+									title='Refresh status'>
+									⟳
 								</button>
-							) : (
-								<button onClick={() => startDatabase(db.id)}>
-									Start DB
-								</button>
+							</div>
+							{db.type !== 'mongodb' && (
+								<>
+									<p>User: {db.credentials.user}</p>
+									<p>Password: {db.credentials.password}</p>
+								</>
 							)}
-							<button onClick={() => deleteDatabase(db.id)}>
-								Delete
-							</button>
-						</div>
+							{db.clientPort && (
+								<p>
+									Adminer:{' '}
+									<a
+										href={`http://localhost:${db.clientPort}`}
+										target='_blank'
+										rel='noopener noreferrer'>
+										port {db.clientPort}
+									</a>
+								</p>
+							)}
 
-						<div className='database-buttons connection-button'>
-							<button
-								className='connection-btn'
-								onClick={() => showConnectionString(db)}>
-								🔗 Show Connection String
-							</button>
+							{/* Database Control Buttons */}
+							<div className='database-buttons'>
+								{statuses[db.id] === 'running' ? (
+									<button onClick={() => stopDatabase(db.id)}>
+										Stop DB
+									</button>
+								) : (
+									<button
+										onClick={() => startDatabase(db.id)}>
+										Start DB
+									</button>
+								)}
+								<button onClick={() => deleteDatabase(db.id)}>
+									Delete
+								</button>
+							</div>
+
+							<div className='database-buttons connection-button'>
+								<button
+									className='connection-btn'
+									onClick={() => showConnectionString(db)}>
+									🔗 Show Connection String
+								</button>
+							</div>
 						</div>
-					</div>
 					))
 				) : (
 					<div className='database-empty-state'>

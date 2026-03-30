@@ -4,6 +4,12 @@ import CheckRounded from '@mui/icons-material/CheckRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import './SurfaceSelect.css';
 
+/**
+ * Builds the normalized search text used to filter surface options.
+ *
+ * @param {object} option - Surface option metadata.
+ * @returns {string} Lower-case searchable text blob.
+ */
 function getOptionSearchText(option) {
 	const keywordList = Array.isArray(option.keywords)
 		? option.keywords
@@ -21,6 +27,12 @@ function getOptionSearchText(option) {
 		.toLowerCase();
 }
 
+/**
+ * Renders a searchable selection surface used for choosing templates or other option sets.
+ *
+ * @param {{options: object[], value: string, onChange: (value: string) => void, label?: string, helperText?: string, placeholder?: string, emptyMessage?: string}} props - Component props.
+ * @returns {JSX.Element} Searchable option picker.
+ */
 function SurfaceSelect({
 	value,
 	onChange,
@@ -121,7 +133,10 @@ function SurfaceSelect({
 			const menuGap = 10;
 			const rootRect = rootElement.getBoundingClientRect();
 			const availableBelow =
-				window.innerHeight - rootRect.bottom - viewportPadding - menuGap;
+				window.innerHeight -
+				rootRect.bottom -
+				viewportPadding -
+				menuGap;
 			const availableAbove = rootRect.top - viewportPadding - menuGap;
 			const preferredMenuHeight = Math.min(menuElement.scrollHeight, 320);
 			const shouldOpenUp =

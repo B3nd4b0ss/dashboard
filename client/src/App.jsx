@@ -12,6 +12,11 @@ import TaskDetailPage from './components/TaskDetailPage';
 import SettingsPage from './components/SettingsPage';
 import './App.css';
 
+/**
+ * Registers the top-level application routes.
+ *
+ * @returns {JSX.Element} Root router configuration.
+ */
 function App() {
 	return (
 		<BrowserRouter>

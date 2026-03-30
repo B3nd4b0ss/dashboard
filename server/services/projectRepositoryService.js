@@ -31,6 +31,13 @@ function getTemplateLabel(value, fallback) {
 	return value ? String(value) : fallback;
 }
 
+/**
+ * Checks whether a git-related command is available on the current machine.
+ *
+ * @param {string} command - Executable to probe.
+ * @param {string[]} [args=['--version']] - Probe arguments that should succeed.
+ * @returns {boolean} True when the command exists and exits successfully.
+ */
 function commandExists(command, args = ['--version']) {
 	const result = spawnSync(command, args, {
 		stdio: 'ignore',
@@ -40,12 +47,26 @@ function commandExists(command, args = ['--version']) {
 	return !result.error && result.status === 0;
 }
 
+/**
+ * Emits a progress log message when a callback is provided.
+ *
+ * @param {(message: string) => void | undefined} onLog - Optional logging callback.
+ * @param {string} message - Progress message to emit.
+ * @returns {void}
+ */
 function emitLog(onLog, message) {
 	if (typeof onLog === 'function') {
 		onLog(message);
 	}
 }
 
+/**
+ * Converts a branch token into a lowercase slug segment safe for Git branch names.
+ *
+ * @param {unknown} value - Raw branch token.
+ * @param {string} [fallback='task'] - Value to use when the token is empty.
+ * @returns {string} Normalized branch slug.
+ */
 function slugifyBranchToken(value, fallback = 'task') {
 	const normalized = String(value || fallback)
 		.trim()
@@ -56,6 +77,14 @@ function slugifyBranchToken(value, fallback = 'task') {
 	return normalized || fallback;
 }
 
+/**
+ * Runs a child process command and collects its stdout and stderr.
+ *
+ * @param {string} command - Executable to run.
+ * @param {string[]} args - Arguments passed to the executable.
+ * @param {{cwd?: string, env?: NodeJS.ProcessEnv, onStdout?: (chunk: string) => void, onStderr?: (chunk: string) => void}} [options={}] - Process options and optional output hooks.
+ * @returns {Promise<{stdout: string, stderr: string}>} Captured command output.
+ */
 function runCommand(command, args, options = {}) {
 	return new Promise((resolve, reject) => {
 		const stdout = [];
@@ -91,7 +120,9 @@ function runCommand(command, args, options = {}) {
 			}
 
 			const message =
-				stderrText || stdoutText || `${command} exited with code ${code}.`;
+				stderrText ||
+				stdoutText ||
+				`${command} exited with code ${code}.`;
 			const error = new Error(message);
 			error.code = code;
 			error.stdout = stdoutText;
@@ -202,14 +233,22 @@ async function initializeGitRepository(projectPath) {
 }
 
 async function ensureGitIdentity(projectPath, fallbackIdentity) {
-	const localName = readGitConfig(projectPath, ['config', '--get', 'user.name']);
+	const localName = readGitConfig(projectPath, [
+		'config',
+		'--get',
+		'user.name',
+	]);
 	const globalName = readGitConfig(projectPath, [
 		'config',
 		'--global',
 		'--get',
 		'user.name',
 	]);
-	const localEmail = readGitConfig(projectPath, ['config', '--get', 'user.email']);
+	const localEmail = readGitConfig(projectPath, [
+		'config',
+		'--get',
+		'user.email',
+	]);
 	const globalEmail = readGitConfig(projectPath, [
 		'config',
 		'--global',
@@ -218,9 +257,13 @@ async function ensureGitIdentity(projectPath, fallbackIdentity) {
 	]);
 
 	if (!localName && !globalName) {
-		await runCommand('git', ['config', 'user.name', fallbackIdentity.name], {
-			cwd: projectPath,
-		});
+		await runCommand(
+			'git',
+			['config', 'user.name', fallbackIdentity.name],
+			{
+				cwd: projectPath,
+			},
+		);
 	}
 
 	if (!localEmail && !globalEmail) {
@@ -278,7 +321,9 @@ function githubRequest(method, requestPath, token, body = null) {
 
 					const message =
 						data?.message ||
-						(typeof data === 'string' ? data : 'GitHub request failed.');
+						(typeof data === 'string'
+							? data
+							: 'GitHub request failed.');
 					const error = new Error(message);
 					error.statusCode = res.statusCode;
 					error.response = data;
@@ -322,7 +367,9 @@ async function createOrReuseGitHubRepository({
 	const resolvedOwner = String(owner || authenticatedUser.login || '').trim();
 	const isPersonalRepository =
 		resolvedOwner.toLowerCase() ===
-		String(authenticatedUser.login || '').trim().toLowerCase();
+		String(authenticatedUser.login || '')
+			.trim()
+			.toLowerCase();
 	const requestPath = isPersonalRepository
 		? '/user/repos'
 		: `/orgs/${encodeURIComponent(resolvedOwner)}/repos`;
@@ -376,7 +423,9 @@ async function createOrReuseGitHubRepository({
 }
 
 function buildGitHubPushArguments(remoteName, branchName, token) {
-	const encodedToken = Buffer.from(`x-access-token:${token}`).toString('base64');
+	const encodedToken = Buffer.from(`x-access-token:${token}`).toString(
+		'base64',
+	);
 
 	return [
 		'-c',
@@ -419,6 +468,13 @@ async function configureGitRemote(projectPath, remoteName, remoteUrl) {
 	}
 }
 
+/**
+ * Initializes a project's local git repository and optionally provisions/pushes a GitHub remote.
+ *
+ * @param {object} project - Project record being initialized.
+ * @param {{projectPath?: string, autoCreateRepo?: boolean, visibility?: 'public' | 'private', onLog?: (message: string) => void}} [options={}] - Repository initialization options.
+ * @returns {Promise<object>} Repository metadata stored on the project record.
+ */
 async function initializeProjectRepository(project, options = {}) {
 	const projectPath = options.projectPath || project.projectPath;
 	const githubSettings = getGitHubSettings();
@@ -485,10 +541,17 @@ async function initializeProjectRepository(project, options = {}) {
 				description: projectScaffold.description,
 			});
 			emitLog(options.onLog, 'Configuring origin remote...');
-			await configureGitRemote(projectPath, 'origin', remoteRepository.cloneUrl);
+			await configureGitRemote(
+				projectPath,
+				'origin',
+				remoteRepository.cloneUrl,
+			);
 		} catch (error) {
 			repositoryError = error.message;
-			emitLog(options.onLog, `GitHub origin setup failed: ${error.message}`);
+			emitLog(
+				options.onLog,
+				`GitHub origin setup failed: ${error.message}`,
+			);
 		}
 	}
 
@@ -546,7 +609,11 @@ async function initializeProjectRepository(project, options = {}) {
 		emitLog(options.onLog, 'Pushing first commit to GitHub...');
 		await runCommand(
 			'git',
-			buildGitHubPushArguments('origin', DEFAULT_BRANCH, githubSettings.token),
+			buildGitHubPushArguments(
+				'origin',
+				DEFAULT_BRANCH,
+				githubSettings.token,
+			),
 			{
 				cwd: projectPath,
 				env: {
@@ -555,7 +622,10 @@ async function initializeProjectRepository(project, options = {}) {
 				},
 			},
 		);
-		emitLog(options.onLog, `GitHub remote connected: ${remoteRepository.url}`);
+		emitLog(
+			options.onLog,
+			`GitHub remote connected: ${remoteRepository.url}`,
+		);
 
 		return {
 			...baseRepository,
@@ -577,6 +647,13 @@ async function initializeProjectRepository(project, options = {}) {
 	}
 }
 
+/**
+ * Publishes an existing local-only git repository to GitHub.
+ *
+ * @param {object} project - Project record being published.
+ * @param {{projectPath?: string, visibility?: 'public' | 'private', onLog?: (message: string) => void}} [options={}] - Publishing options.
+ * @returns {Promise<object>} Connected repository metadata.
+ */
 async function publishProjectRepository(project, options = {}) {
 	const projectPath = options.projectPath || getProjectPath(project);
 	const githubSettings = getGitHubSettings();
@@ -604,10 +681,15 @@ async function publishProjectRepository(project, options = {}) {
 	}
 
 	if (!(await fs.pathExists(path.join(projectPath, '.git')))) {
-		throw new Error('This project does not have a local git repository yet.');
+		throw new Error(
+			'This project does not have a local git repository yet.',
+		);
 	}
 
-	const branchName = (await gitRefExists(projectPath, configuredDefaultBranch))
+	const branchName = (await gitRefExists(
+		projectPath,
+		configuredDefaultBranch,
+	))
 		? configuredDefaultBranch
 		: readCurrentGitBranch(projectPath) || DEFAULT_BRANCH;
 
@@ -655,12 +737,22 @@ async function publishProjectRepository(project, options = {}) {
 	};
 }
 
+/**
+ * Creates or syncs a Git branch for a task inside a project's repository.
+ *
+ * @param {object} project - Project record that owns the repository.
+ * @param {object} task - Task record used to derive the branch name.
+ * @param {{projectPath?: string, branchName?: string, onLog?: (message: string) => void}} [options={}] - Optional overrides for branch creation.
+ * @returns {Promise<object>} Branch metadata attached back to the task.
+ */
 async function createTaskBranch(project, task, options = {}) {
 	const projectPath = options.projectPath || getProjectPath(project);
 	const githubSettings = getGitHubSettings();
 	const branchName = options.branchName || buildTaskBranchName(task);
-	const remoteUrl = readGitConfig(projectPath, ['remote', 'get-url', 'origin']) || null;
-	const configuredBaseBranch = project?.repository?.defaultBranch || DEFAULT_BRANCH;
+	const remoteUrl =
+		readGitConfig(projectPath, ['remote', 'get-url', 'origin']) || null;
+	const configuredBaseBranch =
+		project?.repository?.defaultBranch || DEFAULT_BRANCH;
 
 	if (!commandExists('git')) {
 		throw new Error('Git is not available on this machine.');
@@ -688,10 +780,17 @@ async function createTaskBranch(project, task, options = {}) {
 
 	if (remoteUrl) {
 		try {
-			emitLog(options.onLog, `Pushing task branch ${branchName} to origin...`);
+			emitLog(
+				options.onLog,
+				`Pushing task branch ${branchName} to origin...`,
+			);
 			const pushArgs =
 				githubSettings.token && /github\.com[:/]/i.test(remoteUrl)
-					? buildGitHubPushArguments('origin', branchName, githubSettings.token)
+					? buildGitHubPushArguments(
+							'origin',
+							branchName,
+							githubSettings.token,
+						)
 					: ['push', '-u', 'origin', branchName];
 
 			await runCommand('git', pushArgs, {
@@ -721,6 +820,12 @@ async function createTaskBranch(project, task, options = {}) {
 	};
 }
 
+/**
+ * Removes repository metadata and deletes the remote GitHub repository when configured.
+ *
+ * @param {object} project - Project record whose repository should be deleted.
+ * @returns {Promise<boolean>} True when a remote repository deletion was attempted.
+ */
 async function deleteProjectRepository(project) {
 	if (!project?.repository || project.repository.provider !== 'github') {
 		return false;

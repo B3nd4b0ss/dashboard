@@ -28,6 +28,7 @@ import SpeedRounded from '@mui/icons-material/SpeedRounded';
 import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
 import MonitorHeartRounded from '@mui/icons-material/MonitorHeartRounded';
 import CodeRounded from '@mui/icons-material/CodeRounded';
+import { API_BASE_URL, DASHBOARD_API_PORT } from '../config/api';
 import SurfaceSelect from './SurfaceSelect';
 import {
 	getProjectCommandLabel,
@@ -44,7 +45,7 @@ import {
 } from '../utils/searchParams';
 import './Overview.css';
 
-const API = 'http://localhost:4000';
+const API = API_BASE_URL;
 const REFRESH_INTERVAL_MS = 7000;
 const EMPTY_FORM = {
 	name: '',
@@ -140,7 +141,8 @@ const REPOSITORY_MODE_OPTIONS = [
 	{
 		value: 'local',
 		label: 'Local only',
-		description: 'Initialize git locally and skip GitHub repository creation.',
+		description:
+			'Initialize git locally and skip GitHub repository creation.',
 	},
 ];
 
@@ -356,6 +358,12 @@ const COMPOSER_FAST_LANES = [
 	},
 ];
 
+/**
+ * Converts a raw runtime status into the badge label shown across the overview surfaces.
+ *
+ * @param {string} status - Raw project runtime status.
+ * @returns {string} User-facing status label.
+ */
 function getStatusLabel(status) {
 	switch (status) {
 		case 'running':
@@ -450,7 +458,7 @@ function getDefaultBackendPreset(backendRuntime, composerLane = '') {
 function getSuggestedBackendPort(template) {
 	switch (getBackendRuntime(template)) {
 		case 'node':
-			return '4000';
+			return String(DASHBOARD_API_PORT);
 		case 'python':
 		case 'php':
 			return '8000';
@@ -461,6 +469,12 @@ function getSuggestedBackendPort(template) {
 	}
 }
 
+/**
+ * Normalizes the project composer form state used by the overview's creation flow.
+ *
+ * @param {object} [nextValue={}] - Partial composer form values.
+ * @returns {object} Normalized composer form state.
+ */
 function normalizeComposerForm(nextValue = {}) {
 	const frontend = nextValue.frontend || '';
 	const backend = nextValue.backend || '';
@@ -526,6 +540,12 @@ function normalizeComposerForm(nextValue = {}) {
 	};
 }
 
+/**
+ * Builds the normalized search text used to filter overview project cards.
+ *
+ * @param {object} project - Project record returned by the API.
+ * @returns {string} Lower-case searchable text blob.
+ */
 function getProjectSearchText(project) {
 	return [
 		project.name,
@@ -674,6 +694,13 @@ function getComposerLaneFromForm(form) {
 	return '';
 }
 
+/**
+ * Builds a preset composer draft for one of the overview's fast-lane creation options.
+ *
+ * @param {string} lane - Fast-lane identifier selected by the user.
+ * @param {object} [previous=EMPTY_FORM] - Previous composer form state used for carry-over values.
+ * @returns {object} Pre-filled composer form state.
+ */
 function buildFastLaneDraft(lane, previous = EMPTY_FORM) {
 	const baseDraft = {
 		...EMPTY_FORM,
@@ -930,6 +957,13 @@ function getMonitoringStatusLabel(status) {
 	}
 }
 
+/**
+ * Broadcasts project lifecycle events so other surfaces can refresh optimistically.
+ *
+ * @param {string} projectName - Project name associated with the action.
+ * @param {string} action - Action identifier such as `start` or `stop`.
+ * @returns {void}
+ */
 function broadcastProjectAction(projectName, action) {
 	window.dispatchEvent(
 		new CustomEvent('dashboard:project-action', {
@@ -938,6 +972,12 @@ function broadcastProjectAction(projectName, action) {
 	);
 }
 
+/**
+ * Renders the main projects overview and composer surface.
+ *
+ * @param {{mode?: 'board' | 'composer'}} props - Component props.
+ * @returns {JSX.Element} Overview screen.
+ */
 function Overview({ mode = 'board' }) {
 	const isComposerPage = mode === 'composer';
 	const location = useLocation();
@@ -1247,7 +1287,8 @@ function Overview({ mode = 'board' }) {
 					if (data.type === 'complete') {
 						setProgress(100);
 						setIsCreating(false);
-						const createdProjectName = data.project?.name || form.name;
+						const createdProjectName =
+							data.project?.name || form.name;
 						resetForm();
 						await refreshDashboard({ silent: true });
 						setShowTerminal(false);
@@ -2278,27 +2319,27 @@ function Overview({ mode = 'board' }) {
 											README + git init + first commit
 										</span>
 									</div>
-								<div className='composer-selection-chip'>
-									<strong>GitHub</strong>
-									<span>
-										{composerAutoCreateRepo
-											? githubPublishTarget
-											: 'Skip GitHub for this project'}
-									</span>
+									<div className='composer-selection-chip'>
+										<strong>GitHub</strong>
+										<span>
+											{composerAutoCreateRepo
+												? githubPublishTarget
+												: 'Skip GitHub for this project'}
+										</span>
+									</div>
+									<div className='composer-selection-chip'>
+										<strong>Visibility</strong>
+										<span>
+											{composerAutoCreateRepo &&
+											composerRepositoryVisibility ===
+												'public'
+												? 'Public'
+												: composerAutoCreateRepo
+													? 'Private'
+													: 'Local only'}
+										</span>
+									</div>
 								</div>
-								<div className='composer-selection-chip'>
-									<strong>Visibility</strong>
-									<span>
-										{composerAutoCreateRepo &&
-										composerRepositoryVisibility ===
-											'public'
-											? 'Public'
-											: composerAutoCreateRepo
-												? 'Private'
-												: 'Local only'}
-									</span>
-								</div>
-							</div>
 								<div className='field-group field-wide'>
 									<span>Repository mode</span>
 									<SurfaceSelect
@@ -2323,29 +2364,33 @@ function Overview({ mode = 'board' }) {
 									</p>
 								</div>
 								{composerAutoCreateRepo ? (
-								<div className='field-group field-wide'>
-									<span>Repository visibility</span>
-									<SurfaceSelect
-										value={composerRepositoryVisibility}
-										onChange={(nextValue) =>
-											updateForm((previous) => ({
-												...previous,
-												visibility: nextValue,
-											}))
-										}
-										options={REPOSITORY_VISIBILITY_OPTIONS}
-									/>
-									<p className='field-help'>
-										Starts from your Settings default, but
-										you can override it for this project
-										before creation.
-									</p>
-								</div>
+									<div className='field-group field-wide'>
+										<span>Repository visibility</span>
+										<SurfaceSelect
+											value={composerRepositoryVisibility}
+											onChange={(nextValue) =>
+												updateForm((previous) => ({
+													...previous,
+													visibility: nextValue,
+												}))
+											}
+											options={
+												REPOSITORY_VISIBILITY_OPTIONS
+											}
+										/>
+										<p className='field-help'>
+											Starts from your Settings default,
+											but you can override it for this
+											project before creation.
+										</p>
+									</div>
 								) : (
 									<div className='field-group field-wide'>
 										<span>Repository visibility</span>
 										<div className='composer-selection-preview'>
-											<strong>Not needed for local-only mode</strong>
+											<strong>
+												Not needed for local-only mode
+											</strong>
 											<span>
 												The dashboard will still create
 												a local git repository with a

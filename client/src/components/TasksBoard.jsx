@@ -10,6 +10,7 @@ import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import TaskAltRounded from '@mui/icons-material/TaskAltRounded';
 import WarningAmberRounded from '@mui/icons-material/WarningAmberRounded';
+import { API_BASE_URL } from '../config/api';
 import SurfaceSelect from './SurfaceSelect';
 import TaskEditorModal from './TaskEditorModal';
 import {
@@ -25,13 +26,18 @@ import {
 } from '../utils/taskPresentation';
 import './TasksBoard.css';
 
-const API = 'http://localhost:4000';
+const API = API_BASE_URL;
 const STATUS_COLUMNS = TASK_STATUS_OPTIONS.map((option) => ({
 	key: option.value,
 	label: option.label,
 	description: option.description,
 }));
 
+/**
+ * Renders the kanban-style task board with create and edit flows.
+ *
+ * @returns {JSX.Element} Tasks board page.
+ */
 function TasksBoard() {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const initialProjectFilter = searchParams.get('project') || 'all';
@@ -167,7 +173,9 @@ function TasksBoard() {
 		const matchesStatus =
 			statusFilter === 'all' || task.status === statusFilter;
 
-		return matchesQuery && matchesProject && matchesPriority && matchesStatus;
+		return (
+			matchesQuery && matchesProject && matchesPriority && matchesStatus
+		);
 	});
 
 	const totalTasks = tasks.length;
@@ -227,11 +235,15 @@ function TasksBoard() {
 			<section className='tasks-hero'>
 				<div className='tasks-hero-copy'>
 					<span className='section-tag'>Tickets</span>
-					<h2>Open a ticket by title, then work from its full detail page.</h2>
+					<h2>
+						Open a ticket by title, then work from its full detail
+						page.
+					</h2>
 					<p>
-						This view stays lightweight on purpose. You only scan the
-						ticket title and project here, then jump into the ticket
-						itself for status, notes, due dates, and branch actions.
+						This view stays lightweight on purpose. You only scan
+						the ticket title and project here, then jump into the
+						ticket itself for status, notes, due dates, and branch
+						actions.
 					</p>
 				</div>
 				<div className='tasks-hero-actions'>
@@ -381,8 +393,14 @@ function TasksBoard() {
 													)}`}
 													className='task-list-row'>
 													<div className='task-list-copy'>
-														<strong>{task.title}</strong>
-														<span>{getProjectLabel(task)}</span>
+														<strong>
+															{task.title}
+														</strong>
+														<span>
+															{getProjectLabel(
+																task,
+															)}
+														</span>
 													</div>
 													<div className='task-list-arrow'>
 														<ArrowOutwardRounded fontSize='small' />

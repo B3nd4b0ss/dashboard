@@ -9,7 +9,17 @@ const DEFAULT_SETTINGS = Object.freeze({
 	},
 });
 
-function normalizeVisibility(value, fallback = DEFAULT_SETTINGS.github.visibility) {
+/**
+ * Ensures GitHub repository visibility only uses supported values.
+ *
+ * @param {string} value - Raw visibility value from the client.
+ * @param {string} [fallback=DEFAULT_SETTINGS.github.visibility] - Value to use when the input is invalid.
+ * @returns {string} `public` or `private`.
+ */
+function normalizeVisibility(
+	value,
+	fallback = DEFAULT_SETTINGS.github.visibility,
+) {
 	if (value === 'public' || value === 'private') {
 		return value;
 	}
@@ -17,6 +27,13 @@ function normalizeVisibility(value, fallback = DEFAULT_SETTINGS.github.visibilit
 	return fallback;
 }
 
+/**
+ * Normalizes the GitHub owner field so users can paste `@name` or a GitHub URL.
+ *
+ * @param {unknown} value - Raw owner input from the client.
+ * @param {string} [fallback=''] - Value to use when the input is missing.
+ * @returns {string} Clean owner name without URL or `@` prefixes.
+ */
 function normalizeGitHubOwner(value, fallback = '') {
 	if (typeof value !== 'string') {
 		return fallback;
@@ -36,7 +53,17 @@ function normalizeGitHubOwner(value, fallback = '') {
 	return normalized || fallback;
 }
 
-function normalizeGitHubSettings(input = {}, existing = DEFAULT_SETTINGS.github) {
+/**
+ * Merges raw GitHub settings input with existing values and normalizes each field.
+ *
+ * @param {object} [input={}] - Partial GitHub settings payload.
+ * @param {object} [existing=DEFAULT_SETTINGS.github] - Existing GitHub settings used as defaults.
+ * @returns {{autoCreateRepo: boolean, owner: string, token: string, visibility: string}} Normalized GitHub settings.
+ */
+function normalizeGitHubSettings(
+	input = {},
+	existing = DEFAULT_SETTINGS.github,
+) {
 	return {
 		autoCreateRepo:
 			typeof input.autoCreateRepo === 'boolean'
@@ -51,6 +78,12 @@ function normalizeGitHubSettings(input = {}, existing = DEFAULT_SETTINGS.github)
 	};
 }
 
+/**
+ * Normalizes the full settings document loaded from disk or received from the client.
+ *
+ * @param {object} [input={}] - Partial raw settings object.
+ * @returns {{github: object}} Normalized settings object with all required sections.
+ */
 function normalizeSettings(input = {}) {
 	const existingGitHub = normalizeGitHubSettings(
 		input.github,
@@ -62,10 +95,21 @@ function normalizeSettings(input = {}) {
 	};
 }
 
+/**
+ * Loads and normalizes the persisted private settings.
+ *
+ * @returns {{github: object}} Full normalized settings, including sensitive values such as the GitHub token.
+ */
 function getSettings() {
 	return normalizeSettings(loadSettings());
 }
 
+/**
+ * Builds the safe settings payload returned to the client.
+ *
+ * @param {{github: object}} settings - Normalized settings object that may contain secrets.
+ * @returns {{github: {autoCreateRepo: boolean, owner: string, visibility: string, hasToken: boolean}}} Public settings without the raw token.
+ */
 function getPublicSettingsFromValue(settings) {
 	return {
 		github: {
@@ -77,10 +121,21 @@ function getPublicSettingsFromValue(settings) {
 	};
 }
 
+/**
+ * Loads the public settings payload for API responses.
+ *
+ * @returns {{github: {autoCreateRepo: boolean, owner: string, visibility: string, hasToken: boolean}}} Client-safe settings data.
+ */
 function getPublicSettings() {
 	return getPublicSettingsFromValue(getSettings());
 }
 
+/**
+ * Applies partial settings updates and persists the result.
+ *
+ * @param {{github?: {autoCreateRepo?: boolean, owner?: string, visibility?: string, token?: string, clearToken?: boolean}}} [updates={}] - Partial settings payload from the client.
+ * @returns {{github: {autoCreateRepo: boolean, owner: string, visibility: string, hasToken: boolean}}} Updated public settings payload.
+ */
 function updateSettings(updates = {}) {
 	const current = getSettings();
 	const githubUpdates = updates.github || {};
@@ -117,6 +172,11 @@ function updateSettings(updates = {}) {
 	return getPublicSettingsFromValue(nextSettings);
 }
 
+/**
+ * Returns the private GitHub settings block for internal services.
+ *
+ * @returns {{autoCreateRepo: boolean, owner: string, token: string, visibility: string}} Normalized GitHub settings including the token.
+ */
 function getGitHubSettings() {
 	return getSettings().github;
 }

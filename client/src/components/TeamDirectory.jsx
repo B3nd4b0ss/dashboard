@@ -13,9 +13,10 @@ import RefreshRounded from '@mui/icons-material/RefreshRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import TaskAltRounded from '@mui/icons-material/TaskAltRounded';
 import PersonAddAltRounded from '@mui/icons-material/PersonAddAltRounded';
+import { API_BASE_URL } from '../config/api';
 import './TeamDirectory.css';
 
-const API = 'http://localhost:4000';
+const API = API_BASE_URL;
 const EMPTY_MEMBER_FORM = {
 	name: '',
 	role: '',
@@ -25,6 +26,12 @@ const EMPTY_MEMBER_FORM = {
 
 const ACCENT_OPTIONS = ['blue', 'green', 'amber', 'slate'];
 
+/**
+ * Builds a compact initials avatar label from a member name.
+ *
+ * @param {string} name - Full member name.
+ * @returns {string} Initials used in the avatar chip.
+ */
 function getInitials(name) {
 	return name
 		.split(' ')
@@ -34,6 +41,11 @@ function getInitials(name) {
 		.toUpperCase();
 }
 
+/**
+ * Renders the team member directory with assignment summaries.
+ *
+ * @returns {JSX.Element} Team directory page.
+ */
 function TeamDirectory() {
 	const [members, setMembers] = useState([]);
 	const [tasks, setTasks] = useState([]);

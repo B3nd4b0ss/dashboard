@@ -7,7 +7,9 @@ const tasksRouter = require('./routes/tasks');
 const membersRouter = require('./routes/members');
 const systemRouter = require('./routes/system');
 const { PORT } = require('./config/constants');
-const { configureProcessToolEnvironment } = require('./services/developmentToolchain');
+const {
+	configureProcessToolEnvironment,
+} = require('./services/developmentToolchain');
 
 const detectedToolchain = configureProcessToolEnvironment();
 

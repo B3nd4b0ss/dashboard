@@ -1,6 +1,11 @@
 const { spawn } = require('child_process');
 const DOCKER_COMMAND = process.platform === 'win32' ? 'docker.exe' : 'docker';
 
+/**
+ * Checks whether Docker is installed and responsive.
+ *
+ * @returns {Promise<boolean>} True when `docker ps` succeeds.
+ */
 async function dockerAvailable() {
 	try {
 		await runDockerCommand(['ps'], null, true);
@@ -10,6 +15,14 @@ async function dockerAvailable() {
 	}
 }
 
+/**
+ * Runs a Docker CLI command and optionally captures the output.
+ *
+ * @param {string[]} args - Docker arguments without the base executable.
+ * @param {string | null} [cwd=null] - Optional working directory for compose-style commands.
+ * @param {boolean} [silent=false] - When true, captures stdout/stderr instead of inheriting the terminal.
+ * @returns {Promise<string | void>} Captured stdout when `silent` is true, otherwise resolves when the command completes.
+ */
 function runDockerCommand(args, cwd = null, silent = false) {
 	return new Promise((resolve, reject) => {
 		const proc = spawn(DOCKER_COMMAND, args, {
@@ -55,6 +68,14 @@ function runDockerCommand(args, cwd = null, silent = false) {
 	});
 }
 
+/**
+ * Pulls and starts a PostgreSQL container for the dashboard.
+ *
+ * @param {string} name - Database name used to derive the container name.
+ * @param {number} port - Host port to bind to PostgreSQL's internal port.
+ * @param {string} password - Password assigned to the generated database users.
+ * @returns {Promise<string>} Created container name.
+ */
 async function createPostgresContainer(name, port, password) {
 	const containerName = `db_${name.replace(/[^a-z0-9]/gi, '_')}`;
 	// Ensure image is pulled
@@ -77,6 +98,13 @@ async function createPostgresContainer(name, port, password) {
 	return containerName;
 }
 
+/**
+ * Pulls and starts an Adminer client container linked to a database container.
+ *
+ * @param {string} dbContainerName - Existing database container name the client should connect to.
+ * @param {number} clientPort - Host port to expose the Adminer UI on.
+ * @returns {Promise<string>} Created client container name.
+ */
 async function createAdminerContainer(dbContainerName, clientPort) {
 	const clientContainerName = `client_${dbContainerName}`;
 	// Ensure image is pulled
@@ -95,6 +123,14 @@ async function createAdminerContainer(dbContainerName, clientPort) {
 	return clientContainerName;
 }
 
+/**
+ * Pulls and starts a MySQL container for the dashboard.
+ *
+ * @param {string} name - Database name used to derive the container name.
+ * @param {number} port - Host port to bind to MySQL's internal port.
+ * @param {string} password - Password assigned to the generated database users.
+ * @returns {Promise<string>} Created container name.
+ */
 async function createMySQLContainer(name, port, password) {
 	const containerName = `db_${name.replace(/[^a-z0-9]/gi, '_')}`;
 	await runDockerCommand(['pull', 'mysql:8']);
@@ -118,6 +154,13 @@ async function createMySQLContainer(name, port, password) {
 	return containerName;
 }
 
+/**
+ * Pulls and starts a MongoDB container for the dashboard.
+ *
+ * @param {string} name - Database name used to derive the container name.
+ * @param {number} port - Host port to bind to MongoDB's internal port.
+ * @returns {Promise<string>} Created container name.
+ */
 async function createMongoDBContainer(name, port) {
 	const containerName = `db_${name.replace(/[^a-z0-9]/gi, '_')}`;
 	await runDockerCommand(['pull', 'mongo:latest']);
@@ -133,6 +176,12 @@ async function createMongoDBContainer(name, port) {
 	return containerName;
 }
 
+/**
+ * Stops and removes a single Docker container when it exists.
+ *
+ * @param {string} containerName - Container name to remove.
+ * @returns {Promise<void>}
+ */
 async function removeContainer(containerName) {
 	try {
 		await runDockerCommand(['stop', containerName]);
@@ -142,14 +191,34 @@ async function removeContainer(containerName) {
 	}
 }
 
+/**
+ * Starts a stopped Docker container.
+ *
+ * @param {string} containerName - Container name to start.
+ * @returns {Promise<void>}
+ */
 async function startContainer(containerName) {
 	await runDockerCommand(['start', containerName]);
 }
 
+/**
+ * Stops a running Docker container.
+ *
+ * @param {string} containerName - Container name to stop.
+ * @returns {Promise<void>}
+ */
 async function stopContainer(containerName) {
 	await runDockerCommand(['stop', containerName]);
 }
 
+/**
+ * Builds the argument list for a docker compose command.
+ *
+ * @param {string} composeFilePath - Full path to the compose file.
+ * @param {string} projectName - Compose project name used for namespacing.
+ * @param {string[]} composeArgs - Command-specific compose arguments such as `up -d`.
+ * @returns {string[]} Docker CLI arguments ready to pass to `runDockerCommand`.
+ */
 function buildComposeArgs(composeFilePath, projectName, composeArgs) {
 	return [
 		'compose',
@@ -161,12 +230,27 @@ function buildComposeArgs(composeFilePath, projectName, composeArgs) {
 	];
 }
 
+/**
+ * Creates or recreates an entire compose stack in detached mode.
+ *
+ * @param {string} composeFilePath - Full path to the compose file.
+ * @param {string} projectName - Compose project name used for namespacing.
+ * @returns {Promise<void>}
+ */
 async function upComposeStack(composeFilePath, projectName) {
 	await runDockerCommand(
 		buildComposeArgs(composeFilePath, projectName, ['up', '-d']),
 	);
 }
 
+/**
+ * Starts a compose stack or a subset of its services.
+ *
+ * @param {string} composeFilePath - Full path to the compose file.
+ * @param {string} projectName - Compose project name used for namespacing.
+ * @param {string[]} [services=[]] - Optional list of compose service names to start.
+ * @returns {Promise<void>}
+ */
 async function startComposeStack(composeFilePath, projectName, services = []) {
 	await runDockerCommand(
 		buildComposeArgs(composeFilePath, projectName, [
@@ -177,12 +261,27 @@ async function startComposeStack(composeFilePath, projectName, services = []) {
 	);
 }
 
+/**
+ * Stops a compose stack or a subset of its services.
+ *
+ * @param {string} composeFilePath - Full path to the compose file.
+ * @param {string} projectName - Compose project name used for namespacing.
+ * @param {string[]} [services=[]] - Optional list of compose service names to stop.
+ * @returns {Promise<void>}
+ */
 async function stopComposeStack(composeFilePath, projectName, services = []) {
 	await runDockerCommand(
 		buildComposeArgs(composeFilePath, projectName, ['stop', ...services]),
 	);
 }
 
+/**
+ * Tears down a compose stack and removes its named volumes and orphans.
+ *
+ * @param {string} composeFilePath - Full path to the compose file.
+ * @param {string} projectName - Compose project name used for namespacing.
+ * @returns {Promise<void>}
+ */
 async function removeComposeStack(composeFilePath, projectName) {
 	await runDockerCommand(
 		buildComposeArgs(composeFilePath, projectName, [
@@ -193,6 +292,12 @@ async function removeComposeStack(composeFilePath, projectName) {
 	);
 }
 
+/**
+ * Reads the current Docker state for a container.
+ *
+ * @param {string} containerName - Container name to inspect.
+ * @returns {Promise<string>} Docker state such as `running`, `stopped`, or `unknown`.
+ */
 async function getContainerStatus(containerName) {
 	try {
 		const stdout = await runDockerCommand(

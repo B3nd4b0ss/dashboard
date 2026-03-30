@@ -111,6 +111,12 @@ const BACKEND_TEMPLATE_DEFINITIONS = Object.freeze({
 	},
 });
 
+/**
+ * Resolves a frontend template id to its template definition.
+ *
+ * @param {string | null | undefined} template - Frontend template id stored on the project.
+ * @returns {object | null} Template definition, or null when the project has no frontend.
+ */
 function getFrontendTemplateDefinition(template) {
 	if (!template) {
 		return null;
@@ -124,6 +130,12 @@ function getFrontendTemplateDefinition(template) {
 	return definition;
 }
 
+/**
+ * Resolves a backend template id to its template definition.
+ *
+ * @param {string | null | undefined} template - Backend template id stored on the project.
+ * @returns {object | null} Template definition, or null when the project has no backend.
+ */
 function getBackendTemplateDefinition(template) {
 	if (!template) {
 		return null;
@@ -137,18 +149,41 @@ function getBackendTemplateDefinition(template) {
 	return definition;
 }
 
+/**
+ * Reports whether a template definition requires a dedicated port to run.
+ *
+ * @param {object | null | undefined} definition - Template definition resolved from the template maps.
+ * @returns {boolean} True when the template needs a bound port.
+ */
 function templateRequiresPort(definition) {
 	return Boolean(definition?.requiresPort);
 }
 
+/**
+ * Reports whether a template represents a managed runtime the dashboard can start and stop.
+ *
+ * @param {object | null | undefined} definition - Template definition resolved from the template maps.
+ * @returns {boolean} True when the dashboard manages the runtime process.
+ */
 function templateHasManagedService(definition) {
 	return Boolean(definition?.managedService);
 }
 
+/**
+ * Returns the preferred Python shell command for the current platform.
+ *
+ * @returns {string} Shell command used to run Python in generated presets.
+ */
 function getPythonShellCommand() {
 	return process.platform === 'win32' ? 'py -3' : 'python3';
 }
 
+/**
+ * Builds a human-readable label for a preset's working directory.
+ *
+ * @param {string} directory - Stored working directory token.
+ * @returns {string} Display label shown in the UI.
+ */
 function getDirectoryLabel(directory) {
 	switch (directory) {
 		case 'frontend':
@@ -160,6 +195,13 @@ function getDirectoryLabel(directory) {
 	}
 }
 
+/**
+ * Chooses the folder where backend presets should execute.
+ *
+ * @param {object} project - Project record used to resolve the workspace path.
+ * @param {object | null} backendDefinition - Resolved backend template definition.
+ * @returns {string} Relative working directory token used by terminal presets.
+ */
 function getCommandPresetWorkingDirectory(project, backendDefinition) {
 	if (
 		backendDefinition?.kind !== 'java-console' &&
@@ -172,6 +214,12 @@ function getCommandPresetWorkingDirectory(project, backendDefinition) {
 	return fs.existsSync(path.join(projectPath, 'backend')) ? 'backend' : '';
 }
 
+/**
+ * Creates a normalized command preset object for the UI and terminal service.
+ *
+ * @param {{id: string, label: string, description: string, cwd: string, steps: string[], primary?: boolean}} options - Preset metadata and command steps.
+ * @returns {{id: string, label: string, description: string, cwd: string, cwdLabel: string, steps: string[], primary: boolean}} Normalized command preset.
+ */
 function createCommandPreset({
 	id,
 	label,
@@ -191,6 +239,12 @@ function createCommandPreset({
 	};
 }
 
+/**
+ * Builds the list of available terminal command presets for a project.
+ *
+ * @param {object} project - Project record containing template and scaffold information.
+ * @returns {Array<object>} Command presets available for the project's selected templates.
+ */
 function getProjectCommandPresets(project) {
 	const presets = [];
 	const frontendDefinition = getFrontendTemplateDefinition(project?.frontend);
@@ -204,7 +258,8 @@ function getProjectCommandPresets(project) {
 			createCommandPreset({
 				id: 'frontend-dev',
 				label: 'Run frontend',
-				description: 'Start the frontend dev server in the workspace terminal.',
+				description:
+					'Start the frontend dev server in the workspace terminal.',
 				cwd: 'frontend',
 				steps: ['npm run dev'],
 				primary: !backendDefinition,
@@ -226,7 +281,8 @@ function getProjectCommandPresets(project) {
 			createCommandPreset({
 				id: 'frontend-preview',
 				label: 'Preview static site',
-				description: 'Serve the static frontend files locally from the editor.',
+				description:
+					'Serve the static frontend files locally from the editor.',
 				cwd: 'frontend',
 				steps: ['node serve-static.js'],
 				primary: !backendDefinition,
@@ -235,12 +291,16 @@ function getProjectCommandPresets(project) {
 	}
 
 	if (backendDefinition?.kind === 'node') {
-		const backendCwd = getCommandPresetWorkingDirectory(project, backendDefinition);
+		const backendCwd = getCommandPresetWorkingDirectory(
+			project,
+			backendDefinition,
+		);
 		presets.push(
 			createCommandPreset({
 				id: 'backend-dev',
 				label: 'Run backend',
-				description: 'Start the backend development server with reloads.',
+				description:
+					'Start the backend development server with reloads.',
 				cwd: backendCwd,
 				steps: ['npm run dev'],
 				primary: true,
@@ -250,7 +310,8 @@ function getProjectCommandPresets(project) {
 			createCommandPreset({
 				id: 'backend-install',
 				label: 'Install backend deps',
-				description: 'Install backend dependencies again inside the project.',
+				description:
+					'Install backend dependencies again inside the project.',
 				cwd: backendCwd,
 				steps: ['npm install'],
 			}),
@@ -258,7 +319,10 @@ function getProjectCommandPresets(project) {
 	}
 
 	if (backendDefinition?.kind === 'python') {
-		const backendCwd = getCommandPresetWorkingDirectory(project, backendDefinition);
+		const backendCwd = getCommandPresetWorkingDirectory(
+			project,
+			backendDefinition,
+		);
 		presets.push(
 			createCommandPreset({
 				id: 'backend-run',
@@ -272,7 +336,10 @@ function getProjectCommandPresets(project) {
 	}
 
 	if (backendDefinition?.kind === 'python-cli') {
-		const backendCwd = getCommandPresetWorkingDirectory(project, backendDefinition);
+		const backendCwd = getCommandPresetWorkingDirectory(
+			project,
+			backendDefinition,
+		);
 		presets.push(
 			createCommandPreset({
 				id: 'backend-run',
@@ -295,12 +362,16 @@ function getProjectCommandPresets(project) {
 	}
 
 	if (backendDefinition?.kind === 'php') {
-		const backendCwd = getCommandPresetWorkingDirectory(project, backendDefinition);
+		const backendCwd = getCommandPresetWorkingDirectory(
+			project,
+			backendDefinition,
+		);
 		presets.push(
 			createCommandPreset({
 				id: 'backend-run',
 				label: 'Run PHP server',
-				description: 'Launch the generated PHP starter with the built-in server.',
+				description:
+					'Launch the generated PHP starter with the built-in server.',
 				cwd: backendCwd,
 				steps: [`php -S 127.0.0.1:${backendPort} -t .`],
 				primary: true,
@@ -309,14 +380,18 @@ function getProjectCommandPresets(project) {
 	}
 
 	if (backendDefinition?.kind === 'java') {
-		const backendCwd = getCommandPresetWorkingDirectory(project, backendDefinition);
+		const backendCwd = getCommandPresetWorkingDirectory(
+			project,
+			backendDefinition,
+		);
 		const javaSourcePath = getJavaSourceRelativePath(scaffold);
 		const javaMainClass = getJavaQualifiedMainClass(scaffold);
 		presets.push(
 			createCommandPreset({
 				id: 'backend-run',
 				label: 'Run Java server',
-				description: 'Compile the generated Java sources and launch the HTTP server.',
+				description:
+					'Compile the generated Java sources and launch the HTTP server.',
 				cwd: backendCwd,
 				steps: [
 					`javac --release ${scaffold.javaVersion} -d out ${javaSourcePath}`,
@@ -328,14 +403,18 @@ function getProjectCommandPresets(project) {
 	}
 
 	if (backendDefinition?.kind === 'java-console') {
-		const backendCwd = getCommandPresetWorkingDirectory(project, backendDefinition);
+		const backendCwd = getCommandPresetWorkingDirectory(
+			project,
+			backendDefinition,
+		);
 		const javaSourcePath = getJavaSourceRelativePath(scaffold);
 		const javaMainClass = getJavaQualifiedMainClass(scaffold);
 		presets.push(
 			createCommandPreset({
 				id: 'backend-build',
 				label: 'Compile Java app',
-				description: 'Compile the Java console application into the out folder.',
+				description:
+					'Compile the Java console application into the out folder.',
 				cwd: backendCwd,
 				steps: [
 					`javac --release ${scaffold.javaVersion} -d out ${javaSourcePath}`,
@@ -358,12 +437,16 @@ function getProjectCommandPresets(project) {
 	}
 
 	if (backendDefinition?.kind === 'java-maven') {
-		const backendCwd = getCommandPresetWorkingDirectory(project, backendDefinition);
+		const backendCwd = getCommandPresetWorkingDirectory(
+			project,
+			backendDefinition,
+		);
 		presets.push(
 			createCommandPreset({
 				id: 'backend-run',
 				label: 'Run Maven app',
-				description: 'Use Maven to execute the generated Java application.',
+				description:
+					'Use Maven to execute the generated Java application.',
 				cwd: backendCwd,
 				steps: ['mvn exec:java'],
 				primary: true,
@@ -392,9 +475,17 @@ function getProjectCommandPresets(project) {
 	return presets;
 }
 
+/**
+ * Returns the preferred preset id for a project, falling back to the first preset when needed.
+ *
+ * @param {object} project - Project record used to derive command presets.
+ * @returns {string | null} Primary preset id, or null when no presets are available.
+ */
 function getPrimaryProjectCommandPresetId(project) {
 	const presets = getProjectCommandPresets(project);
-	return presets.find((preset) => preset.primary)?.id || presets[0]?.id || null;
+	return (
+		presets.find((preset) => preset.primary)?.id || presets[0]?.id || null
+	);
 }
 
 module.exports = {

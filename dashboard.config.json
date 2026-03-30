@@ -1,0 +1,6 @@
+{
+  "ports": {
+    "backend": 4000,
+    "frontend": 5173
+  }
+}

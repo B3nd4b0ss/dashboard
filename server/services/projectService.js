@@ -51,6 +51,11 @@ const {
 	pathsEqual,
 } = require('../utils/projectPaths');
 
+/**
+ * Resolves the best npm launcher available on the current machine.
+ *
+ * @returns {string} Absolute path or executable name used for npm commands.
+ */
 function resolveNpmCommand() {
 	if (process.platform !== 'win32') {
 		return 'npm';
@@ -95,6 +100,12 @@ const WINDOWS_NPM_CLI =
 			)
 		: null;
 
+/**
+ * Escapes a value for safe embedding inside a Windows `cmd.exe` command line.
+ *
+ * @param {unknown} value - Raw argument value to escape.
+ * @returns {string} Escaped command-line token.
+ */
 function quoteForCmd(value) {
 	const stringValue = String(value);
 	if (!/[\s"&^<>|()]/.test(stringValue)) {
@@ -104,6 +115,14 @@ function quoteForCmd(value) {
 	return `"${stringValue.replace(/"/g, '""')}"`;
 }
 
+/**
+ * Spawns a child process without opening a visible Windows console window.
+ *
+ * @param {string} command - Executable to run.
+ * @param {string[]} args - Arguments passed to the executable.
+ * @param {object} [options={}] - Additional spawn options.
+ * @returns {import('child_process').ChildProcess} Spawned child process.
+ */
 function spawnHidden(command, args, options = {}) {
 	return spawn(command, args, {
 		shell: false,
@@ -112,15 +131,27 @@ function spawnHidden(command, args, options = {}) {
 	});
 }
 
+/**
+ * Spawns npm using the most reliable launcher for the current platform.
+ *
+ * @param {string[]} args - npm arguments without the base executable.
+ * @param {object} [options={}] - Additional spawn options.
+ * @returns {import('child_process').ChildProcess} Spawned npm process.
+ */
 function spawnNpm(args, options = {}) {
 	if (process.platform === 'win32' && WINDOWS_NPM_CLI) {
-		return spawnHidden(process.execPath, [WINDOWS_NPM_CLI, ...args], options);
+		return spawnHidden(
+			process.execPath,
+			[WINDOWS_NPM_CLI, ...args],
+			options,
+		);
 	}
 
 	if (process.platform === 'win32') {
-		const invocation = [quoteForCmd(NPM_COMMAND), ...args.map(quoteForCmd)].join(
-			' ',
-		);
+		const invocation = [
+			quoteForCmd(NPM_COMMAND),
+			...args.map(quoteForCmd),
+		].join(' ');
 		return spawnHidden(
 			COMMAND_SHELL,
 			['/d', '/s', '/c', `"${invocation}"`],
@@ -131,6 +162,13 @@ function spawnNpm(args, options = {}) {
 	return spawnHidden(NPM_COMMAND, args, options);
 }
 
+/**
+ * Removes persisted metadata and files after a partially failed project creation.
+ *
+ * @param {string} projectName - Project name that was being created.
+ * @param {string} projectPath - Absolute workspace path that should be removed.
+ * @returns {Promise<void>}
+ */
 async function cleanupFailedProjectCreation(projectName, projectPath) {
 	const remainingProjects = loadProjects().filter(
 		(project) => project.name.toLowerCase() !== projectName.toLowerCase(),
@@ -142,6 +180,15 @@ async function cleanupFailedProjectCreation(projectName, projectPath) {
 	}
 }
 
+/**
+ * Enriches a stored project record with runtime, monitoring, task, and command metadata.
+ *
+ * @param {object} project - Persisted project record.
+ * @param {Map<string, object> | null} [taskSummaryMap=null] - Optional precomputed task summaries keyed by project name.
+ * @param {object | null} [runtimeSnapshot=null] - Optional precomputed runtime snapshot.
+ * @param {Map<string, object> | null} [monitoringMap=null] - Optional monitoring snapshots keyed by project name.
+ * @returns {object} Decorated project payload returned by the API.
+ */
 function decorateProject(
 	project,
 	taskSummaryMap = null,
@@ -177,6 +224,12 @@ function decorateProject(
 	return result;
 }
 
+/**
+ * Normalizes the frontend and backend ports required by a template selection.
+ *
+ * @param {{frontend?: string | null, backend?: string | null, frontendPort?: string | number | null, backendPort?: string | number | null}} options - Template and port inputs from the client.
+ * @returns {{frontendPort: number | null, backendPort: number | null}} Normalized ports for the selected templates.
+ */
 function resolveProjectPorts({ frontend, backend, frontendPort, backendPort }) {
 	const frontendDefinition = getFrontendTemplateDefinition(frontend);
 	const backendDefinition = getBackendTemplateDefinition(backend);
@@ -201,6 +254,12 @@ function resolveProjectPorts({ frontend, backend, frontendPort, backendPort }) {
 	};
 }
 
+/**
+ * Validates project ports against current system usage and persisted assignments.
+ *
+ * @param {{frontend?: string | null, backend?: string | null, frontendPort?: string | number | null, backendPort?: string | number | null, excludeProjectName?: string | null, currentFrontendPort?: number | null, currentBackendPort?: number | null}} options - Template, port, and exclusion inputs.
+ * @returns {{frontendPort: number | null, backendPort: number | null}} Validated ports for the selected templates.
+ */
 function validateProjectPorts({
 	frontend,
 	backend,
@@ -246,6 +305,11 @@ function ensureSupportedProjectTemplates({ frontend, backend }) {
 }
 
 // ---------- Basic Project Operations ----------
+/**
+ * Returns every project decorated with runtime, monitoring, and task summary data.
+ *
+ * @returns {Promise<object[]>} Decorated project records.
+ */
 async function getAllProjects() {
 	const projects = loadProjects();
 	const taskSummaryMap = getProjectTaskSummaryMap();
@@ -270,6 +334,12 @@ async function getAllProjects() {
 	);
 }
 
+/**
+ * Returns one decorated project by name.
+ *
+ * @param {string} name - Project name to load.
+ * @returns {Promise<object | null>} Decorated project record, or null when the project does not exist.
+ */
 async function getProject(name) {
 	const projects = loadProjects();
 	const project = findProject(projects, name);
@@ -279,14 +349,15 @@ async function getProject(name) {
 		[project],
 		new Map([[project.name.toLowerCase(), runtimeSnapshot]]),
 	);
-	return decorateProject(
-		project,
-		null,
-		runtimeSnapshot,
-		monitoringMap,
-	);
+	return decorateProject(project, null, runtimeSnapshot, monitoringMap);
 }
 
+/**
+ * Creates a new project workspace, scaffolds the selected templates, and initializes its repository metadata.
+ *
+ * @param {{name: string, frontend?: string | null, backend?: string | null, databaseId?: string | null, frontendPort?: string | number | null, backendPort?: string | number | null, projectLocation?: string, autoCreateRepo?: boolean, visibility?: 'public' | 'private'}} data - Project creation payload from the client.
+ * @returns {Promise<object>} Newly created project record.
+ */
 async function createProject(data) {
 	const {
 		name,
@@ -358,12 +429,7 @@ async function createProject(data) {
 		await fs.mkdirp(projectPath);
 
 		if (frontend) {
-			await createFrontend(
-				projectPath,
-				trimmedName,
-				frontend,
-				scaffold,
-			);
+			await createFrontend(projectPath, trimmedName, frontend, scaffold);
 		}
 
 		if (backend) {
@@ -517,6 +583,13 @@ async function createProjectWithStream(data, eventEmitter) {
 	return decorateProject(newProject);
 }
 
+/**
+ * Creates a project while streaming progress updates back to the SSE route.
+ *
+ * @param {{name: string, frontend?: string | null, backend?: string | null, databaseId?: string | null, frontendPort?: string | number | null, backendPort?: string | number | null, projectLocation?: string, autoCreateRepo?: boolean, visibility?: 'public' | 'private'}} data - Project creation payload from the client.
+ * @param {import('events').EventEmitter} eventEmitter - Event emitter used by the streaming route.
+ * @returns {Promise<object>} Newly created project record.
+ */
 async function createProjectWithStreamSafe(data, eventEmitter) {
 	const {
 		name,
@@ -1124,7 +1197,12 @@ function buildJavaCompileAndRunCommand(projectScaffold) {
 	return `javac --release ${projectScaffold.javaVersion} -d out ${getJavaSourceRelativePath(projectScaffold)} && java -cp out ${getJavaQualifiedMainClass(projectScaffold)}`;
 }
 
-function buildJavaBackendContent(name, port, linkedDatabase = null, scaffold = null) {
+function buildJavaBackendContent(
+	name,
+	port,
+	linkedDatabase = null,
+	scaffold = null,
+) {
 	const databaseEnvKey = linkedDatabase
 		? JSON.stringify(getLinkedDatabaseEnvironmentKey(linkedDatabase))
 		: 'null';
@@ -1399,7 +1477,11 @@ if __name__ == "__main__":
 `;
 }
 
-function buildJavaConsoleAppContent(name, linkedDatabase = null, scaffold = null) {
+function buildJavaConsoleAppContent(
+	name,
+	linkedDatabase = null,
+	scaffold = null,
+) {
 	const databaseEnvKey = linkedDatabase
 		? JSON.stringify(getLinkedDatabaseEnvironmentKey(linkedDatabase))
 		: 'null';
@@ -1517,7 +1599,11 @@ public class ${projectScaffold.javaMainClass} {
 `;
 }
 
-function buildJavaMavenAppContent(name, linkedDatabase = null, scaffold = null) {
+function buildJavaMavenAppContent(
+	name,
+	linkedDatabase = null,
+	scaffold = null,
+) {
 	const databaseEnvKey = linkedDatabase
 		? JSON.stringify(getLinkedDatabaseEnvironmentKey(linkedDatabase))
 		: 'null';
@@ -1696,9 +1782,13 @@ async function moveGeneratedTemplateIfNeeded(frontendPath, name) {
 
 	const files = await fs.readdir(nestedPath);
 	for (const file of files) {
-		await fs.move(path.join(nestedPath, file), path.join(frontendPath, file), {
-			overwrite: true,
-		});
+		await fs.move(
+			path.join(nestedPath, file),
+			path.join(frontendPath, file),
+			{
+				overwrite: true,
+			},
+		);
 	}
 	await fs.remove(nestedPath);
 }
@@ -2255,7 +2345,9 @@ function buildBackendBlueprint(
 				'README.md': buildSimpleBackendReadme(
 					name,
 					templateDefinition.label,
-					process.platform === 'win32' ? 'py -3 -m app' : 'python3 -m app',
+					process.platform === 'win32'
+						? 'py -3 -m app'
+						: 'python3 -m app',
 					projectScaffold,
 				),
 				'.gitignore': `__pycache__/
@@ -2334,12 +2426,13 @@ if __name__ == "__main__":
 					buildJavaCompileAndRunCommand(projectScaffold),
 					projectScaffold,
 				),
-				[getJavaSourceRelativePath(projectScaffold)]: buildJavaBackendContent(
-					name,
-					port,
-					linkedDatabase,
-					projectScaffold,
-				),
+				[getJavaSourceRelativePath(projectScaffold)]:
+					buildJavaBackendContent(
+						name,
+						port,
+						linkedDatabase,
+						projectScaffold,
+					),
 			},
 		};
 	}
@@ -2358,11 +2451,12 @@ if __name__ == "__main__":
 				),
 				'.gitignore': `out/
 `,
-				[getJavaSourceRelativePath(projectScaffold)]: buildJavaConsoleAppContent(
-					name,
-					linkedDatabase,
-					projectScaffold,
-				),
+				[getJavaSourceRelativePath(projectScaffold)]:
+					buildJavaConsoleAppContent(
+						name,
+						linkedDatabase,
+						projectScaffold,
+					),
 			},
 		};
 	}
@@ -2382,7 +2476,9 @@ if __name__ == "__main__":
 				'.gitignore': `target/
 `,
 				'pom.xml': buildMavenPomContent(name, projectScaffold),
-				[getJavaSourceRelativePath(projectScaffold, { mavenLayout: true })]: buildJavaMavenAppContent(
+				[getJavaSourceRelativePath(projectScaffold, {
+					mavenLayout: true,
+				})]: buildJavaMavenAppContent(
 					name,
 					linkedDatabase,
 					projectScaffold,
@@ -2465,7 +2561,10 @@ async function applyFrontendMetadata(frontendPath, name, scaffold = null) {
 	const indexPath = path.join(frontendPath, 'index.html');
 	if (await fs.pathExists(indexPath)) {
 		let content = await fs.readFile(indexPath, 'utf8');
-		content = content.replace(/<title>.*<\/title>/, `<title>${name}</title>`);
+		content = content.replace(
+			/<title>.*<\/title>/,
+			`<title>${name}</title>`,
+		);
 		await fs.writeFile(indexPath, content);
 	}
 }
@@ -2555,7 +2654,12 @@ export default defineConfig({
 	});
 }
 
-async function createFrontendWithStream(projectPath, name, template, eventEmitter) {
+async function createFrontendWithStream(
+	projectPath,
+	name,
+	template,
+	eventEmitter,
+) {
 	const frontendPath = path.join(projectPath, 'frontend');
 	const templateDefinition = getFrontendTemplateDefinition(template);
 	await fs.mkdirp(frontendPath);
@@ -2673,19 +2777,36 @@ export default defineConfig({
 }
 
 // ---------- Backend Creation ----------
-async function createBackend(projectPath, name, port, template, linkedDatabase = null) {
+async function createBackend(
+	projectPath,
+	name,
+	port,
+	template,
+	linkedDatabase = null,
+) {
 	const backendPath = path.join(projectPath, 'backend');
-	const blueprint = buildBackendBlueprint(name, port, template, linkedDatabase);
+	const blueprint = buildBackendBlueprint(
+		name,
+		port,
+		template,
+		linkedDatabase,
+	);
 	await fs.mkdirp(backendPath);
 
 	await fs.writeFile(
 		path.join(backendPath, 'package.json'),
 		JSON.stringify(blueprint.packageJson, null, 2),
 	);
-	await fs.writeFile(path.join(backendPath, 'index.js'), blueprint.indexContent);
+	await fs.writeFile(
+		path.join(backendPath, 'index.js'),
+		blueprint.indexContent,
+	);
 
 	if (blueprint.envContent) {
-		await fs.writeFile(path.join(backendPath, '.env'), blueprint.envContent);
+		await fs.writeFile(
+			path.join(backendPath, '.env'),
+			blueprint.envContent,
+		);
 	}
 
 	await installProjectDependencies(backendPath);
@@ -2748,18 +2869,29 @@ async function createBackendWithStream(
 	linkedDatabase = null,
 ) {
 	const backendPath = path.join(projectPath, 'backend');
-	const blueprint = buildBackendBlueprint(name, port, template, linkedDatabase);
+	const blueprint = buildBackendBlueprint(
+		name,
+		port,
+		template,
+		linkedDatabase,
+	);
 	await fs.mkdirp(backendPath);
 	await fs.writeFile(
 		path.join(backendPath, 'package.json'),
 		JSON.stringify(blueprint.packageJson, null, 2),
 	);
-	await fs.writeFile(path.join(backendPath, 'index.js'), blueprint.indexContent);
+	await fs.writeFile(
+		path.join(backendPath, 'index.js'),
+		blueprint.indexContent,
+	);
 
 	eventEmitter.emit('log', `  Bootstrapping ${blueprint.label} server...`);
 
 	if (blueprint.envContent) {
-		await fs.writeFile(path.join(backendPath, '.env'), blueprint.envContent);
+		await fs.writeFile(
+			path.join(backendPath, '.env'),
+			blueprint.envContent,
+		);
 		eventEmitter.emit('log', '  Wrote database environment file');
 	}
 
@@ -3093,7 +3225,10 @@ async function createBackend(
 	await writeProjectFiles(backendPath, blueprint.files);
 
 	if (blueprint.envContent) {
-		await fs.writeFile(path.join(backendPath, '.env'), blueprint.envContent);
+		await fs.writeFile(
+			path.join(backendPath, '.env'),
+			blueprint.envContent,
+		);
 	}
 
 	if (blueprint.installDependencies) {
@@ -3124,7 +3259,10 @@ async function createBackendWithStream(
 	eventEmitter.emit('log', `  Bootstrapping ${blueprint.label} server...`);
 
 	if (blueprint.envContent) {
-		await fs.writeFile(path.join(backendPath, '.env'), blueprint.envContent);
+		await fs.writeFile(
+			path.join(backendPath, '.env'),
+			blueprint.envContent,
+		);
 		eventEmitter.emit('log', '  Wrote database environment file');
 	}
 
@@ -3224,7 +3362,10 @@ async function syncJavaSourceFile(
 	const nextSourcePath = path.join(backendRoot, nextRelativePath);
 
 	let activeSourcePath = nextSourcePath;
-	if (oldSourcePath !== nextSourcePath && (await fs.pathExists(oldSourcePath))) {
+	if (
+		oldSourcePath !== nextSourcePath &&
+		(await fs.pathExists(oldSourcePath))
+	) {
 		await fs.mkdirp(path.dirname(nextSourcePath));
 		await fs.move(oldSourcePath, nextSourcePath, { overwrite: true });
 	}
@@ -3280,7 +3421,11 @@ async function syncPyProjectMetadata(filePath, scaffold) {
 	});
 }
 
-async function syncGeneratedProjectFiles(projectPath, previousProject, nextProject) {
+async function syncGeneratedProjectFiles(
+	projectPath,
+	previousProject,
+	nextProject,
+) {
 	const previousScaffold = getProjectScaffold(previousProject);
 	const nextScaffold = getProjectScaffold(nextProject);
 	const backendDefinition = getBackendTemplateDefinition(nextProject.backend);
@@ -3303,16 +3448,22 @@ async function syncGeneratedProjectFiles(projectPath, previousProject, nextProje
 	);
 
 	if (backendDefinition.kind === 'node') {
-		await updateJsonFileIfPresent(path.join(backendPath, 'package.json'), (value) => ({
-			...value,
-			name: nextScaffold.projectSlug,
-			version: nextScaffold.version,
-			description: nextScaffold.description,
-		}));
+		await updateJsonFileIfPresent(
+			path.join(backendPath, 'package.json'),
+			(value) => ({
+				...value,
+				name: nextScaffold.projectSlug,
+				version: nextScaffold.version,
+				description: nextScaffold.description,
+			}),
+		);
 	}
 
 	if (backendDefinition.kind === 'python-cli') {
-		await syncPyProjectMetadata(path.join(backendPath, 'pyproject.toml'), nextScaffold);
+		await syncPyProjectMetadata(
+			path.join(backendPath, 'pyproject.toml'),
+			nextScaffold,
+		);
 	}
 
 	if (
@@ -3339,6 +3490,13 @@ async function syncGeneratedProjectFiles(projectPath, previousProject, nextProje
 }
 
 // ---------- Update Project ----------
+/**
+ * Applies metadata, port, database, and filesystem updates to an existing project.
+ *
+ * @param {string} oldName - Existing project name used to locate the project.
+ * @param {{name?: string, frontendPort?: string | number, backendPort?: string | number, databaseId?: string | null, projectLocation?: string, scaffold?: object, description?: string, version?: string, projectSlug?: string, javaGroupId?: string, javaPackageName?: string, javaMainClass?: string, javaArtifactId?: string, javaVersion?: string}} updates - Partial project updates from the client.
+ * @returns {Promise<object>} Updated decorated project record.
+ */
 async function updateProject(oldName, updates) {
 	const projects = loadProjects();
 	const project = findProject(projects, oldName);
@@ -3536,6 +3694,13 @@ async function updateProject(oldName, updates) {
 }
 
 // ---------- Delete Project ----------
+/**
+ * Deletes a project workspace, metadata, and optionally its remote repository.
+ *
+ * @param {string} name - Project name to delete.
+ * @param {{deleteRemote?: boolean}} [options={}] - Whether the linked remote repository should also be removed.
+ * @returns {Promise<boolean>} True when the project was deleted.
+ */
 async function deleteProject(name, options = {}) {
 	const projects = loadProjects();
 	const project = findProject(projects, name);
@@ -3563,6 +3728,12 @@ async function deleteProject(name, options = {}) {
 	return true;
 }
 
+/**
+ * Publishes a local-only project repository to GitHub.
+ *
+ * @param {string} name - Project name to publish.
+ * @returns {Promise<object>} Decorated project record with connected repository metadata.
+ */
 async function publishProject(name) {
 	const projects = loadProjects();
 	const project = findProject(projects, name);
@@ -3584,6 +3755,12 @@ async function publishProject(name) {
 	return decorateProject(project);
 }
 
+/**
+ * Builds an application connection string for a linked database record.
+ *
+ * @param {object | null | undefined} db - Linked database record.
+ * @returns {string} Database connection string, or an empty string when no credentials are available.
+ */
 function getConnectionString(db) {
 	if (!db || !db.credentials) return '';
 	switch (db.type) {

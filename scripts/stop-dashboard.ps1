@@ -4,6 +4,9 @@ $ErrorActionPreference = 'Stop'
 $rootDir = Split-Path -Parent $PSScriptRoot
 $logsDir = Join-Path $rootDir 'logs'
 $stateFile = Join-Path $logsDir 'dashboard-processes.json'
+$dashboardConfigFile = Join-Path $rootDir 'dashboard.config.json'
+$dashboardConfig = Get-Content -Path $dashboardConfigFile -Raw | ConvertFrom-Json -ErrorAction Stop
+$dashboardPorts = @([int]$dashboardConfig.ports.backend, [int]$dashboardConfig.ports.frontend)
 
 function Test-ProcessAlive {
   param([int]$ProcessId)
@@ -80,7 +83,7 @@ if ($null -ne $state) {
   Remove-Item -Path $stateFile -Force -ErrorAction SilentlyContinue
 }
 
-$remainingPortPids = @(Get-ListeningTcpPids -Ports @(4000, 5173))
+$remainingPortPids = @(Get-ListeningTcpPids -Ports $dashboardPorts)
 foreach ($processId in $remainingPortPids) {
   if (Stop-ProcessTree -ProcessId $processId) {
     $stoppedTargets += "port owner ($processId)"
@@ -94,7 +97,7 @@ if (@($stoppedTargets).Count -eq 0) {
 
 Start-Sleep -Seconds 1
 
-$stillListening = @(Get-ListeningTcpPids -Ports @(4000, 5173))
+$stillListening = @(Get-ListeningTcpPids -Ports $dashboardPorts)
 if ($stillListening.Count -gt 0) {
   Write-Warning "Some dashboard ports are still in use by PID(s): $($stillListening -join ', ')."
 }

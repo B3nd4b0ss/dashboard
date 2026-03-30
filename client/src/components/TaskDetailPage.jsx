@@ -10,6 +10,7 @@ import FolderRounded from '@mui/icons-material/FolderRounded';
 import HubRounded from '@mui/icons-material/HubRounded';
 import ScheduleRounded from '@mui/icons-material/ScheduleRounded';
 import TaskAltRounded from '@mui/icons-material/TaskAltRounded';
+import { API_BASE_URL } from '../config/api';
 import TaskEditorModal from './TaskEditorModal';
 import {
 	EMPTY_TASK_FORM,
@@ -24,8 +25,14 @@ import {
 import './TasksBoard.css';
 import './TaskDetailPage.css';
 
-const API = 'http://localhost:4000';
+const API = API_BASE_URL;
 
+/**
+ * Formats timestamps shown on the task detail page.
+ *
+ * @param {string | null | undefined} value - ISO timestamp value.
+ * @returns {string} Locale-formatted date/time label.
+ */
 function formatTimestamp(value) {
 	if (!value) {
 		return 'Not available';
@@ -39,6 +46,12 @@ function formatTimestamp(value) {
 	return date.toLocaleString();
 }
 
+/**
+ * Normalizes a task response into the editable form state used by the task detail screen.
+ *
+ * @param {object} task - Task record returned by the API.
+ * @returns {object} Editable task form state.
+ */
 function buildTaskForm(task) {
 	return {
 		...EMPTY_TASK_FORM,
@@ -52,6 +65,11 @@ function buildTaskForm(task) {
 	};
 }
 
+/**
+ * Renders the task detail page for editing, linking, and branch actions.
+ *
+ * @returns {JSX.Element} Task detail page.
+ */
 function TaskDetailPage() {
 	const { id } = useParams();
 	const navigate = useNavigate();
@@ -86,9 +104,7 @@ function TaskDetailPage() {
 			setError('');
 		} catch (requestError) {
 			setTask(null);
-			setError(
-				requestError.response?.data?.error || 'Ticket not found.',
-			);
+			setError(requestError.response?.data?.error || 'Ticket not found.');
 		} finally {
 			setLoading(false);
 		}
@@ -154,7 +170,9 @@ function TaskDetailPage() {
 				status: nextStatus,
 			});
 			setPageNotice(
-				nextStatus === 'done' ? 'Ticket marked done.' : 'Ticket reopened.',
+				nextStatus === 'done'
+					? 'Ticket marked done.'
+					: 'Ticket reopened.',
 			);
 			await fetchTaskData({ keepLoading: true });
 		} catch (requestError) {
@@ -224,7 +242,8 @@ function TaskDetailPage() {
 			navigate('/tasks', { replace: true });
 		} catch (requestError) {
 			alert(
-				requestError.response?.data?.error || 'Failed to delete ticket.',
+				requestError.response?.data?.error ||
+					'Failed to delete ticket.',
 			);
 		} finally {
 			setBusyAction('');
@@ -284,7 +303,9 @@ function TaskDetailPage() {
 				</div>
 
 				<div className='task-detail-actions'>
-					<Link to='/tasks' className='ghost-button task-detail-button-link'>
+					<Link
+						to='/tasks'
+						className='ghost-button task-detail-button-link'>
 						Back to tickets
 					</Link>
 					<button
@@ -409,7 +430,9 @@ function TaskDetailPage() {
 							<button
 								type='button'
 								className='ghost-button'
-								disabled={!task.projectName || busyAction === 'branch'}
+								disabled={
+									!task.projectName || busyAction === 'branch'
+								}
 								onClick={createTaskBranch}>
 								<HubRounded fontSize='small' />
 								{busyAction === 'branch'
@@ -448,7 +471,9 @@ function TaskDetailPage() {
 							disabled={busyAction === 'toggle'}
 							onClick={toggleTaskDone}>
 							<AssignmentTurnedInRounded fontSize='small' />
-							{task.status === 'done' ? 'Reopen ticket' : 'Mark as done'}
+							{task.status === 'done'
+								? 'Reopen ticket'
+								: 'Mark as done'}
 						</button>
 						<button
 							type='button'

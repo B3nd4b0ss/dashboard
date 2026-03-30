@@ -25,12 +25,13 @@ import InfoRounded from '@mui/icons-material/InfoRounded';
 import DeleteSweepRounded from '@mui/icons-material/DeleteSweepRounded';
 import DarkModeRounded from '@mui/icons-material/DarkModeRounded';
 import LightModeRounded from '@mui/icons-material/LightModeRounded';
+import { API_BASE_URL } from '../config/api';
 import {
 	buildNextTextSearchParams,
 	getSearchParamValue,
 } from '../utils/searchParams';
 
-const API = 'http://localhost:4000';
+const API = API_BASE_URL;
 const NOTIFICATION_STORAGE_KEY = 'dashboard-notifications';
 const NOTIFICATION_LIMIT = 12;
 const MANUAL_ACTION_TTL_MS = 15000;
@@ -71,6 +72,12 @@ const SECONDARY_NAV = [
 	},
 ];
 
+/**
+ * Returns topbar copy for the active route.
+ *
+ * @param {string} pathname - Current route pathname from React Router.
+ * @returns {{label: string, title: string, description: string, searchPlaceholder: string}} Section metadata used by the shell.
+ */
 function getSectionMeta(pathname) {
 	if (pathname.startsWith('/projects/') && pathname.endsWith('/editor')) {
 		return {
@@ -170,6 +177,11 @@ function getSectionMeta(pathname) {
 	}
 }
 
+/**
+ * Restores persisted notifications from localStorage.
+ *
+ * @returns {Array<object>} Stored notifications, or an empty array when nothing valid is saved.
+ */
 function loadStoredNotifications() {
 	try {
 		const stored = window.localStorage.getItem(NOTIFICATION_STORAGE_KEY);
@@ -184,6 +196,14 @@ function loadStoredNotifications() {
 	}
 }
 
+/**
+ * Creates a new in-app notification payload.
+ *
+ * @param {'success' | 'warning' | 'info'} type - Notification visual variant.
+ * @param {string} title - Notification title.
+ * @param {string} message - Notification body copy.
+ * @returns {object} Normalized notification object.
+ */
 function buildNotification(type, title, message) {
 	return {
 		id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -195,6 +215,12 @@ function buildNotification(type, title, message) {
 	};
 }
 
+/**
+ * Formats a notification timestamp for the shell notification tray.
+ *
+ * @param {string} createdAt - ISO timestamp stored on the notification.
+ * @returns {string} Locale-formatted time string.
+ */
 function getNotificationTime(createdAt) {
 	return new Date(createdAt).toLocaleTimeString([], {
 		hour: '2-digit',
@@ -202,6 +228,12 @@ function getNotificationTime(createdAt) {
 	});
 }
 
+/**
+ * Detects whether keyboard shortcuts should be ignored for a focused input element.
+ *
+ * @param {EventTarget | null} target - Event target from a keyboard event.
+ * @returns {boolean} True when the target is an editable input-like element.
+ */
 function isTypingElement(target) {
 	return (
 		target instanceof HTMLElement &&
@@ -210,16 +242,31 @@ function isTypingElement(target) {
 	);
 }
 
+/**
+ * Reports whether the current route supports the shared inline search box.
+ *
+ * @param {string} pathname - Current route pathname from React Router.
+ * @returns {boolean} True when the route participates in shared shell search.
+ */
 function supportsInlineTopbarSearch(pathname) {
 	if (pathname.startsWith('/projects/') && pathname.endsWith('/editor')) {
 		return true;
 	}
 
-	return ['/dashboard', '/projects', '/tasks', '/databases', '/docker'].includes(
-		pathname,
-	);
+	return [
+		'/dashboard',
+		'/projects',
+		'/tasks',
+		'/databases',
+		'/docker',
+	].includes(pathname);
 }
 
+/**
+ * Renders the app shell, including navigation, topbar search, notifications, and routed content.
+ *
+ * @returns {JSX.Element} Shared dashboard layout component.
+ */
 function Layout() {
 	const location = useLocation();
 	const [searchParams, setSearchParams] = useSearchParams();
@@ -240,7 +287,9 @@ function Layout() {
 	const introNoticeRef = useRef(false);
 	const topbarSearchInputRef = useRef(null);
 	const topbarQuery = getSearchParamValue(searchParams, 'q');
-	const usesInlineTopbarSearch = supportsInlineTopbarSearch(location.pathname);
+	const usesInlineTopbarSearch = supportsInlineTopbarSearch(
+		location.pathname,
+	);
 
 	useEffect(() => {
 		document.body.classList.toggle('dark', darkMode);

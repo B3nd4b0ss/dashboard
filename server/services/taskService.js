@@ -5,22 +5,19 @@ const {
 	saveTasks,
 } = require('../utils/fileOperations');
 const { findProject, generateId } = require('../utils/helpers');
-const {
-	createTaskBranch,
-} = require('./projectRepositoryService');
+const { createTaskBranch } = require('./projectRepositoryService');
 
 const TASK_STATUS_ORDER = ['backlog', 'in_progress', 'review', 'done'];
 const TASK_PRIORITY_ORDER = ['low', 'medium', 'high', 'urgent'];
-const TASK_TYPE_ORDER = [
-	'task',
-	'feature',
-	'bug',
-	'chore',
-	'docs',
-	'refactor',
-];
+const TASK_TYPE_ORDER = ['task', 'feature', 'bug', 'chore', 'docs', 'refactor'];
 const GENERAL_TASK_PREFIX = 'general';
 
+/**
+ * Normalizes optional text fields so empty values are stored as `null`.
+ *
+ * @param {unknown} value - Raw text-like value from the API payload.
+ * @returns {string | null} Trimmed string or null when the value is empty.
+ */
 function normalizeOptionalText(value) {
 	if (value === null || typeof value === 'undefined') {
 		return null;
@@ -30,6 +27,13 @@ function normalizeOptionalText(value) {
 	return trimmed || null;
 }
 
+/**
+ * Converts a task-related label into a lowercase slug segment.
+ *
+ * @param {unknown} value - Raw text to normalize.
+ * @param {string} [fallback=GENERAL_TASK_PREFIX] - Value to use when the input is empty.
+ * @returns {string} Lowercase slug used in ticket keys and branch names.
+ */
 function slugifyTaskToken(value, fallback = GENERAL_TASK_PREFIX) {
 	const normalized = String(value || fallback)
 		.trim()
@@ -40,14 +44,33 @@ function slugifyTaskToken(value, fallback = GENERAL_TASK_PREFIX) {
 	return normalized || fallback;
 }
 
+/**
+ * Builds the prefix used for task ticket keys inside one project.
+ *
+ * @param {string | null | undefined} projectName - Optional linked project name.
+ * @returns {string} Prefix such as `general` or a slugified project name.
+ */
 function buildTaskKeyPrefix(projectName) {
 	return slugifyTaskToken(projectName || GENERAL_TASK_PREFIX);
 }
 
+/**
+ * Builds the human-facing task key shown in the UI.
+ *
+ * @param {string | null | undefined} projectName - Optional linked project name.
+ * @param {number} ticketNumber - Numeric ticket counter within that project scope.
+ * @returns {string} Ticket key such as `general-4`.
+ */
 function buildTaskKey(projectName, ticketNumber) {
 	return `${buildTaskKeyPrefix(projectName)}-${ticketNumber}`;
 }
 
+/**
+ * Validates and normalizes a task status value.
+ *
+ * @param {unknown} status - Raw status from the client or persisted data.
+ * @returns {string} Normalized task status.
+ */
 function normalizeTaskStatus(status) {
 	const normalizedStatus = normalizeOptionalText(status)?.toLowerCase();
 
@@ -64,6 +87,12 @@ function normalizeTaskStatus(status) {
 	return normalizedStatus;
 }
 
+/**
+ * Validates and normalizes a task priority value.
+ *
+ * @param {unknown} priority - Raw priority from the client or persisted data.
+ * @returns {string} Normalized task priority.
+ */
 function normalizeTaskPriority(priority) {
 	const normalizedPriority = normalizeOptionalText(priority)?.toLowerCase();
 
@@ -80,6 +109,12 @@ function normalizeTaskPriority(priority) {
 	return normalizedPriority;
 }
 
+/**
+ * Validates and normalizes a task type value.
+ *
+ * @param {unknown} type - Raw type from the client or persisted data.
+ * @returns {string} Normalized task type.
+ */
 function normalizeTaskType(type) {
 	const normalizedType = normalizeOptionalText(type)?.toLowerCase();
 
@@ -96,6 +131,12 @@ function normalizeTaskType(type) {
 	return normalizedType;
 }
 
+/**
+ * Safely normalizes older stored task types while falling back for unknown values.
+ *
+ * @param {unknown} type - Persisted task type from disk.
+ * @returns {string} Supported normalized task type.
+ */
 function normalizeStoredTaskType(type) {
 	try {
 		return normalizeTaskType(type);
@@ -104,6 +145,12 @@ function normalizeStoredTaskType(type) {
 	}
 }
 
+/**
+ * Validates a due date supplied in `YYYY-MM-DD` format.
+ *
+ * @param {unknown} value - Raw due date value from the client or persisted data.
+ * @returns {string | null} Normalized due date, or null when no due date is set.
+ */
 function normalizeDueDate(value) {
 	const normalizedValue = normalizeOptionalText(value);
 
@@ -123,6 +170,12 @@ function normalizeDueDate(value) {
 	return normalizedValue;
 }
 
+/**
+ * Validates a linked project name and resolves it to the persisted canonical casing.
+ *
+ * @param {unknown} projectName - Linked project name from the task payload.
+ * @returns {string | null} Persisted project name, or null when the task is not linked to a project.
+ */
 function normalizeProjectName(projectName) {
 	const normalizedProjectName = normalizeOptionalText(projectName);
 
@@ -139,6 +192,12 @@ function normalizeProjectName(projectName) {
 	return project.name;
 }
 
+/**
+ * Validates an assignee id against the current member list.
+ *
+ * @param {unknown} assigneeId - Member id from the task payload.
+ * @returns {string | null} Persisted member id, or null when the task is unassigned.
+ */
 function normalizeAssigneeId(assigneeId) {
 	const normalizedAssigneeId = normalizeOptionalText(assigneeId);
 
@@ -155,6 +214,12 @@ function normalizeAssigneeId(assigneeId) {
 	return member.id;
 }
 
+/**
+ * Normalizes persisted branch metadata attached to a task.
+ *
+ * @param {object | null | undefined} branch - Raw branch metadata stored on the task.
+ * @returns {object | null} Normalized branch metadata, or null when no branch is attached.
+ */
 function normalizeTaskBranch(branch) {
 	if (!branch || typeof branch !== 'object') {
 		return null;
@@ -186,6 +251,12 @@ function getDueDateTimestamp(dueDate) {
 		: Number.MAX_SAFE_INTEGER;
 }
 
+/**
+ * Determines whether a task is overdue relative to today's date.
+ *
+ * @param {{dueDate?: string | null, status?: string}} task - Task record to inspect.
+ * @returns {boolean} True when the task has an unfinished due date in the past.
+ */
 function isTaskOverdue(task) {
 	if (!task.dueDate || task.status === 'done') {
 		return false;
@@ -196,6 +267,12 @@ function isTaskOverdue(task) {
 	return getDueDateTimestamp(task.dueDate) < today.getTime();
 }
 
+/**
+ * Sorts tasks for display by status, priority, due date, ticket number, and recency.
+ *
+ * @param {Array<object>} tasks - Task records to sort.
+ * @returns {Array<object>} Sorted task array.
+ */
 function sortTasks(tasks) {
 	return [...tasks].sort((left, right) => {
 		const statusDelta =
@@ -232,6 +309,12 @@ function sortTasks(tasks) {
 	});
 }
 
+/**
+ * Builds aggregate counts used in project and member summaries.
+ *
+ * @param {Array<object>} tasks - Task records to summarize.
+ * @returns {{total: number, completed: number, pending: number, backlog: number, inProgress: number, review: number, overdue: number, progressPercentage: number}} Task summary counts.
+ */
 function buildTaskSummary(tasks) {
 	const summary = {
 		total: tasks.length,
@@ -277,6 +360,13 @@ function buildTaskSummary(tasks) {
 	return summary;
 }
 
+/**
+ * Adds derived assignee and overdue information to a task record.
+ *
+ * @param {object} task - Persisted task record.
+ * @param {Array<object>} [members=loadMembers()] - Members used to resolve the assignee.
+ * @returns {object} Decorated task record for API responses.
+ */
 function decorateTask(task, members = loadMembers()) {
 	return {
 		...task,
@@ -286,6 +376,14 @@ function decorateTask(task, members = loadMembers()) {
 	};
 }
 
+/**
+ * Finds the next available ticket number within a project scope.
+ *
+ * @param {Array<object>} tasks - Existing task records.
+ * @param {string | null | undefined} projectName - Project name that owns the ticket sequence.
+ * @param {string | null} [excludeTaskId=null] - Task id to ignore while recomputing an existing task's key.
+ * @returns {number} Next available positive ticket number.
+ */
 function getNextTicketNumber(tasks, projectName, excludeTaskId = null) {
 	const prefix = buildTaskKeyPrefix(projectName);
 	const usedNumbers = new Set(
@@ -307,6 +405,12 @@ function getNextTicketNumber(tasks, projectName, excludeTaskId = null) {
 	return nextNumber;
 }
 
+/**
+ * Migrates persisted tasks so older records match the current schema and ticket rules.
+ *
+ * @param {Array<object>} tasks - Raw persisted tasks loaded from disk.
+ * @returns {{tasks: Array<object>, changed: boolean}} Normalized tasks plus a flag describing whether they need to be saved back to disk.
+ */
 function normalizePersistedTasks(tasks) {
 	const sourceTasks = Array.isArray(tasks) ? tasks : [];
 	const normalizedTasks = [];
@@ -325,7 +429,10 @@ function normalizePersistedTasks(tasks) {
 			branch: normalizeTaskBranch(sourceTask.branch),
 		};
 		const preferredNumber = Number(sourceTask.ticketNumber);
-		const preferredKey = buildTaskKey(nextTask.projectName, preferredNumber);
+		const preferredKey = buildTaskKey(
+			nextTask.projectName,
+			preferredNumber,
+		);
 		const hasValidPreferredNumber =
 			Number.isInteger(preferredNumber) &&
 			preferredNumber > 0 &&
@@ -333,7 +440,7 @@ function normalizePersistedTasks(tasks) {
 				(task) =>
 					task.ticketKey === preferredKey &&
 					task.id !== sourceTask.id,
-				);
+			);
 		const ticketNumber = hasValidPreferredNumber
 			? preferredNumber
 			: getNextTicketNumber(
@@ -366,10 +473,17 @@ function normalizePersistedTasks(tasks) {
 
 	return {
 		tasks: normalizedTasks,
-		changed: changedTasks.length > 0 || normalizedTasks.length !== sourceTasks.length,
+		changed:
+			changedTasks.length > 0 ||
+			normalizedTasks.length !== sourceTasks.length,
 	};
 }
 
+/**
+ * Loads tasks from disk and automatically re-saves them when migration changes are detected.
+ *
+ * @returns {Array<object>} Normalized persisted tasks.
+ */
 function loadTasksWithMigration() {
 	const { tasks, changed } = normalizePersistedTasks(loadTasks());
 	if (changed) {
@@ -379,6 +493,12 @@ function loadTasksWithMigration() {
 	return tasks;
 }
 
+/**
+ * Returns tasks filtered by project, status, assignee, or task type.
+ *
+ * @param {{projectName?: string | null, status?: string | null, assigneeId?: string | null, type?: string | null, includeUnassigned?: boolean}} [filters={}] - Optional task filters.
+ * @returns {Array<object>} Sorted decorated tasks matching the requested filters.
+ */
 function getAllTasks(filters = {}) {
 	const {
 		projectName = null,
@@ -428,11 +548,23 @@ function getAllTasks(filters = {}) {
 	return sortTasks(filteredTasks).map((task) => decorateTask(task, members));
 }
 
+/**
+ * Looks up a single task by id.
+ *
+ * @param {string} id - Task id to retrieve.
+ * @returns {object | null} Decorated task record, or null when the task does not exist.
+ */
 function getTaskById(id) {
 	const task = loadTasksWithMigration().find((entry) => entry.id === id);
 	return task ? decorateTask(task) : null;
 }
 
+/**
+ * Builds task summary counts for one project.
+ *
+ * @param {string} projectName - Project name whose tasks should be summarized.
+ * @returns {object} Aggregate task summary for the project.
+ */
 function getProjectTaskSummary(projectName) {
 	return buildTaskSummary(
 		loadTasksWithMigration().filter(
@@ -442,6 +574,11 @@ function getProjectTaskSummary(projectName) {
 	);
 }
 
+/**
+ * Builds a lookup map of task summaries keyed by lower-cased project name.
+ *
+ * @returns {Map<string, object>} Project summary map for all linked tasks.
+ */
 function getProjectTaskSummaryMap() {
 	const summaryMap = new Map();
 	const tasks = loadTasksWithMigration();
@@ -466,6 +603,12 @@ function getProjectTaskSummaryMap() {
 	return summaryMap;
 }
 
+/**
+ * Creates a new task and assigns its project-scoped ticket key.
+ *
+ * @param {{title: string, description?: string, projectName?: string, status?: string, priority?: string, type?: string, assigneeId?: string, dueDate?: string}} data - Task payload from the client.
+ * @returns {object} Newly created decorated task.
+ */
 function createTask(data) {
 	const title = normalizeOptionalText(data.title);
 	if (!title) {
@@ -498,6 +641,13 @@ function createTask(data) {
 	return decorateTask(newTask);
 }
 
+/**
+ * Applies partial updates to an existing task.
+ *
+ * @param {string} id - Task id to update.
+ * @param {{title?: string, description?: string, projectName?: string, status?: string, priority?: string, type?: string, assigneeId?: string, dueDate?: string}} updates - Partial task fields to overwrite.
+ * @returns {object} Updated decorated task.
+ */
 function updateTask(id, updates) {
 	const tasks = loadTasksWithMigration();
 	const taskIndex = tasks.findIndex((entry) => entry.id === id);
@@ -547,7 +697,11 @@ function updateTask(id, updates) {
 	}
 
 	if (previousProjectName !== task.projectName) {
-		task.ticketNumber = getNextTicketNumber(tasks, task.projectName, task.id);
+		task.ticketNumber = getNextTicketNumber(
+			tasks,
+			task.projectName,
+			task.id,
+		);
 		task.ticketKey = buildTaskKey(task.projectName, task.ticketNumber);
 		task.branch = null;
 	}
@@ -558,6 +712,12 @@ function updateTask(id, updates) {
 	return decorateTask(task);
 }
 
+/**
+ * Creates or syncs the Git branch associated with a task's linked project.
+ *
+ * @param {string} id - Task id whose branch should be created.
+ * @returns {Promise<object>} Updated decorated task including branch metadata.
+ */
 async function createBranchForTask(id) {
 	const tasks = loadTasksWithMigration();
 	const taskIndex = tasks.findIndex((entry) => entry.id === id);
@@ -593,6 +753,12 @@ async function createBranchForTask(id) {
 	return decorateTask(task);
 }
 
+/**
+ * Deletes a task by id.
+ *
+ * @param {string} id - Task id to remove.
+ * @returns {boolean} True when a task was deleted.
+ */
 function deleteTask(id) {
 	const tasks = loadTasksWithMigration();
 	const taskIndex = tasks.findIndex((entry) => entry.id === id);
@@ -606,6 +772,13 @@ function deleteTask(id) {
 	return true;
 }
 
+/**
+ * Renames the linked project reference on all tasks belonging to a project.
+ *
+ * @param {string} oldProjectName - Previous project name.
+ * @param {string} newProjectName - New project name.
+ * @returns {void}
+ */
 function renameProjectTasks(oldProjectName, newProjectName) {
 	const tasks = loadTasksWithMigration();
 	let changed = false;
@@ -624,6 +797,12 @@ function renameProjectTasks(oldProjectName, newProjectName) {
 	}
 }
 
+/**
+ * Removes every task linked to a project that is being deleted.
+ *
+ * @param {string} projectName - Project whose tasks should be removed.
+ * @returns {void}
+ */
 function deleteTasksForProject(projectName) {
 	const tasks = loadTasksWithMigration();
 	const remainingTasks = tasks.filter(
@@ -635,6 +814,12 @@ function deleteTasksForProject(projectName) {
 	}
 }
 
+/**
+ * Clears the assignee from tasks belonging to a member who is being removed.
+ *
+ * @param {string} memberId - Member id to detach from tasks.
+ * @returns {void}
+ */
 function unassignTasksForMember(memberId) {
 	const tasks = loadTasksWithMigration();
 	let changed = false;

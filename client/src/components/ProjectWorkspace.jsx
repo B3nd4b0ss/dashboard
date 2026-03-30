@@ -18,11 +18,18 @@ import StopRounded from '@mui/icons-material/StopRounded';
 import TerminalRounded from '@mui/icons-material/TerminalRounded';
 import ArrowOutwardRounded from '@mui/icons-material/ArrowOutwardRounded';
 import ContentCopyRounded from '@mui/icons-material/ContentCopyRounded';
+import { API_BASE_URL } from '../config/api';
 import { getSearchParamValue } from '../utils/searchParams';
 import './ProjectWorkspace.css';
 
-const API = 'http://localhost:4000';
+const API = API_BASE_URL;
 
+/**
+ * Formats file and execution timestamps shown in the workspace UI.
+ *
+ * @param {string | null | undefined} value - ISO timestamp value.
+ * @returns {string} Locale-formatted date/time label.
+ */
 function formatTimestamp(value) {
 	if (!value) {
 		return 'Not saved yet';
@@ -31,6 +38,12 @@ function formatTimestamp(value) {
 	return new Date(value).toLocaleString();
 }
 
+/**
+ * Formats file sizes for the workspace tree and editor metadata.
+ *
+ * @param {number | null | undefined} value - Raw byte value.
+ * @returns {string} Human-readable size label.
+ */
 function formatSize(value) {
 	if (!Number.isFinite(value) || value <= 0) {
 		return '0 B';
@@ -48,6 +61,12 @@ function formatSize(value) {
 	return `${size >= 10 || unitIndex === 0 ? Math.round(size) : size.toFixed(1)} ${units[unitIndex]}`;
 }
 
+/**
+ * Converts a terminal execution status into display text.
+ *
+ * @param {string} status - Execution status returned by the API.
+ * @returns {string} User-facing status label.
+ */
 function formatExecutionStatus(status) {
 	switch (status) {
 		case 'running':
@@ -63,6 +82,13 @@ function formatExecutionStatus(status) {
 	}
 }
 
+/**
+ * Finds one file-tree entry by its project-relative path.
+ *
+ * @param {Array<object>} entries - Workspace tree entries.
+ * @param {string} targetPath - Project-relative path to find.
+ * @returns {object | null} Matching tree entry when found.
+ */
 function findTreeEntry(entries, targetPath) {
 	for (const entry of entries) {
 		if (entry.path === targetPath) {
@@ -80,6 +106,12 @@ function findTreeEntry(entries, targetPath) {
 	return null;
 }
 
+/**
+ * Builds the initial set of expanded folders for the workspace tree.
+ *
+ * @param {Array<object>} entries - Workspace tree entries.
+ * @returns {string[]} Folder paths that should start expanded.
+ */
 function collectDefaultExpandedPaths(entries) {
 	return entries
 		.filter((entry) => entry.type === 'directory')
@@ -111,6 +143,13 @@ function countTreeEntries(entries) {
 	}, 0);
 }
 
+/**
+ * Filters the workspace tree while keeping matching directory ancestry intact.
+ *
+ * @param {Array<object>} entries - Workspace tree entries.
+ * @param {string} normalizedQuery - Lower-case search query.
+ * @returns {Array<object>} Filtered workspace tree.
+ */
 function filterTreeEntries(entries, normalizedQuery) {
 	if (!normalizedQuery) {
 		return entries;
@@ -152,6 +191,13 @@ function getParentPath(entryPath) {
 	return entryPath.split('/').slice(0, -1).join('/');
 }
 
+/**
+ * Suggests a default create path based on the currently selected tree entry.
+ *
+ * @param {object | null} selectedEntry - Currently selected tree entry.
+ * @param {'file' | 'directory'} entryType - Entry type the user wants to create.
+ * @returns {string} Suggested project-relative path.
+ */
 function getSuggestedPath(selectedEntry, entryType) {
 	const baseDirectory = selectedEntry
 		? selectedEntry.type === 'directory'
@@ -164,6 +210,13 @@ function getSuggestedPath(selectedEntry, entryType) {
 	return baseDirectory ? `${baseDirectory}/${defaultName}` : defaultName;
 }
 
+/**
+ * Chooses the default working directory for the terminal composer.
+ *
+ * @param {object | null} projectMeta - Project metadata loaded from the API.
+ * @param {object | null} primaryCommandPreset - Primary preset returned by the API.
+ * @returns {string} Suggested project-relative working directory.
+ */
 function getDefaultTerminalWorkingDirectory(projectMeta, primaryCommandPreset) {
 	if (primaryCommandPreset?.cwd) {
 		return primaryCommandPreset.cwd;
@@ -187,6 +240,12 @@ function getDefaultTerminalWorkingDirectory(projectMeta, primaryCommandPreset) {
 	return '';
 }
 
+/**
+ * Chooses the icon used for a file-tree entry.
+ *
+ * @param {object} entry - Workspace tree entry.
+ * @returns {JSX.Element} Icon component instance.
+ */
 function getEntryIcon(entry) {
 	if (entry.type === 'directory') {
 		return FolderRounded;
@@ -195,9 +254,17 @@ function getEntryIcon(entry) {
 	const extension =
 		entry.extension || entry.name.split('.').pop()?.toLowerCase();
 	if (
-		['js', 'jsx', 'ts', 'tsx', 'mjs', 'cjs', 'css', 'scss', 'html'].includes(
-			extension,
-		)
+		[
+			'js',
+			'jsx',
+			'ts',
+			'tsx',
+			'mjs',
+			'cjs',
+			'css',
+			'scss',
+			'html',
+		].includes(extension)
 	) {
 		return CodeRounded;
 	}
@@ -213,6 +280,14 @@ function getEntryIcon(entry) {
 	return InsertDriveFileRounded;
 }
 
+/**
+ * Renders the inline project editor and terminal workspace.
+ *
+ * @param {{projectName: string, standalone?: boolean}} props - Component props.
+ * @param {string} props.projectName - Project name whose workspace should be loaded.
+ * @param {boolean} [props.standalone=false] - Whether the workspace is rendered as a full page.
+ * @returns {JSX.Element} Project workspace surface.
+ */
 function ProjectWorkspace({ projectName, standalone = false }) {
 	const [searchParams] = useSearchParams();
 	const [workspace, setWorkspace] = useState({
@@ -624,7 +699,11 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 	};
 
 	const handleLineNumberScroll = () => {
-		if (!lineNumbersRef.current || !textareaRef.current || scrollSyncRef.current) {
+		if (
+			!lineNumbersRef.current ||
+			!textareaRef.current ||
+			scrollSyncRef.current
+		) {
 			return;
 		}
 
@@ -645,7 +724,8 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 			const isDirectory = entry.type === 'directory';
 			const isExpanded = effectiveExpandedPaths.includes(entry.path);
 			const isSelected =
-				selectedEntry?.path === entry.path || selectedFile?.path === entry.path;
+				selectedEntry?.path === entry.path ||
+				selectedFile?.path === entry.path;
 
 			return (
 				<div key={entry.path} className='workspace-tree-node'>
@@ -677,14 +757,18 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 								<EntryIcon fontSize='inherit' />
 							)}
 						</span>
-						<span className='workspace-tree-label'>{entry.name}</span>
+						<span className='workspace-tree-label'>
+							{entry.name}
+						</span>
 					</button>
 
-					{isDirectory && isExpanded && entry.children?.length > 0 && (
-						<div className='workspace-tree-children'>
-							{renderTree(entry.children, depth + 1)}
-						</div>
-					)}
+					{isDirectory &&
+						isExpanded &&
+						entry.children?.length > 0 && (
+							<div className='workspace-tree-children'>
+								{renderTree(entry.children, depth + 1)}
+							</div>
+						)}
 				</div>
 			);
 		});
@@ -693,7 +777,10 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 		selectedEntry?.type === 'directory'
 			? selectedEntry
 			: selectedEntry?.type === 'file'
-				? findTreeEntry(workspace.entries, getParentPath(selectedEntry.path))
+				? findTreeEntry(
+						workspace.entries,
+						getParentPath(selectedEntry.path),
+					)
 				: null;
 	const lineCount = Math.max(1, editorValue.split('\n').length);
 	const lineNumbers = Array.from(
@@ -720,7 +807,9 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 
 	const commandPresets = projectMeta?.commandPresets || [];
 	const primaryCommandPreset =
-		commandPresets.find((preset) => preset.primary) || commandPresets[0] || null;
+		commandPresets.find((preset) => preset.primary) ||
+		commandPresets[0] ||
+		null;
 	const executionRunning = terminalExecution?.status === 'running';
 	const selectedWorkingDirectory =
 		selectedEntry?.type === 'directory'
@@ -804,7 +893,8 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 			setTerminalExecution(response.data);
 		} catch (error) {
 			setTerminalError(
-				error.response?.data?.error || 'Unable to stop the running command.',
+				error.response?.data?.error ||
+					'Unable to stop the running command.',
 			);
 		} finally {
 			setTerminalBusy(false);
@@ -839,242 +929,256 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 					standalone ? 'standalone' : ''
 				}`}>
 				<div className='card-heading card-heading-spread'>
-				<div>
-					<span className='card-label'>Workspace</span>
-					<h3>Project files</h3>
-				</div>
-				<div className='workspace-heading-actions'>
-					<button
-						type='button'
-						className='ghost-button'
-						onClick={() => loadWorkspace()}>
-						<RefreshRounded fontSize='small' />
-						Refresh tree
-					</button>
-					<button
-						type='button'
-						className='ghost-button'
-						onClick={() => openCreateDraft('file')}>
-						<NoteAddRounded fontSize='small' />
-						New file
-					</button>
-					<button
-						type='button'
-						className='ghost-button'
-						onClick={() => openCreateDraft('directory')}>
-						<CreateNewFolderRounded fontSize='small' />
-						New folder
-					</button>
-					<button
-						type='button'
-						className='ghost-button'
-						disabled={!selectedEntry || actionBusy.startsWith('delete:')}
-						onClick={deleteEntry}>
-						<DeleteOutlineRounded fontSize='small' />
-						Delete
-					</button>
-					{projectMeta?.projectPath && (
+					<div>
+						<span className='card-label'>Workspace</span>
+						<h3>Project files</h3>
+					</div>
+					<div className='workspace-heading-actions'>
 						<button
 							type='button'
 							className='ghost-button'
-							onClick={openInVsCode}>
-							<ArrowOutwardRounded fontSize='small' />
-							Open IDE
+							onClick={() => loadWorkspace()}>
+							<RefreshRounded fontSize='small' />
+							Refresh tree
 						</button>
-					)}
-					{primaryCommandPreset && (
+						<button
+							type='button'
+							className='ghost-button'
+							onClick={() => openCreateDraft('file')}>
+							<NoteAddRounded fontSize='small' />
+							New file
+						</button>
+						<button
+							type='button'
+							className='ghost-button'
+							onClick={() => openCreateDraft('directory')}>
+							<CreateNewFolderRounded fontSize='small' />
+							New folder
+						</button>
+						<button
+							type='button'
+							className='ghost-button'
+							disabled={
+								!selectedEntry ||
+								actionBusy.startsWith('delete:')
+							}
+							onClick={deleteEntry}>
+							<DeleteOutlineRounded fontSize='small' />
+							Delete
+						</button>
+						{projectMeta?.projectPath && (
+							<button
+								type='button'
+								className='ghost-button'
+								onClick={openInVsCode}>
+								<ArrowOutwardRounded fontSize='small' />
+								Open IDE
+							</button>
+						)}
+						{primaryCommandPreset && (
+							<button
+								type='button'
+								className='success-button'
+								disabled={terminalBusy || executionRunning}
+								onClick={() => runPreset(primaryCommandPreset)}>
+								<PlayArrowRounded fontSize='small' />
+								{selectedFile?.path && editorDirty
+									? 'Save + Run'
+									: primaryCommandPreset.label}
+							</button>
+						)}
+						{terminalExecution?.status === 'running' && (
+							<button
+								type='button'
+								className='danger-button'
+								disabled={terminalBusy}
+								onClick={stopExecution}>
+								<StopRounded fontSize='small' />
+								Stop run
+							</button>
+						)}
 						<button
 							type='button'
 							className='success-button'
-							disabled={terminalBusy || executionRunning}
-							onClick={() => runPreset(primaryCommandPreset)}>
-							<PlayArrowRounded fontSize='small' />
-							{selectedFile?.path && editorDirty
-								? 'Save + Run'
-								: primaryCommandPreset.label}
+							disabled={!selectedFile || !editorDirty || saveBusy}
+							onClick={saveFile}>
+							<SaveRounded fontSize='small' />
+							{saveBusy ? 'Saving...' : 'Save file'}
 						</button>
-					)}
-					{terminalExecution?.status === 'running' && (
-						<button
-							type='button'
-							className='danger-button'
-							disabled={terminalBusy}
-							onClick={stopExecution}>
-							<StopRounded fontSize='small' />
-							Stop run
-						</button>
-					)}
-					<button
-						type='button'
-						className='success-button'
-						disabled={!selectedFile || !editorDirty || saveBusy}
-						onClick={saveFile}>
-						<SaveRounded fontSize='small' />
-						{saveBusy ? 'Saving...' : 'Save file'}
-					</button>
-				</div>
-			</div>
-
-			<div className='workspace-meta-bar'>
-				<span>{workspace.rootPath || 'Loading workspace path...'}</span>
-				<strong>
-					{hasTreeSearch
-						? `${visibleEntryCount} matching items`
-						: `${workspace.entryCount} visible items${
-								workspace.truncated ? ' (trimmed)' : ''
-							}`}
-				</strong>
-			</div>
-
-			{creationDraft.open && (
-				<div className='workspace-create-bar'>
-					<div className='workspace-create-copy'>
-						<strong>
-							{creationDraft.type === 'directory'
-								? 'Create folder'
-								: 'Create file'}
-						</strong>
-						<span>
-							Use a path inside this project. Example:{' '}
-							{selectedDirectory?.path
-								? `${selectedDirectory.path}/example`
-								: 'src/example'}
-						</span>
 					</div>
-					<input
-						value={creationDraft.path}
-						onChange={(event) =>
-							setCreationDraft((previous) => ({
-								...previous,
-								path: event.target.value,
-							}))
-						}
-						placeholder='src/components/NewFile.jsx'
-					/>
-					<div className='workspace-create-actions'>
-						<button
-							type='button'
-							className='ghost-button'
-							onClick={() =>
-								setCreationDraft((previous) => ({
-									...previous,
-									open: false,
-								}))
-							}>
-							Cancel
-						</button>
-						<button
-							type='button'
-							className='primary-action'
-							disabled={actionBusy.startsWith('create:')}
-							onClick={submitCreation}>
-							{actionBusy.startsWith('create:')
-								? 'Creating...'
-								: creationDraft.type === 'directory'
+				</div>
+
+				<div className='workspace-meta-bar'>
+					<span>
+						{workspace.rootPath || 'Loading workspace path...'}
+					</span>
+					<strong>
+						{hasTreeSearch
+							? `${visibleEntryCount} matching items`
+							: `${workspace.entryCount} visible items${
+									workspace.truncated ? ' (trimmed)' : ''
+								}`}
+					</strong>
+				</div>
+
+				{creationDraft.open && (
+					<div className='workspace-create-bar'>
+						<div className='workspace-create-copy'>
+							<strong>
+								{creationDraft.type === 'directory'
 									? 'Create folder'
 									: 'Create file'}
-						</button>
+							</strong>
+							<span>
+								Use a path inside this project. Example:{' '}
+								{selectedDirectory?.path
+									? `${selectedDirectory.path}/example`
+									: 'src/example'}
+							</span>
+						</div>
+						<input
+							value={creationDraft.path}
+							onChange={(event) =>
+								setCreationDraft((previous) => ({
+									...previous,
+									path: event.target.value,
+								}))
+							}
+							placeholder='src/components/NewFile.jsx'
+						/>
+						<div className='workspace-create-actions'>
+							<button
+								type='button'
+								className='ghost-button'
+								onClick={() =>
+									setCreationDraft((previous) => ({
+										...previous,
+										open: false,
+									}))
+								}>
+								Cancel
+							</button>
+							<button
+								type='button'
+								className='primary-action'
+								disabled={actionBusy.startsWith('create:')}
+								onClick={submitCreation}>
+								{actionBusy.startsWith('create:')
+									? 'Creating...'
+									: creationDraft.type === 'directory'
+										? 'Create folder'
+										: 'Create file'}
+							</button>
+						</div>
 					</div>
-				</div>
-			)}
+				)}
 
-			{fileError && <div className='workspace-error-banner'>{fileError}</div>}
-			{treeError && <div className='workspace-error-banner'>{treeError}</div>}
+				{fileError && (
+					<div className='workspace-error-banner'>{fileError}</div>
+				)}
+				{treeError && (
+					<div className='workspace-error-banner'>{treeError}</div>
+				)}
 
 				<div className='workspace-editor-grid'>
 					<div className='workspace-tree-shell'>
-					<div className='workspace-panel-head'>
-						<strong>Explorer</strong>
-						<span>{treeLoading ? 'Refreshing...' : 'Live tree'}</span>
-					</div>
-					<div className='workspace-tree-scroll'>
-						{treeLoading ? (
-							<div className='workspace-empty-state'>
-								Loading project files...
-							</div>
-						) : visibleEntries.length > 0 ? (
-							renderTree(visibleEntries)
-						) : (
-							<div className='workspace-empty-state'>
-								{hasTreeSearch
-									? 'No files or folders match the current search.'
-									: 'This project does not have any editable files yet.'}
-							</div>
-						)}
-					</div>
-				</div>
-
-					<div className='workspace-editor-shell'>
-					<div className='workspace-panel-head'>
-						<div className='workspace-editor-headline'>
-							<strong>
-								{selectedFile?.path ||
-									selectedEntry?.path ||
-									'Choose a file'}
-							</strong>
+						<div className='workspace-panel-head'>
+							<strong>Explorer</strong>
 							<span>
-								{selectedFile
-									? `${formatSize(selectedFile.size)} | updated ${formatTimestamp(
-										selectedFile.modifiedAt,
-									)}`
-									: selectedEntry?.type === 'directory'
-										? 'Folder selected'
-										: 'Nothing open'}
+								{treeLoading ? 'Refreshing...' : 'Live tree'}
 							</span>
 						</div>
-						{selectedFile && editorDirty && (
-							<span className='workspace-dirty-pill'>Unsaved</span>
-						)}
+						<div className='workspace-tree-scroll'>
+							{treeLoading ? (
+								<div className='workspace-empty-state'>
+									Loading project files...
+								</div>
+							) : visibleEntries.length > 0 ? (
+								renderTree(visibleEntries)
+							) : (
+								<div className='workspace-empty-state'>
+									{hasTreeSearch
+										? 'No files or folders match the current search.'
+										: 'This project does not have any editable files yet.'}
+								</div>
+							)}
+						</div>
 					</div>
 
-					{fileLoading ? (
-						<div className='workspace-empty-state'>
-							Opening file...
-						</div>
-					) : selectedFile ? (
-						<div className='workspace-code-shell'>
-							<div
-								ref={lineNumbersRef}
-								className='workspace-line-numbers'
-								onScroll={handleLineNumberScroll}
-								onMouseDown={handleLineNumberMouseDown}
-								aria-hidden='true'>
-								{lineNumbers.map((lineNumber) => (
-									<span
-										key={lineNumber}
-										className='workspace-line-number'>
-										{lineNumber}
-									</span>
-								))}
+					<div className='workspace-editor-shell'>
+						<div className='workspace-panel-head'>
+							<div className='workspace-editor-headline'>
+								<strong>
+									{selectedFile?.path ||
+										selectedEntry?.path ||
+										'Choose a file'}
+								</strong>
+								<span>
+									{selectedFile
+										? `${formatSize(selectedFile.size)} | updated ${formatTimestamp(
+												selectedFile.modifiedAt,
+											)}`
+										: selectedEntry?.type === 'directory'
+											? 'Folder selected'
+											: 'Nothing open'}
+								</span>
 							</div>
-							<textarea
-								ref={textareaRef}
-								className='workspace-editor-textarea'
-								spellCheck='false'
-								wrap='off'
-								value={editorValue}
-								onChange={(event) => {
-									setEditorValue(event.target.value);
-									setEditorDirty(true);
-								}}
-								onScroll={handleEditorScroll}
-							/>
+							{selectedFile && editorDirty && (
+								<span className='workspace-dirty-pill'>
+									Unsaved
+								</span>
+							)}
 						</div>
-					) : selectedEntry?.type === 'directory' ? (
-						<div className='workspace-directory-state'>
-							<FolderOpenRounded fontSize='inherit' />
-							<strong>{selectedEntry.path}</strong>
-							<p>
-								This folder is selected. Create a new file here or
-								open one of its existing files from the explorer.
-							</p>
-						</div>
-					) : (
-						<div className='workspace-empty-state'>
-							Select a file from the explorer to edit it directly in the
-							dashboard.
-						</div>
-					)}
+
+						{fileLoading ? (
+							<div className='workspace-empty-state'>
+								Opening file...
+							</div>
+						) : selectedFile ? (
+							<div className='workspace-code-shell'>
+								<div
+									ref={lineNumbersRef}
+									className='workspace-line-numbers'
+									onScroll={handleLineNumberScroll}
+									onMouseDown={handleLineNumberMouseDown}
+									aria-hidden='true'>
+									{lineNumbers.map((lineNumber) => (
+										<span
+											key={lineNumber}
+											className='workspace-line-number'>
+											{lineNumber}
+										</span>
+									))}
+								</div>
+								<textarea
+									ref={textareaRef}
+									className='workspace-editor-textarea'
+									spellCheck='false'
+									wrap='off'
+									value={editorValue}
+									onChange={(event) => {
+										setEditorValue(event.target.value);
+										setEditorDirty(true);
+									}}
+									onScroll={handleEditorScroll}
+								/>
+							</div>
+						) : selectedEntry?.type === 'directory' ? (
+							<div className='workspace-directory-state'>
+								<FolderOpenRounded fontSize='inherit' />
+								<strong>{selectedEntry.path}</strong>
+								<p>
+									This folder is selected. Create a new file
+									here or open one of its existing files from
+									the explorer.
+								</p>
+							</div>
+						) : (
+							<div className='workspace-empty-state'>
+								Select a file from the explorer to edit it
+								directly in the dashboard.
+							</div>
+						)}
 					</div>
 				</div>
 			</article>
@@ -1149,7 +1253,9 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 					<input
 						className='workspace-terminal-input'
 						value={commandValue}
-						onChange={(event) => setCommandValue(event.target.value)}
+						onChange={(event) =>
+							setCommandValue(event.target.value)
+						}
 						onKeyDown={(event) => {
 							if (event.key === 'Enter') {
 								event.preventDefault();
@@ -1185,19 +1291,23 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 				</div>
 
 				{terminalError && (
-					<div className='workspace-error-banner'>{terminalError}</div>
+					<div className='workspace-error-banner'>
+						{terminalError}
+					</div>
 				)}
 
 				<div className='workspace-terminal-output'>
 					{terminalExecution ? (
 						<>
 							<div className='workspace-terminal-meta'>
-								<span>
-									{terminalExecution.command}
-								</span>
+								<span>{terminalExecution.command}</span>
 								<strong>
-									{formatExecutionStatus(terminalExecution.status)}
-									{Number.isInteger(terminalExecution.exitCode)
+									{formatExecutionStatus(
+										terminalExecution.status,
+									)}
+									{Number.isInteger(
+										terminalExecution.exitCode,
+									)
 										? ` | exit ${terminalExecution.exitCode}`
 										: ''}
 								</strong>
@@ -1209,9 +1319,10 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 						</>
 					) : (
 						<div className='workspace-empty-state workspace-terminal-empty'>
-							Use the quick actions above or type any command you want to run
-							inside this project. Java, Python, Maven, npm, and other local
-							tools can all be executed here.
+							Use the quick actions above or type any command you
+							want to run inside this project. Java, Python,
+							Maven, npm, and other local tools can all be
+							executed here.
 						</div>
 					)}
 					<div ref={terminalOutputRef} />

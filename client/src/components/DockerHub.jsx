@@ -16,6 +16,7 @@ import MemoryRounded from '@mui/icons-material/MemoryRounded';
 import SearchRounded from '@mui/icons-material/SearchRounded';
 import FolderRounded from '@mui/icons-material/FolderRounded';
 import ArrowOutwardRounded from '@mui/icons-material/ArrowOutwardRounded';
+import { API_BASE_URL } from '../config/api';
 import SurfaceSelect from './SurfaceSelect';
 import {
 	buildNextTextSearchParams,
@@ -23,7 +24,7 @@ import {
 } from '../utils/searchParams';
 import './DockerHub.css';
 
-const API = 'http://localhost:4000';
+const API = API_BASE_URL;
 const REFRESH_INTERVAL_MS = 12000;
 const DOCKER_FILTER_OPTIONS = [
 	{
@@ -48,6 +49,12 @@ const DOCKER_FILTER_OPTIONS = [
 	},
 ];
 
+/**
+ * Formats byte counts for Docker stats cards.
+ *
+ * @param {number} bytes - Raw byte value.
+ * @returns {string} Human-readable byte string.
+ */
 function formatBytes(bytes) {
 	if (!bytes) {
 		return 'Unknown';
@@ -65,6 +72,12 @@ function formatBytes(bytes) {
 	return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
 }
 
+/**
+ * Converts a Docker container state into the user-facing badge label.
+ *
+ * @param {string} state - Raw Docker container state.
+ * @returns {string} User-facing status label.
+ */
 function getContainerStateLabel(state) {
 	switch (state) {
 		case 'running':
@@ -80,6 +93,12 @@ function getContainerStateLabel(state) {
 	}
 }
 
+/**
+ * Converts a Docker stack state into the user-facing badge label.
+ *
+ * @param {string} state - Aggregate stack state.
+ * @returns {string} User-facing status label.
+ */
 function getStackStateLabel(state) {
 	switch (state) {
 		case 'running':
@@ -91,6 +110,12 @@ function getStackStateLabel(state) {
 	}
 }
 
+/**
+ * Converts the dashboard's internal container category into display text.
+ *
+ * @param {string} category - Container category identifier.
+ * @returns {string} Human-readable category label.
+ */
 function getCategoryLabel(category) {
 	switch (category) {
 		case 'database':
@@ -102,6 +127,13 @@ function getCategoryLabel(category) {
 	}
 }
 
+/**
+ * Formats exposed host ports for container and stack cards.
+ *
+ * @param {Array<{hostPort: number, protocol: string}>} hostPorts - Host port mappings returned by the API.
+ * @param {string} [emptyLabel='No exposed ports'] - Fallback label when no mappings exist.
+ * @returns {string} Human-readable host port list.
+ */
 function formatHostPorts(hostPorts, emptyLabel = 'No exposed ports') {
 	if (!hostPorts || hostPorts.length === 0) {
 		return emptyLabel;
@@ -118,6 +150,14 @@ function formatHostPorts(hostPorts, emptyLabel = 'No exposed ports') {
 	return visiblePorts.join(' • ');
 }
 
+/**
+ * Checks whether a container matches the active runtime filter in the Docker UI.
+ *
+ * @param {string} state - Raw container state.
+ * @param {boolean} managedByDashboard - Whether the container is dashboard-managed.
+ * @param {string} filter - Active filter selected by the user.
+ * @returns {boolean} True when the container should remain visible.
+ */
 function matchesRuntimeFilter(state, managedByDashboard, filter) {
 	if (filter === 'all') {
 		return true;
@@ -134,6 +174,11 @@ function matchesRuntimeFilter(state, managedByDashboard, filter) {
 	return state === 'stopped';
 }
 
+/**
+ * Renders the Docker operations screen, including stacks, containers, logs, and image inventory.
+ *
+ * @returns {JSX.Element} Docker page.
+ */
 function DockerHub() {
 	const [searchParams, setSearchParams] = useSearchParams();
 	const [overview, setOverview] = useState(null);

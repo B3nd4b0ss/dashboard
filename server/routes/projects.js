@@ -17,7 +17,8 @@ const {
 	stopProjectExecution,
 } = require('../services/projectTerminalService');
 
-// Get all projects
+// `GET /projects`
+// Returns every project decorated with runtime, monitoring, and task summary data.
 router.get('/', async (req, res) => {
 	try {
 		const projects = await projectService.getAllProjects();
@@ -27,14 +28,17 @@ router.get('/', async (req, res) => {
 	}
 });
 
-// Get single project
+// `GET /projects/:name`
+// Route params: `name` is the persisted project name.
 router.get('/:name', async (req, res) => {
 	const project = await projectService.getProject(req.params.name);
 	if (!project) return res.sendStatus(404);
 	res.json(project);
 });
 
-// Get project runtime logs
+// `GET /projects/:name/logs`
+// Route params: `name` is the persisted project name.
+// Query params: `service` optionally limits logs to `frontend` or `backend`; `limit` controls the recent line count.
 router.get('/:name/logs', async (req, res) => {
 	try {
 		const logs = await readProjectRuntimeLogs(req.params.name, {
@@ -47,7 +51,9 @@ router.get('/:name/logs', async (req, res) => {
 	}
 });
 
-// Get project file tree
+// `GET /projects/:name/files`
+// Route params: `name` is the persisted project name.
+// Returns the file tree used by the inline project editor.
 router.get('/:name/files', async (req, res) => {
 	try {
 		const workspace = await listProjectFiles(req.params.name);
@@ -57,7 +63,9 @@ router.get('/:name/files', async (req, res) => {
 	}
 });
 
-// Read a project file
+// `GET /projects/:name/files/content`
+// Route params: `name` is the persisted project name.
+// Query params: `path` is the required project-relative file path to open.
 router.get('/:name/files/content', async (req, res) => {
 	try {
 		const file = await readProjectFile(req.params.name, req.query.path);
@@ -69,7 +77,9 @@ router.get('/:name/files/content', async (req, res) => {
 	}
 });
 
-// Create a file or folder inside a project
+// `POST /projects/:name/files`
+// Route params: `name` is the persisted project name.
+// Body params: `path` is required and project-relative; `type` may be `file` or `directory`.
 router.post('/:name/files', async (req, res) => {
 	try {
 		const entry = await createProjectEntry(
@@ -84,7 +94,9 @@ router.post('/:name/files', async (req, res) => {
 	}
 });
 
-// Save a project file
+// `PUT /projects/:name/files/content`
+// Route params: `name` is the persisted project name.
+// Body params: `path` is required and project-relative; `content` is the UTF-8 file content to save.
 router.put('/:name/files/content', async (req, res) => {
 	try {
 		const file = await saveProjectFile(
@@ -98,7 +110,9 @@ router.put('/:name/files/content', async (req, res) => {
 	}
 });
 
-// Delete a file or folder inside a project
+// `DELETE /projects/:name/files`
+// Route params: `name` is the persisted project name.
+// Query params: `path` is the required project-relative file or folder path to delete.
 router.delete('/:name/files', async (req, res) => {
 	try {
 		const entry = await deleteProjectEntry(req.params.name, req.query.path);
@@ -110,7 +124,9 @@ router.delete('/:name/files', async (req, res) => {
 	}
 });
 
-// Execute a project terminal command
+// `POST /projects/:name/terminal/execute`
+// Route params: `name` is the persisted project name.
+// Body params: `command` is required; `cwd` is an optional project-relative working directory; `label` customizes the execution title.
 router.post('/:name/terminal/execute', async (req, res) => {
 	try {
 		const execution = runProjectCommand(req.params.name, req.body.command, {
@@ -123,17 +139,22 @@ router.post('/:name/terminal/execute', async (req, res) => {
 	}
 });
 
-// Execute a command preset
+// `POST /projects/:name/terminal/presets/:presetId`
+// Route params: `name` is the persisted project name; `presetId` is one of the ids returned in `commandPresets`.
 router.post('/:name/terminal/presets/:presetId', async (req, res) => {
 	try {
-		const execution = runProjectPreset(req.params.name, req.params.presetId);
+		const execution = runProjectPreset(
+			req.params.name,
+			req.params.presetId,
+		);
 		res.json(execution);
 	} catch (err) {
 		res.status(400).json({ error: err.message });
 	}
 });
 
-// Read a terminal execution snapshot
+// `GET /projects/:name/terminal/:executionId`
+// Route params: `name` is the persisted project name; `executionId` is returned when a command starts.
 router.get('/:name/terminal/:executionId', async (req, res) => {
 	try {
 		const execution = getProjectExecution(
@@ -146,7 +167,8 @@ router.get('/:name/terminal/:executionId', async (req, res) => {
 	}
 });
 
-// Stop a terminal execution
+// `POST /projects/:name/terminal/:executionId/stop`
+// Route params: `name` is the persisted project name; `executionId` identifies the running command to stop.
 router.post('/:name/terminal/:executionId/stop', async (req, res) => {
 	try {
 		const execution = await stopProjectExecution(
@@ -159,7 +181,9 @@ router.post('/:name/terminal/:executionId/stop', async (req, res) => {
 	}
 });
 
-// Create project
+// `POST /projects`
+// Body params: `name` is required. Optional params include `frontend`, `backend`, `databaseId`,
+// `frontendPort`, `backendPort`, `projectLocation`, `autoCreateRepo`, and `visibility`.
 router.post('/', async (req, res) => {
 	try {
 		const project = await projectService.createProject(req.body);
@@ -169,7 +193,10 @@ router.post('/', async (req, res) => {
 	}
 });
 
-// Update project
+// `PATCH /projects/:name`
+// Route params: `name` is the existing project name.
+// Body params: any editable project fields such as `name`, `frontendPort`, `backendPort`, `databaseId`,
+// `projectLocation`, or scaffold metadata (`description`, `version`, `projectSlug`, Java settings, or nested `scaffold`).
 router.patch('/:name', async (req, res) => {
 	try {
 		const project = await projectService.updateProject(
@@ -182,7 +209,8 @@ router.patch('/:name', async (req, res) => {
 	}
 });
 
-// Publish a local-only project to GitHub
+// `POST /projects/:name/publish`
+// Route params: `name` is the local-only project to publish to GitHub.
 router.post('/:name/publish', async (req, res) => {
 	try {
 		const project = await projectService.publishProject(req.params.name);
@@ -192,7 +220,8 @@ router.post('/:name/publish', async (req, res) => {
 	}
 });
 
-// Start project
+// `POST /projects/:name/start`
+// Route params: `name` is the persisted project name.
 router.post('/:name/start', async (req, res) => {
 	try {
 		const result = await startProject(req.params.name);
@@ -202,7 +231,8 @@ router.post('/:name/start', async (req, res) => {
 	}
 });
 
-// Stop project
+// `POST /projects/:name/stop`
+// Route params: `name` is the persisted project name.
 router.post('/:name/stop', async (req, res) => {
 	try {
 		const result = await stopProject(req.params.name);
@@ -212,7 +242,9 @@ router.post('/:name/stop', async (req, res) => {
 	}
 });
 
-// Delete project
+// `DELETE /projects/:name/delete`
+// Route params: `name` is the persisted project name.
+// Query params: `deleteRemote=true` also deletes the linked remote repository when available.
 router.delete('/:name/delete', async (req, res) => {
 	try {
 		await projectService.deleteProject(req.params.name, {
@@ -224,9 +256,10 @@ router.delete('/:name/delete', async (req, res) => {
 	}
 });
 
-// Add this route for streaming creation
+// `POST /projects/create-stream`
+// Body params match `POST /projects`, but progress is returned over an SSE stream as `log`, `error`, and `complete` events.
 router.post('/create-stream', async (req, res) => {
-	// Set headers for SSE
+	// Keep the HTTP connection open so the client can receive progress events during project creation.
 	res.writeHead(200, {
 		'Content-Type': 'text/event-stream',
 		'Cache-Control': 'no-cache',
