@@ -77,3 +77,17 @@ test('toHistoryEntry keeps audit metadata without terminal output', () => {
 		exitCode: 0,
 	});
 });
+
+test('clearProjectHistoryEntries removes only the selected project history', () => {
+	const nextStore = __test__.clearProjectHistoryEntries(
+		{
+			dashboard: [{ id: 'exec-1' }],
+			'other-project': [{ id: 'exec-2' }],
+		},
+		'dashboard',
+	);
+
+	assert.deepEqual(nextStore, {
+		'other-project': [{ id: 'exec-2' }],
+	});
+});

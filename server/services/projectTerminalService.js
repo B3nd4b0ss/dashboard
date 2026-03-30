@@ -222,6 +222,19 @@ function persistExecutionHistory(execution) {
 }
 
 /**
+ * Removes persisted history entries for one project while preserving all other projects.
+ *
+ * @param {Record<string, Array<object>>} historyStore - Current history store.
+ * @param {string} projectName - Canonical project name whose history should be removed.
+ * @returns {Record<string, Array<object>>} Updated history store.
+ */
+function clearProjectHistoryEntries(historyStore, projectName) {
+	const nextStore = { ...historyStore };
+	delete nextStore[projectName];
+	return nextStore;
+}
+
+/**
  * Appends stdout or stderr text to the in-memory execution record.
  *
  * @param {object} execution - Mutable execution record stored in `terminalExecutions`.
@@ -428,6 +441,20 @@ function getProjectCommandHistory(projectName, options = {}) {
 }
 
 /**
+ * Clears the persisted terminal history for a project.
+ *
+ * @param {string} projectName - Project that owns the history.
+ * @returns {Array<object>} Empty history list after clearing.
+ */
+function clearProjectCommandHistory(projectName) {
+	const project = getProjectRecord(projectName);
+	const store = loadTerminalHistoryStore();
+	const nextStore = clearProjectHistoryEntries(store, project.name);
+	saveTerminalHistoryStore(nextStore);
+	return [];
+}
+
+/**
  * Returns the latest snapshot for a tracked terminal execution.
  *
  * @param {string} projectName - Project that owns the execution.
@@ -478,10 +505,12 @@ module.exports = {
 	runProjectPreset,
 	getProjectExecution,
 	getProjectCommandHistory,
+	clearProjectCommandHistory,
 	stopProjectExecution,
 	__test__: {
 		assertManualCommandsAllowed,
 		buildShellCommandFromSteps,
+		clearProjectHistoryEntries,
 		MAX_HISTORY_ITEMS,
 		MAX_OUTPUT_LENGTH,
 		toHistoryEntry,

@@ -15,6 +15,7 @@ const {
 	runProjectPreset,
 	getProjectExecution,
 	getProjectCommandHistory,
+	clearProjectCommandHistory,
 	stopProjectExecution,
 } = require('../services/projectTerminalService');
 
@@ -161,6 +162,17 @@ router.get('/:name/terminal/history', async (req, res) => {
 		const items = getProjectCommandHistory(req.params.name, {
 			limit: req.query.limit,
 		});
+		res.json({ items });
+	} catch (err) {
+		res.status(err.statusCode || 400).json({ error: err.message });
+	}
+});
+
+// `DELETE /projects/:name/terminal/history`
+// Route params: `name` is the persisted project name. Clears only the saved history for this project.
+router.delete('/:name/terminal/history', async (req, res) => {
+	try {
+		const items = clearProjectCommandHistory(req.params.name);
 		res.json({ items });
 	} catch (err) {
 		res.status(err.statusCode || 400).json({ error: err.message });

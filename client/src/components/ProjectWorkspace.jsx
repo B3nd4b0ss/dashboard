@@ -317,6 +317,7 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 	const [manualCommandsEnabled, setManualCommandsEnabled] = useState(false);
 	const [terminalExecution, setTerminalExecution] = useState(null);
 	const [terminalHistory, setTerminalHistory] = useState([]);
+	const [historyBusy, setHistoryBusy] = useState(false);
 	const [terminalBusy, setTerminalBusy] = useState(false);
 	const [terminalError, setTerminalError] = useState('');
 	const textareaRef = useRef(null);
@@ -482,6 +483,7 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 		setManualCommandsEnabled(false);
 		setTerminalExecution(null);
 		setTerminalHistory([]);
+		setHistoryBusy(false);
 		setTerminalBusy(false);
 		setTerminalError('');
 		loadWorkspace({ preserveSelection: false });
@@ -980,6 +982,36 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 		}
 	};
 
+	const clearTerminalHistory = async () => {
+		if (!terminalHistory.length) {
+			return;
+		}
+
+		if (
+			!window.confirm(
+				'Clear the saved terminal history for this project? This will not stop a running command or remove the current output panel.',
+			)
+		) {
+			return;
+		}
+
+		setHistoryBusy(true);
+		try {
+			const response = await axios.delete(
+				`${API}/projects/${encodeURIComponent(projectName)}/terminal/history`,
+			);
+			setTerminalHistory(response.data?.items || []);
+			setTerminalError('');
+		} catch (error) {
+			setTerminalError(
+				error.response?.data?.error ||
+					'Unable to clear the saved terminal history.',
+			);
+		} finally {
+			setHistoryBusy(false);
+		}
+	};
+
 	const openInVsCode = () => {
 		if (!projectMeta?.projectPath) {
 			return;
@@ -1379,8 +1411,24 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 				{terminalHistory.length > 0 && (
 					<div className='workspace-terminal-history'>
 						<div className='workspace-terminal-history-head'>
-							<strong>Recent executions</strong>
-							<span>Saved per project for easier review</span>
+							<div className='workspace-terminal-history-copy'>
+								<strong>Recent executions</strong>
+								<span>
+									Saved per project for easier review
+								</span>
+							</div>
+							<div className='workspace-terminal-history-actions'>
+								<button
+									type='button'
+									className='ghost-button'
+									disabled={historyBusy}
+									onClick={clearTerminalHistory}>
+									<DeleteOutlineRounded fontSize='small' />
+									{historyBusy
+										? 'Clearing...'
+										: 'Clear history'}
+								</button>
+							</div>
 						</div>
 						<div className='workspace-terminal-history-list'>
 							{terminalHistory.map((entry) => (

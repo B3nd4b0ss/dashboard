@@ -274,6 +274,18 @@
 	flex-wrap: wrap;
 }
 
+.workspace-terminal-history-copy {
+	display: grid;
+	gap: 4px;
+	min-width: 0;
+}
+
+.workspace-terminal-history-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+
 .workspace-terminal-history-list {
 	display: grid;
 	gap: 10px;
