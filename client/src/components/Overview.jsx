@@ -38,6 +38,10 @@ import {
 	buildNextTextSearchParams,
 	getSearchParamValue,
 } from '../utils/searchParams';
+import {
+	isPortCheckBlocking,
+	usePortAvailability,
+} from '../utils/portAvailability';
 import './Overview.css';
 
 const API = API_BASE_URL;
@@ -920,6 +924,28 @@ function Overview({ mode = 'board' }) {
 	const [composerMessage, setComposerMessage] = useState('');
 	const [pendingAction, setPendingAction] = useState('');
 	const outputEndRef = useRef(null);
+	const frontendPortRequired = frontendTemplateRequiresPort(form.frontend);
+	const backendPortRequired = backendTemplateRequiresPort(form.backend);
+	const composerPortConflictMessage =
+		frontendPortRequired &&
+		backendPortRequired &&
+		String(form.frontendPort || '').trim() &&
+		String(form.backendPort || '').trim() &&
+		String(form.frontendPort).trim() === String(form.backendPort).trim()
+			? 'Frontend and backend ports must be different.'
+			: '';
+	const frontendPortCheck = usePortAvailability({
+		port: form.frontendPort,
+		label: 'Frontend port',
+		enabled: frontendPortRequired,
+		localConflictMessage: composerPortConflictMessage,
+	});
+	const backendPortCheck = usePortAvailability({
+		port: form.backendPort,
+		label: 'Backend port',
+		enabled: backendPortRequired,
+		localConflictMessage: composerPortConflictMessage,
+	});
 	const updateForm = (nextValue) => {
 		setForm((previous) =>
 			normalizeComposerForm(
@@ -1086,8 +1112,8 @@ function Overview({ mode = 'board' }) {
 
 	const createProject = async () => {
 		const composerLane = selectedLane || getComposerLaneFromForm(form);
-		const frontendNeedsPort = frontendTemplateRequiresPort(form.frontend);
-		const backendNeedsPort = backendTemplateRequiresPort(form.backend);
+		const frontendNeedsPort = frontendPortRequired;
+		const backendNeedsPort = backendPortRequired;
 		const repositoryAutoCreate =
 			typeof form.autoCreateRepo === 'boolean'
 				? form.autoCreateRepo
@@ -1138,6 +1164,22 @@ function Overview({ mode = 'board' }) {
 			form.frontendPort === form.backendPort
 		) {
 			alert('Frontend and backend ports must be different.');
+			return;
+		}
+
+		if (frontendNeedsPort && isPortCheckBlocking(frontendPortCheck)) {
+			alert(
+				frontendPortCheck.message ||
+					'Please choose a valid frontend port first.',
+			);
+			return;
+		}
+
+		if (backendNeedsPort && isPortCheckBlocking(backendPortCheck)) {
+			alert(
+				backendPortCheck.message ||
+					'Please choose a valid backend port first.',
+			);
 			return;
 		}
 
@@ -1366,7 +1408,6 @@ function Overview({ mode = 'board' }) {
 	const showBackendPresetSelect = backendPresetOptions.length > 1;
 	const selectedLaneOption =
 		COMPOSER_FAST_LANES.find((lane) => lane.value === composerLane) || null;
-	const backendPortRequired = backendTemplateRequiresPort(form.backend);
 	const composerLaunchLabel = getComposerLaunchLabel(
 		form.frontend,
 		form.backend,
@@ -1382,6 +1423,9 @@ function Overview({ mode = 'board' }) {
 	const composerJavaSourcePath = getComposerJavaSourcePath(form);
 	const composerProjectLocationLabel = getComposerProjectLocationLabel(form);
 	const composerProjectPathPreview = getComposerProjectPathPreview(form);
+	const composerHasBlockingPortCheck =
+		(frontendPortRequired && isPortCheckBlocking(frontendPortCheck)) ||
+		(backendPortRequired && isPortCheckBlocking(backendPortCheck));
 	const githubSettings =
 		systemSettings.github || DEFAULT_SYSTEM_SETTINGS.github;
 	const composerAutoCreateRepo =
@@ -1489,7 +1533,8 @@ function Overview({ mode = 'board' }) {
 				<div className='terminal-modal' onClick={closeTerminal}>
 					<div
 						className='terminal-container'
-						onClick={(event) => event.stopPropagation()}>
+						onClick={(event) => event.stopPropagation()}
+					>
 						<div className='terminal-header'>
 							<div>
 								<p className='terminal-label'>Provisioning</p>
@@ -1497,7 +1542,8 @@ function Overview({ mode = 'board' }) {
 							</div>
 							<button
 								onClick={closeTerminal}
-								disabled={isCreating}>
+								disabled={isCreating}
+							>
 								Close
 							</button>
 						</div>
@@ -1511,7 +1557,8 @@ function Overview({ mode = 'board' }) {
 							{terminalOutput.map((entry, index) => (
 								<div
 									key={`${entry.timestamp}-${index}`}
-									className={`terminal-line ${entry.type}`}>
+									className={`terminal-line ${entry.type}`}
+								>
 									<span className='timestamp'>
 										[{entry.timestamp}]
 									</span>
@@ -1547,14 +1594,16 @@ function Overview({ mode = 'board' }) {
 							<button
 								type='button'
 								className='secondary-action'
-								onClick={() => refreshDashboard()}>
+								onClick={() => refreshDashboard()}
+							>
 								<RefreshRounded fontSize='small' />
 								Refresh
 							</button>
 							<button
 								type='button'
 								className='primary-action'
-								onClick={() => navigate('/composer')}>
+								onClick={() => navigate('/composer')}
+							>
 								<AddRounded fontSize='small' />
 								Create project
 							</button>
@@ -1737,7 +1786,8 @@ function Overview({ mode = 'board' }) {
 											onClick={
 												browseComposerProjectLocation
 											}
-											disabled={folderPickerBusy}>
+											disabled={folderPickerBusy}
+										>
 											<FolderRounded fontSize='inherit' />
 											{folderPickerBusy
 												? 'Opening...'
@@ -1802,9 +1852,11 @@ function Overview({ mode = 'board' }) {
 											className={`composer-blueprint-card tone-${lane.tone} ${
 												isActive ? 'active' : ''
 											}`}
-											onClick={() => applyFastLane(lane)}>
+											onClick={() => applyFastLane(lane)}
+										>
 											<span
-												className={`composer-blueprint-icon ${lane.tone}`}>
+												className={`composer-blueprint-icon ${lane.tone}`}
+											>
 												<LaneIcon fontSize='inherit' />
 											</span>
 											<div className='composer-blueprint-copy'>
@@ -1934,6 +1986,12 @@ function Overview({ mode = 'board' }) {
 															: 'Select a website starter first'
 													}
 												/>
+												<small
+													className={`field-help port-check-message ${frontendPortCheck.status}`}
+												>
+													{frontendPortCheck.message ||
+														'This port is checked live while you type.'}
+												</small>
 											</label>
 
 											<div className='field-group'>
@@ -2036,6 +2094,12 @@ function Overview({ mode = 'board' }) {
 																: 'Choose a backend starter first'
 														}
 													/>
+													<small
+														className={`field-help port-check-message ${backendPortCheck.status}`}
+													>
+														{backendPortCheck.message ||
+															'This port is checked live while you type.'}
+													</small>
 												</label>
 											) : (
 												<div className='field-group'>
@@ -2115,6 +2179,12 @@ function Overview({ mode = 'board' }) {
 																: 'Select a project type first'
 														}
 													/>
+													<small
+														className={`field-help port-check-message ${backendPortCheck.status}`}
+													>
+														{backendPortCheck.message ||
+															'This port is checked live while you type.'}
+													</small>
 												</label>
 											) : (
 												<div className='field-group'>
@@ -2492,7 +2562,8 @@ function Overview({ mode = 'board' }) {
 									<button
 										type='button'
 										className='inline-field-action'
-										onClick={openDatabaseCreation}>
+										onClick={openDatabaseCreation}
+									>
 										<StorageRounded fontSize='inherit' />
 										Create new database
 									</button>
@@ -2522,14 +2593,18 @@ function Overview({ mode = 'board' }) {
 						<button
 							type='button'
 							className='ghost-button'
-							onClick={resetForm}>
+							onClick={resetForm}
+						>
 							Reset
 						</button>
 						<button
 							type='button'
 							className='primary-action'
 							onClick={createProject}
-							disabled={isCreating}>
+							disabled={
+								isCreating || composerHasBlockingPortCheck
+							}
+						>
 							<TerminalRounded fontSize='small' />
 							{isCreating ? 'Creating...' : 'Create project'}
 						</button>
@@ -2565,12 +2640,14 @@ function Overview({ mode = 'board' }) {
 							return (
 								<article
 									key={project.name}
-									className={`project-board-card status-${project.status}`}>
+									className={`project-board-card status-${project.status}`}
+								>
 									<div className='project-card-top'>
 										<div>
 											<div className='card-badges'>
 												<span
-													className={`status-pill ${project.status}`}>
+													className={`status-pill ${project.status}`}
+												>
 													{getStatusLabel(
 														project.status,
 													)}
@@ -2583,7 +2660,8 @@ function Overview({ mode = 'board' }) {
 											</div>
 											<Link
 												to={`/projects/${encodeURIComponent(project.name)}`}
-												className='project-link'>
+												className='project-link'
+											>
 												<h3>{project.name}</h3>
 											</Link>
 											<p className='project-purpose-copy'>
@@ -2688,7 +2766,9 @@ function Overview({ mode = 'board' }) {
 														Artifact
 													</span>
 													<strong>
-														{scaffold.javaArtifactId}
+														{
+															scaffold.javaArtifactId
+														}
 													</strong>
 												</div>
 											</>
@@ -2699,14 +2779,18 @@ function Overview({ mode = 'board' }) {
 														<TaskAltRounded fontSize='inherit' />
 														Runtime
 													</span>
-													<strong>{runtimeLabel}</strong>
+													<strong>
+														{runtimeLabel}
+													</strong>
 												</div>
 												<div className='monitoring-stat'>
 													<span>
 														<FolderRounded fontSize='inherit' />
 														Command
 													</span>
-													<strong>{commandLabel}</strong>
+													<strong>
+														{commandLabel}
+													</strong>
 												</div>
 											</>
 										)}
@@ -2728,11 +2812,12 @@ function Overview({ mode = 'board' }) {
 										</span>
 										{hasManagedServices &&
 											expectedServiceCount > 0 && (
-											<span className='monitoring-hint'>
-												Services {activeServiceCount}/
-												{expectedServiceCount}
-											</span>
-										)}
+												<span className='monitoring-hint'>
+													Services{' '}
+													{activeServiceCount}/
+													{expectedServiceCount}
+												</span>
+											)}
 										<span className='monitoring-hint'>
 											{runtimeLabel}
 										</span>
@@ -2746,7 +2831,8 @@ function Overview({ mode = 'board' }) {
 											{projectCrew.map((entry) => (
 												<div
 													key={entry.label}
-													className={`avatar-chip ${entry.accent}`}>
+													className={`avatar-chip ${entry.accent}`}
+												>
 													{entry.label}
 												</div>
 											))}
@@ -2780,21 +2866,24 @@ function Overview({ mode = 'board' }) {
 										<div className='project-card-link-row'>
 											<Link
 												to={`/projects/${encodeURIComponent(project.name)}`}
-												className='ghost-link project-inline-action'>
+												className='ghost-link project-inline-action'
+											>
 												<ArrowOutwardRounded fontSize='small' />
 												Open
 											</Link>
 
 											<Link
 												to={`/projects/${encodeURIComponent(project.name)}/editor`}
-												className='ghost-link project-inline-action'>
+												className='ghost-link project-inline-action'
+											>
 												<CodeRounded fontSize='small' />
 												Editor
 											</Link>
 
 											<Link
 												to={`/tasks?project=${encodeURIComponent(project.name)}`}
-												className='ghost-link project-inline-action'>
+												className='ghost-link project-inline-action'
+											>
 												<TaskAltRounded fontSize='small' />
 												Tasks
 											</Link>
@@ -2804,7 +2893,8 @@ function Overview({ mode = 'board' }) {
 													href={primaryUrl}
 													target='_blank'
 													rel='noopener noreferrer'
-													className='secondary-link project-inline-action'>
+													className='secondary-link project-inline-action'
+												>
 													<LanRounded fontSize='small' />
 													Preview
 												</a>
@@ -2817,7 +2907,8 @@ function Overview({ mode = 'board' }) {
 													}
 													target='_blank'
 													rel='noopener noreferrer'
-													className='ghost-link project-inline-action'>
+													className='ghost-link project-inline-action'
+												>
 													<ArrowOutwardRounded fontSize='small' />
 													GitHub
 												</a>
@@ -2838,7 +2929,8 @@ function Overview({ mode = 'board' }) {
 															startProject(
 																project.name,
 															)
-														}>
+														}
+													>
 														<PlayArrowRounded fontSize='small' />
 														{pendingAction ===
 														`start:${project.name}`
@@ -2857,7 +2949,8 @@ function Overview({ mode = 'board' }) {
 															stopProject(
 																project.name,
 															)
-														}>
+														}
+													>
 														<StopRounded fontSize='small' />
 														{pendingAction ===
 														`stop:${project.name}`
@@ -2868,7 +2961,8 @@ function Overview({ mode = 'board' }) {
 											) : (
 												<Link
 													to={`/projects/${encodeURIComponent(project.name)}/editor`}
-													className='success-button project-inline-action'>
+													className='success-button project-inline-action'
+												>
 													<TerminalRounded fontSize='small' />
 													Run in editor
 												</Link>
@@ -2883,7 +2977,8 @@ function Overview({ mode = 'board' }) {
 												}
 												onClick={() =>
 													deleteProject(project)
-												}>
+												}
+											>
 												<DeleteOutlineRounded fontSize='small' />
 												Delete
 											</button>

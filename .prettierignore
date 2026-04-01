@@ -1,0 +1,11 @@
+.git
+.idea
+.vscode
+client/node_modules
+client/dist
+logs
+node_modules
+projects
+server/node_modules
+coverage
+*.log

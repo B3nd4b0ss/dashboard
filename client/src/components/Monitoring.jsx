@@ -222,7 +222,9 @@ function buildServiceEntries(project = {}) {
 				}
 			: null,
 		project.backend &&
-		(runtimeServices.backend || monitoringServices.backend || project.backendPort)
+		(runtimeServices.backend ||
+			monitoringServices.backend ||
+			project.backendPort)
 			? {
 					key: 'backend',
 					label: 'Backend',
@@ -301,7 +303,9 @@ function Monitoring() {
 					right.project.status === 'partial';
 
 				if (leftNeedsAttention !== rightNeedsAttention) {
-					return Number(rightNeedsAttention) - Number(leftNeedsAttention);
+					return (
+						Number(rightNeedsAttention) - Number(leftNeedsAttention)
+					);
 				}
 
 				return left.project.name.localeCompare(right.project.name);
@@ -363,7 +367,9 @@ function Monitoring() {
 					<span className='monitoring-section-tag'>
 						Runtime signals
 					</span>
-					<h2>Keep service health visible from one dedicated space.</h2>
+					<h2>
+						Keep service health visible from one dedicated space.
+					</h2>
 					<p>
 						This page tracks projects with a frontend and
 						dashboard-managed monitoring. Use the shared search bar
@@ -377,14 +383,17 @@ function Monitoring() {
 					<button
 						type='button'
 						className='monitoring-secondary-button'
-						onClick={() => loadProjects()}>
+						onClick={() => loadProjects()}
+					>
 						<RefreshRounded fontSize='small' />
 						Refresh
 					</button>
 				</div>
 			</section>
 
-			{error && <div className='monitoring-alert-banner error'>{error}</div>}
+			{error && (
+				<div className='monitoring-alert-banner error'>{error}</div>
+			)}
 
 			<section className='monitoring-metrics'>
 				<article className='monitoring-metric-card'>
@@ -394,7 +403,9 @@ function Monitoring() {
 					<div>
 						<span>Monitored projects</span>
 						<strong>{monitoredProjects.length}</strong>
-						<p>Website projects currently reporting runtime health.</p>
+						<p>
+							Website projects currently reporting runtime health.
+						</p>
 					</div>
 				</article>
 				<article className='monitoring-metric-card'>
@@ -404,7 +415,10 @@ function Monitoring() {
 					<div>
 						<span>Healthy now</span>
 						<strong>{healthyCount}</strong>
-						<p>Projects whose latest top-level monitoring state is healthy.</p>
+						<p>
+							Projects whose latest top-level monitoring state is
+							healthy.
+						</p>
 					</div>
 				</article>
 				<article className='monitoring-metric-card'>
@@ -414,7 +428,10 @@ function Monitoring() {
 					<div>
 						<span>Need attention</span>
 						<strong>{attentionCount}</strong>
-						<p>Projects with degraded checks, crashes, or partial runtime state.</p>
+						<p>
+							Projects with degraded checks, crashes, or partial
+							runtime state.
+						</p>
 					</div>
 				</article>
 				<article className='monitoring-metric-card'>
@@ -463,7 +480,8 @@ function Monitoring() {
 			<section
 				className={`monitoring-alert-banner ${
 					attentionCount > 0 ? 'warning' : 'healthy'
-				}`}>
+				}`}
+			>
 				{attentionCount > 0 ? (
 					<>
 						<WarningAmberRounded fontSize='small' />
@@ -496,7 +514,9 @@ function Monitoring() {
 
 			{monitoredEntries.length === 0 ? (
 				<div className='monitoring-state-card empty'>
-					<strong>No monitored projects match the current view.</strong>
+					<strong>
+						No monitored projects match the current view.
+					</strong>
 					<p>
 						Create or start a website project with dashboard-managed
 						services to populate this monitoring workspace.
@@ -516,12 +536,14 @@ function Monitoring() {
 						return (
 							<article
 								key={project.name}
-								className='monitoring-project-card'>
+								className='monitoring-project-card'
+							>
 								<div className='monitoring-project-head'>
 									<div className='monitoring-project-copy'>
 										<div className='monitoring-chip-row'>
 											<span
-												className={`monitoring-runtime-pill status-${project.status}`}>
+												className={`monitoring-runtime-pill status-${project.status}`}
+											>
 												{getRuntimeStatusLabel(
 													project.status,
 												)}
@@ -529,7 +551,8 @@ function Monitoring() {
 											<span
 												className={`monitoring-health-pill tone-${getMonitoringTone(
 													monitoring.status,
-												)}`}>
+												)}`}
+											>
 												<MonitorHeartRounded fontSize='inherit' />
 												{getMonitoringStatusLabel(
 													monitoring.status,
@@ -543,7 +566,8 @@ function Monitoring() {
 									<div className='monitoring-project-actions'>
 										<Link
 											to={`/projects/${encodeURIComponent(project.name)}`}
-											className='monitoring-primary-link'>
+											className='monitoring-primary-link'
+										>
 											<ArrowOutwardRounded fontSize='small' />
 											Open project
 										</Link>
@@ -552,7 +576,8 @@ function Monitoring() {
 												href={project.frontendUrl}
 												target='_blank'
 												rel='noopener noreferrer'
-												className='monitoring-quiet-link'>
+												className='monitoring-quiet-link'
+											>
 												Frontend
 											</a>
 										)}
@@ -561,7 +586,8 @@ function Monitoring() {
 												href={project.backendUrl}
 												target='_blank'
 												rel='noopener noreferrer'
-												className='monitoring-quiet-link'>
+												className='monitoring-quiet-link'
+											>
 												Backend
 											</a>
 										)}
@@ -624,7 +650,8 @@ function Monitoring() {
 										{alerts.map((alert) => (
 											<div
 												key={`${project.name}-${alert}`}
-												className='monitoring-inline-alert'>
+												className='monitoring-inline-alert'
+											>
 												<WarningAmberRounded fontSize='small' />
 												<span>{alert}</span>
 											</div>
@@ -642,7 +669,8 @@ function Monitoring() {
 										return (
 											<div
 												key={`${project.name}-${service.key}`}
-												className='monitoring-service-card'>
+												className='monitoring-service-card'
+											>
 												<div className='monitoring-service-head'>
 													<div className='monitoring-service-copy'>
 														<span className='monitoring-service-kind'>
@@ -666,13 +694,15 @@ function Monitoring() {
 															service.running
 																? 'running'
 																: 'stopped'
-														}`}>
+														}`}
+													>
 														{service.running
 															? 'Live'
 															: 'Stopped'}
 													</span>
 													<span
-														className={`monitoring-health-pill tone-${healthTone}`}>
+														className={`monitoring-health-pill tone-${healthTone}`}
+													>
 														<MonitorHeartRounded fontSize='inherit' />
 														{getMonitoringStatusLabel(
 															service.monitoring
@@ -711,7 +741,9 @@ function Monitoring() {
 														</strong>
 													</div>
 													<div className='monitoring-service-metric'>
-														<span>Failed checks</span>
+														<span>
+															Failed checks
+														</span>
 														<strong>
 															{service.monitoring
 																?.failedRequestCount ||
@@ -740,12 +772,15 @@ function Monitoring() {
 															href={service.url}
 															target='_blank'
 															rel='noopener noreferrer'
-															className='monitoring-quiet-link'>
-															Open {service.label.toLowerCase()}
+															className='monitoring-quiet-link'
+														>
+															Open{' '}
+															{service.label.toLowerCase()}
 														</a>
 													) : (
 														<span className='monitoring-muted-note'>
-															Available from the project workspace
+															Available from the
+															project workspace
 														</span>
 													)}
 												</div>

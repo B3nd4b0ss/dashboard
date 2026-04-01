@@ -198,14 +198,16 @@ function TeamDirectory() {
 					<button
 						type='button'
 						className='secondary-action'
-						onClick={refreshDirectory}>
+						onClick={refreshDirectory}
+					>
 						<RefreshRounded fontSize='small' />
 						Refresh
 					</button>
 					<button
 						type='button'
 						className='primary-action'
-						onClick={openCreateMember}>
+						onClick={openCreateMember}
+					>
 						<PersonAddAltRounded fontSize='small' />
 						New member
 					</button>
@@ -344,7 +346,8 @@ function TeamDirectory() {
 												...previous,
 												accent,
 											}))
-										}>
+										}
+									>
 										{accent}
 									</button>
 								))}
@@ -356,14 +359,16 @@ function TeamDirectory() {
 						<button
 							type='button'
 							className='ghost-button'
-							onClick={closeEditor}>
+							onClick={closeEditor}
+						>
 							Cancel
 						</button>
 						<button
 							type='button'
 							className='primary-action'
 							onClick={saveMember}
-							disabled={savingMember}>
+							disabled={savingMember}
+						>
 							{savingMember
 								? 'Saving...'
 								: editingMember
@@ -379,10 +384,12 @@ function TeamDirectory() {
 					visibleMembers.map((member) => (
 						<article
 							key={member.id}
-							className='member-directory-card'>
+							className='member-directory-card'
+						>
 							<div className='member-directory-head'>
 								<div
-									className={`member-avatar ${member.accent || 'blue'}`}>
+									className={`member-avatar ${member.accent || 'blue'}`}
+								>
 									{getInitials(member.name)}
 								</div>
 								<div className='member-directory-copy'>
@@ -426,7 +433,8 @@ function TeamDirectory() {
 											<Link
 												key={projectName}
 												to={`/projects/${encodeURIComponent(projectName)}`}
-												className='member-project-chip'>
+												className='member-project-chip'
+											>
 												{projectName}
 											</Link>
 										),
@@ -442,7 +450,8 @@ function TeamDirectory() {
 								<button
 									type='button'
 									className='ghost-button'
-									onClick={() => openEditMember(member)}>
+									onClick={() => openEditMember(member)}
+								>
 									<EditRounded fontSize='small' />
 									Edit
 								</button>
@@ -452,7 +461,8 @@ function TeamDirectory() {
 									disabled={
 										busyAction === `delete:${member.id}`
 									}
-									onClick={() => deleteMember(member)}>
+									onClick={() => deleteMember(member)}
+								>
 									<DeleteOutlineRounded fontSize='small' />
 									Delete
 								</button>
@@ -472,7 +482,8 @@ function TeamDirectory() {
 						<button
 							type='button'
 							className='primary-action'
-							onClick={openCreateMember}>
+							onClick={openCreateMember}
+						>
 							<AddRounded fontSize='small' />
 							Add first member
 						</button>

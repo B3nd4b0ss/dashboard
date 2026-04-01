@@ -187,10 +187,12 @@ function DockerStackDetail() {
 			{logsOpen && (
 				<div
 					className='docker-modal-overlay'
-					onClick={() => setLogsOpen(false)}>
+					onClick={() => setLogsOpen(false)}
+				>
 					<div
 						className='docker-modal-card'
-						onClick={(event) => event.stopPropagation()}>
+						onClick={(event) => event.stopPropagation()}
+					>
 						<div className='docker-modal-head'>
 							<div>
 								<span className='section-tag muted'>
@@ -201,7 +203,8 @@ function DockerStackDetail() {
 							<button
 								type='button'
 								className='ghost-button'
-								onClick={() => setLogsOpen(false)}>
+								onClick={() => setLogsOpen(false)}
+							>
 								Close
 							</button>
 						</div>
@@ -232,7 +235,8 @@ function DockerStackDetail() {
 							<div>
 								<div className='docker-chip-row'>
 									<span
-										className={`docker-state-pill state-${stack.state}`}>
+										className={`docker-state-pill state-${stack.state}`}
+									>
 										{getStackStateLabel(stack.state)}
 									</span>
 									<span className='docker-type-pill'>
@@ -336,12 +340,14 @@ function DockerStackDetail() {
 							{stack.services?.map((service) => (
 								<article
 									key={service.id}
-									className='docker-container-card'>
+									className='docker-container-card'
+								>
 									<div className='docker-container-head'>
 										<div>
 											<div className='docker-chip-row'>
 												<span
-													className={`docker-state-pill state-${service.state}`}>
+													className={`docker-state-pill state-${service.state}`}
+												>
 													{getContainerStateLabel(
 														service.state,
 													)}
@@ -421,7 +427,8 @@ function DockerStackDetail() {
 														service.name,
 														'stop',
 													)
-												}>
+												}
+											>
 												<StopRounded fontSize='small' />
 												{busyAction ===
 												`stop:${service.name}`
@@ -441,7 +448,8 @@ function DockerStackDetail() {
 														service.name,
 														'start',
 													)
-												}>
+												}
+											>
 												<PlayArrowRounded fontSize='small' />
 												{busyAction ===
 												`start:${service.name}`
@@ -462,7 +470,8 @@ function DockerStackDetail() {
 													service.name,
 													'restart',
 												)
-											}>
+											}
+										>
 											<RestartAltRounded fontSize='small' />
 											Restart
 										</button>
@@ -472,7 +481,8 @@ function DockerStackDetail() {
 											className='ghost-button'
 											onClick={() =>
 												openLogs(service.name)
-											}>
+											}
+										>
 											<DescriptionRounded fontSize='small' />
 											Logs
 										</button>

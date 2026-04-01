@@ -395,7 +395,8 @@ function Databases() {
 				<div className='terminal-modal' onClick={closeCreateTerminal}>
 					<div
 						className='terminal-container'
-						onClick={(event) => event.stopPropagation()}>
+						onClick={(event) => event.stopPropagation()}
+					>
 						<div className='terminal-header'>
 							<div>
 								<p className='terminal-label'>Provisioning</p>
@@ -404,7 +405,8 @@ function Databases() {
 							<button
 								type='button'
 								onClick={closeCreateTerminal}
-								disabled={isCreatingDatabase}>
+								disabled={isCreatingDatabase}
+							>
 								Close
 							</button>
 						</div>
@@ -418,7 +420,8 @@ function Databases() {
 							{createTerminalOutput.map((entry, index) => (
 								<div
 									key={`${entry.timestamp}-${index}`}
-									className={`terminal-line ${entry.type}`}>
+									className={`terminal-line ${entry.type}`}
+								>
 									<span className='timestamp'>
 										[{entry.timestamp}]
 									</span>
@@ -439,7 +442,8 @@ function Databases() {
 				<div>
 					<button
 						onClick={() => loadDatabases()}
-						className='refresh-all-btn'>
+						className='refresh-all-btn'
+					>
 						🔄 Refresh All
 					</button>
 					<button onClick={() => setShowCreateForm(!showCreateForm)}>
@@ -461,7 +465,8 @@ function Databases() {
 					<button
 						type='button'
 						className='database-context-action'
-						onClick={returnToProjectComposer}>
+						onClick={returnToProjectComposer}
+					>
 						Back to project draft
 					</button>
 				</div>
@@ -528,7 +533,8 @@ function Databases() {
 							type='button'
 							className='database-create-button'
 							onClick={createDatabase}
-							disabled={isCreatingDatabase}>
+							disabled={isCreatingDatabase}
+						>
 							{isCreatingDatabase
 								? 'Creating...'
 								: 'Create database'}
@@ -546,7 +552,8 @@ function Databases() {
 									<a
 										href={`http://localhost:${db.clientPort}`}
 										target='_blank'
-										rel='noopener noreferrer'>
+										rel='noopener noreferrer'
+									>
 										{db.name}
 									</a>
 								) : (
@@ -562,7 +569,8 @@ function Databases() {
 								<button
 									className='refresh-status'
 									onClick={() => refreshStatus(db.id)}
-									title='Refresh status'>
+									title='Refresh status'
+								>
 									⟳
 								</button>
 							</div>
@@ -578,7 +586,8 @@ function Databases() {
 									<a
 										href={`http://localhost:${db.clientPort}`}
 										target='_blank'
-										rel='noopener noreferrer'>
+										rel='noopener noreferrer'
+									>
 										port {db.clientPort}
 									</a>
 								</p>
@@ -592,7 +601,8 @@ function Databases() {
 									</button>
 								) : (
 									<button
-										onClick={() => startDatabase(db.id)}>
+										onClick={() => startDatabase(db.id)}
+									>
 										Start DB
 									</button>
 								)}
@@ -604,7 +614,8 @@ function Databases() {
 							<div className='database-buttons connection-button'>
 								<button
 									className='connection-btn'
-									onClick={() => showConnectionString(db)}>
+									onClick={() => showConnectionString(db)}
+								>
 									🔗 Show Connection String
 								</button>
 							</div>
@@ -623,10 +634,12 @@ function Databases() {
 			{showConnectionModal && selectedDatabase && (
 				<div
 					className='modal-overlay'
-					onClick={() => setShowConnectionModal(false)}>
+					onClick={() => setShowConnectionModal(false)}
+				>
 					<div
 						className='modal-content'
-						onClick={(e) => e.stopPropagation()}>
+						onClick={(e) => e.stopPropagation()}
+					>
 						<div className='modal-header'>
 							<h3>
 								Database Connection String -{' '}
@@ -634,7 +647,8 @@ function Databases() {
 							</h3>
 							<button
 								className='modal-close'
-								onClick={() => setShowConnectionModal(false)}>
+								onClick={() => setShowConnectionModal(false)}
+							>
 								×
 							</button>
 						</div>
@@ -670,7 +684,8 @@ function Databases() {
 										className='copy-btn'
 										onClick={() =>
 											copyToClipboard(selectedDatabase)
-										}>
+										}
+									>
 										{copied
 											? '✓ Copied!'
 											: '📋 Copy Full String'}

@@ -134,15 +134,15 @@ Install these only if you want the matching project types or integrations:
 
 Use the official installers or download pages below:
 
-| Software | Official download page | Notes |
-| --- | --- | --- |
-| Node.js + npm | [nodejs.org/en/download](https://nodejs.org/en/download/) | npm is included with the standard Node.js installer |
-| Git for Windows | [git-scm.com/install/windows](https://git-scm.com/install/windows) | Recommended for local repositories and GitHub publishing |
-| PowerShell 7 | [learn.microsoft.com/powershell/installing-powershell-on-windows](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.5) | Optional if Windows PowerShell 5.1 is already enough for your setup |
-| Docker Desktop | [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/) | Needed only for Docker features |
-| Python for Windows | [python.org/downloads/windows](https://www.python.org/downloads/windows/) | Needed only for Python-based project templates |
-| Java JDK | [adoptium.net/temurin](https://adoptium.net/temurin) | A practical OpenJDK distribution for Java project templates |
-| Apache Maven | [maven.apache.org/download.cgi](https://maven.apache.org/download.cgi) | Needed only for Maven-based Java projects |
+| Software           | Official download page                                                                                                                                                                 | Notes                                                               |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Node.js + npm      | [nodejs.org/en/download](https://nodejs.org/en/download/)                                                                                                                              | npm is included with the standard Node.js installer                 |
+| Git for Windows    | [git-scm.com/install/windows](https://git-scm.com/install/windows)                                                                                                                     | Recommended for local repositories and GitHub publishing            |
+| PowerShell 7       | [learn.microsoft.com/powershell/installing-powershell-on-windows](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.5) | Optional if Windows PowerShell 5.1 is already enough for your setup |
+| Docker Desktop     | [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/)                                                                                                  | Needed only for Docker features                                     |
+| Python for Windows | [python.org/downloads/windows](https://www.python.org/downloads/windows/)                                                                                                              | Needed only for Python-based project templates                      |
+| Java JDK           | [adoptium.net/temurin](https://adoptium.net/temurin)                                                                                                                                   | A practical OpenJDK distribution for Java project templates         |
+| Apache Maven       | [maven.apache.org/download.cgi](https://maven.apache.org/download.cgi)                                                                                                                 | Needed only for Maven-based Java projects                           |
 
 ### Common Windows Install Locations
 

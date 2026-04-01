@@ -10,4 +10,13 @@ export default defineConfig({
 		strictPort: true,
 	},
 	plugins: [react(), babel({ presets: [reactCompilerPreset()] })],
+	test: {
+		environment: 'jsdom',
+		setupFiles: './src/test/setup.js',
+		css: true,
+		pool: 'threads',
+		fileParallelism: false,
+		maxWorkers: 1,
+		minWorkers: 1,
+	},
 });

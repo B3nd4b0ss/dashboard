@@ -600,7 +600,8 @@ function Layout() {
 						if (window.innerWidth <= 1080) {
 							closeMobileSidebar();
 						}
-					}}>
+					}}
+				>
 					<span className='sidebar-link-icon'>
 						<Icon fontSize='small' />
 					</span>
@@ -615,7 +616,8 @@ function Layout() {
 		<div
 			className={`workspace-layout ${darkMode ? 'dark' : ''} ${
 				sidebarCollapsed ? 'sidebar-collapsed' : ''
-			} ${mobileSidebarOpen ? 'mobile-open' : ''}`}>
+			} ${mobileSidebarOpen ? 'mobile-open' : ''}`}
+		>
 			<div
 				className={`sidebar-overlay ${
 					mobileSidebarOpen ? 'visible' : ''
@@ -641,7 +643,8 @@ function Layout() {
 						<button
 							type='button'
 							className='sidebar-icon-button mobile-only'
-							onClick={closeMobileSidebar}>
+							onClick={closeMobileSidebar}
+						>
 							<CloseRounded fontSize='small' />
 						</button>
 						<button
@@ -649,7 +652,8 @@ function Layout() {
 							className='sidebar-icon-button desktop-only'
 							onClick={() =>
 								setSidebarCollapsed((value) => !value)
-							}>
+							}
+						>
 							{sidebarCollapsed ? (
 								<ChevronRightRounded fontSize='small' />
 							) : (
@@ -689,7 +693,8 @@ function Layout() {
 					<button
 						type='button'
 						className='sidebar-icon-button'
-						onClick={() => setDarkMode((value) => !value)}>
+						onClick={() => setDarkMode((value) => !value)}
+					>
 						{darkMode ? (
 							<LightModeRounded fontSize='small' />
 						) : (
@@ -705,7 +710,8 @@ function Layout() {
 						<button
 							type='button'
 							className='topbar-menu-button'
-							onClick={() => setMobileSidebarOpen(true)}>
+							onClick={() => setMobileSidebarOpen(true)}
+						>
 							<MenuRounded fontSize='small' />
 						</button>
 						<div className='page-copy'>
@@ -719,7 +725,8 @@ function Layout() {
 						<form
 							className='topbar-search'
 							role='search'
-							onSubmit={handleTopbarSearchSubmit}>
+							onSubmit={handleTopbarSearchSubmit}
+						>
 							<SearchRounded fontSize='small' />
 							<input
 								ref={topbarSearchInputRef}
@@ -746,13 +753,15 @@ function Layout() {
 						</form>
 
 						<div
-							className={`notification-shell ${notificationsOpen ? 'open' : ''}`}>
+							className={`notification-shell ${notificationsOpen ? 'open' : ''}`}
+						>
 							<button
 								type='button'
 								className='topbar-icon-button'
 								onClick={() => {
 									setNotificationsOpen((value) => !value);
-								}}>
+								}}
+							>
 								<NotificationsRounded fontSize='small' />
 								{unreadCount > 0 && (
 									<span className='notification-indicator'>
@@ -772,7 +781,8 @@ function Layout() {
 											<button
 												type='button'
 												className='notification-clear-button'
-												onClick={clearNotifications}>
+												onClick={clearNotifications}
+											>
 												<DeleteSweepRounded fontSize='small' />
 												Clear
 											</button>
@@ -786,9 +796,11 @@ function Layout() {
 													key={entry.id}
 													className={`notification-card ${entry.type} ${
 														entry.read ? 'read' : ''
-													}`}>
+													}`}
+												>
 													<div
-														className={`notification-icon ${entry.type}`}>
+														className={`notification-icon ${entry.type}`}
+													>
 														{entry.type ===
 														'crash' ? (
 															<WarningAmberRounded fontSize='small' />

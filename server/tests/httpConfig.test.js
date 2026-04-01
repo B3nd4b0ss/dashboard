@@ -54,17 +54,19 @@ test('createCorsOptions rejects disallowed origins with a 403-style error', asyn
 	await assert.rejects(
 		() =>
 			new Promise((resolve, reject) => {
-				options.origin('https://evil.example.test', (error, allowed) => {
-					if (error) {
-						reject(error);
-						return;
-					}
+				options.origin(
+					'https://evil.example.test',
+					(error, allowed) => {
+						if (error) {
+							reject(error);
+							return;
+						}
 
-					resolve(allowed);
-				});
+						resolve(allowed);
+					},
+				);
 			}),
 		(error) =>
-			error?.statusCode === 403 &&
-			error?.code === 'CORS_ORIGIN_DENIED',
+			error?.statusCode === 403 && error?.code === 'CORS_ORIGIN_DENIED',
 	);
 });

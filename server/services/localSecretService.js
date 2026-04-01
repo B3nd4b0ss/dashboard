@@ -92,7 +92,7 @@ function encryptWithWindowsProfile(value) {
  */
 function decryptWithWindowsProfile(value) {
 	return runPowerShellCommand(
-		"$secure = ConvertTo-SecureString -String $env:DASHBOARD_SECRET_BLOB; $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure); try { [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) } finally { if ($bstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) } }",
+		'$secure = ConvertTo-SecureString -String $env:DASHBOARD_SECRET_BLOB; $bstr = [Runtime.InteropServices.Marshal]::SecureStringToBSTR($secure); try { [Runtime.InteropServices.Marshal]::PtrToStringBSTR($bstr) } finally { if ($bstr -ne [IntPtr]::Zero) { [Runtime.InteropServices.Marshal]::ZeroFreeBSTR($bstr) } }',
 		{
 			DASHBOARD_SECRET_BLOB: value,
 		},

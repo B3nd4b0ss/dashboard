@@ -854,4 +854,16 @@ module.exports = {
 	renameProjectTasks,
 	deleteTasksForProject,
 	unassignTasksForMember,
+	__test__: {
+		buildTaskKeyPrefix,
+		decorateTask,
+		getNextTicketNumber,
+		isTaskOverdue,
+		normalizeDueDate,
+		normalizePersistedTasks,
+		normalizeTaskPriority,
+		normalizeTaskStatus,
+		normalizeTaskType,
+		sortTasks,
+	},
 };

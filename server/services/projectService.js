@@ -1,6 +1,5 @@
 const fs = require('fs-extra');
 const path = require('path');
-const { spawn } = require('child_process');
 const { loadProjects, saveProjects } = require('../utils/fileOperations');
 const { findProject } = require('../utils/helpers');
 const { getDatabaseById } = require('./databaseService');
@@ -10,16 +9,13 @@ const {
 	getProjectRuntimeSnapshot,
 } = require('./runtimeRegistry');
 const { startProject, stopProject } = require('./projectLifecycle');
-const { assertPortAvailable, normalizePort } = require('./portRegistry');
 const {
-	getProjectTaskSummary,
 	getProjectTaskSummaryMap,
 	renameProjectTasks,
 	deleteTasksForProject,
 } = require('./taskService');
 const {
 	getProjectMonitoringMap,
-	createProjectMonitoringSnapshot,
 	invalidateProjectWorkspaceMetrics,
 	renameProjectMonitoringState,
 	clearProjectMonitoringState,
@@ -27,10 +23,6 @@ const {
 const {
 	getFrontendTemplateDefinition,
 	getBackendTemplateDefinition,
-	templateRequiresPort,
-	templateHasManagedService,
-	getProjectCommandPresets,
-	getPrimaryProjectCommandPresetId,
 } = require('./projectTemplates');
 const {
 	getJavaQualifiedMainClass,
@@ -44,123 +36,21 @@ const {
 	publishProjectRepository,
 } = require('./projectRepositoryService');
 const {
+	createViteProject,
+	installProjectDependencies,
+} = require('./processRunner');
+const { decorateProject } = require('./projectPresenter');
+const {
+	ensureSupportedProjectTemplates,
+	validateProjectPorts,
+} = require('./projectValidator');
+const {
 	buildProjectPath,
 	getProjectLocation,
 	getProjectPath,
 	isPathInside,
 	pathsEqual,
 } = require('../utils/projectPaths');
-
-/**
- * Resolves the best npm launcher available on the current machine.
- *
- * @returns {string} Absolute path or executable name used for npm commands.
- */
-function resolveNpmCommand() {
-	if (process.platform !== 'win32') {
-		return 'npm';
-	}
-
-	const candidateDirectories = [
-		process.env.NVM_SYMLINK,
-		process.env.NVM_HOME,
-		...(process.env.PATH || '').split(path.delimiter),
-	]
-		.map((entry) => entry && entry.trim())
-		.filter(Boolean);
-
-	const seenDirectories = new Set();
-	for (const directory of candidateDirectories) {
-		const normalizedDirectory = directory.toLowerCase();
-		if (seenDirectories.has(normalizedDirectory)) {
-			continue;
-		}
-
-		seenDirectories.add(normalizedDirectory);
-
-		const candidate = path.join(directory, 'npm.cmd');
-		if (fs.existsSync(candidate)) {
-			return candidate;
-		}
-	}
-
-	return 'npm.cmd';
-}
-
-const NPM_COMMAND = resolveNpmCommand();
-const COMMAND_SHELL = process.env.ComSpec || 'C:\\Windows\\System32\\cmd.exe';
-const WINDOWS_NPM_CLI =
-	process.platform === 'win32' && path.isAbsolute(NPM_COMMAND)
-		? path.join(
-				path.dirname(NPM_COMMAND),
-				'node_modules',
-				'npm',
-				'bin',
-				'npm-cli.js',
-			)
-		: null;
-
-/**
- * Escapes a value for safe embedding inside a Windows `cmd.exe` command line.
- *
- * @param {unknown} value - Raw argument value to escape.
- * @returns {string} Escaped command-line token.
- */
-function quoteForCmd(value) {
-	const stringValue = String(value);
-	if (!/[\s"&^<>|()]/.test(stringValue)) {
-		return stringValue;
-	}
-
-	return `"${stringValue.replace(/"/g, '""')}"`;
-}
-
-/**
- * Spawns a child process without opening a visible Windows console window.
- *
- * @param {string} command - Executable to run.
- * @param {string[]} args - Arguments passed to the executable.
- * @param {object} [options={}] - Additional spawn options.
- * @returns {import('child_process').ChildProcess} Spawned child process.
- */
-function spawnHidden(command, args, options = {}) {
-	return spawn(command, args, {
-		shell: false,
-		windowsHide: true,
-		...options,
-	});
-}
-
-/**
- * Spawns npm using the most reliable launcher for the current platform.
- *
- * @param {string[]} args - npm arguments without the base executable.
- * @param {object} [options={}] - Additional spawn options.
- * @returns {import('child_process').ChildProcess} Spawned npm process.
- */
-function spawnNpm(args, options = {}) {
-	if (process.platform === 'win32' && WINDOWS_NPM_CLI) {
-		return spawnHidden(
-			process.execPath,
-			[WINDOWS_NPM_CLI, ...args],
-			options,
-		);
-	}
-
-	if (process.platform === 'win32') {
-		const invocation = [
-			quoteForCmd(NPM_COMMAND),
-			...args.map(quoteForCmd),
-		].join(' ');
-		return spawnHidden(
-			COMMAND_SHELL,
-			['/d', '/s', '/c', `"${invocation}"`],
-			options,
-		);
-	}
-
-	return spawnHidden(NPM_COMMAND, args, options);
-}
 
 /**
  * Removes persisted metadata and files after a partially failed project creation.
@@ -178,130 +68,6 @@ async function cleanupFailedProjectCreation(projectName, projectPath) {
 	if (await fs.pathExists(projectPath)) {
 		await fs.remove(projectPath);
 	}
-}
-
-/**
- * Enriches a stored project record with runtime, monitoring, task, and command metadata.
- *
- * @param {object} project - Persisted project record.
- * @param {Map<string, object> | null} [taskSummaryMap=null] - Optional precomputed task summaries keyed by project name.
- * @param {object | null} [runtimeSnapshot=null] - Optional precomputed runtime snapshot.
- * @param {Map<string, object> | null} [monitoringMap=null] - Optional monitoring snapshots keyed by project name.
- * @returns {object} Decorated project payload returned by the API.
- */
-function decorateProject(
-	project,
-	taskSummaryMap = null,
-	runtimeSnapshot = null,
-	monitoringMap = null,
-) {
-	const result = { ...project };
-
-	if (project.databaseId) {
-		const db = getDatabaseById(project.databaseId);
-		if (db) {
-			result.database = db;
-		}
-	}
-
-	const runtime = runtimeSnapshot || getProjectRuntimeSnapshot(project);
-	result.runtime = runtime;
-	result.status = runtime.status;
-	result.frontendUrl = runtime.services.frontend?.url || null;
-	result.backendUrl = runtime.services.backend?.url || null;
-	result.projectPath = getProjectPath(project);
-	result.projectLocation = getProjectLocation(project);
-	result.monitoring =
-		monitoringMap?.get(project.name.toLowerCase()) ||
-		createProjectMonitoringSnapshot(project, runtime);
-	result.taskSummary =
-		taskSummaryMap?.get(project.name.toLowerCase()) ||
-		getProjectTaskSummary(project.name);
-	result.commandPresets = getProjectCommandPresets(project);
-	result.primaryCommandPresetId = getPrimaryProjectCommandPresetId(project);
-	result.hasManagedServices = runtime.expectedServiceCount > 0;
-
-	return result;
-}
-
-/**
- * Normalizes the frontend and backend ports required by a template selection.
- *
- * @param {{frontend?: string | null, backend?: string | null, frontendPort?: string | number | null, backendPort?: string | number | null}} options - Template and port inputs from the client.
- * @returns {{frontendPort: number | null, backendPort: number | null}} Normalized ports for the selected templates.
- */
-function resolveProjectPorts({ frontend, backend, frontendPort, backendPort }) {
-	const frontendDefinition = getFrontendTemplateDefinition(frontend);
-	const backendDefinition = getBackendTemplateDefinition(backend);
-	const resolvedFrontendPort = templateRequiresPort(frontendDefinition)
-		? normalizePort(frontendPort, 'Frontend port')
-		: null;
-	const resolvedBackendPort = templateRequiresPort(backendDefinition)
-		? normalizePort(backendPort, 'Backend port')
-		: null;
-
-	if (
-		templateRequiresPort(frontendDefinition) &&
-		templateRequiresPort(backendDefinition) &&
-		resolvedFrontendPort === resolvedBackendPort
-	) {
-		throw new Error('Frontend and backend ports must be different');
-	}
-
-	return {
-		frontendPort: resolvedFrontendPort,
-		backendPort: resolvedBackendPort,
-	};
-}
-
-/**
- * Validates project ports against current system usage and persisted assignments.
- *
- * @param {{frontend?: string | null, backend?: string | null, frontendPort?: string | number | null, backendPort?: string | number | null, excludeProjectName?: string | null, currentFrontendPort?: number | null, currentBackendPort?: number | null}} options - Template, port, and exclusion inputs.
- * @returns {{frontendPort: number | null, backendPort: number | null}} Validated ports for the selected templates.
- */
-function validateProjectPorts({
-	frontend,
-	backend,
-	frontendPort,
-	backendPort,
-	excludeProjectName = null,
-	currentFrontendPort = null,
-	currentBackendPort = null,
-}) {
-	const resolvedPorts = resolveProjectPorts({
-		frontend,
-		backend,
-		frontendPort,
-		backendPort,
-	});
-
-	if (
-		resolvedPorts.frontendPort !== null &&
-		resolvedPorts.frontendPort !== currentFrontendPort
-	) {
-		assertPortAvailable(resolvedPorts.frontendPort, {
-			label: 'Frontend port',
-			excludeProjectName,
-		});
-	}
-
-	if (
-		resolvedPorts.backendPort !== null &&
-		resolvedPorts.backendPort !== currentBackendPort
-	) {
-		assertPortAvailable(resolvedPorts.backendPort, {
-			label: 'Backend port',
-			excludeProjectName,
-		});
-	}
-
-	return resolvedPorts;
-}
-
-function ensureSupportedProjectTemplates({ frontend, backend }) {
-	getFrontendTemplateDefinition(frontend);
-	getBackendTemplateDefinition(backend);
 }
 
 // ---------- Basic Project Operations ----------
@@ -1793,44 +1559,6 @@ async function moveGeneratedTemplateIfNeeded(frontendPath, name) {
 	await fs.remove(nestedPath);
 }
 
-async function installProjectDependencies(targetPath, eventEmitter = null) {
-	await new Promise((resolve, reject) => {
-		const installProc = spawnNpm(['install'], {
-			cwd: targetPath,
-			stdio: eventEmitter ? ['ignore', 'pipe', 'pipe'] : 'inherit',
-		});
-
-		if (eventEmitter) {
-			installProc.stdout.on('data', (data) => {
-				const output = data.toString().trim();
-				if (
-					output &&
-					!output.includes('npm notice') &&
-					!output.includes('npm WARN')
-				) {
-					eventEmitter.emit('log', `  ${output}`);
-				}
-			});
-			installProc.stderr.on('data', (data) => {
-				const output = data.toString().trim();
-				if (output && !output.includes('npm WARN')) {
-					eventEmitter.emit('log', `  warning: ${output}`);
-				}
-			});
-		}
-
-		installProc.on('close', (code) => {
-			if (code === 0) {
-				resolve();
-				return;
-			}
-
-			reject(new Error(`npm install failed with code ${code}`));
-		});
-		installProc.on('error', reject);
-	});
-}
-
 function buildExpressEntryContent(name, port, linkedDatabase) {
 	const header = `
 require('dotenv').config();
@@ -3106,32 +2834,7 @@ async function createFrontend(projectPath, name, template, scaffold = null) {
 		return;
 	}
 
-	await new Promise((resolve, reject) => {
-		const proc = spawnNpm(
-			[
-				'create',
-				'vite@latest',
-				'.',
-				'--',
-				'--template',
-				templateDefinition.viteTemplate,
-			],
-			{
-				cwd: frontendPath,
-				stdio: 'inherit',
-			},
-		);
-		proc.on('close', (code) => {
-			if (code === 0) {
-				resolve();
-				return;
-			}
-
-			reject(new Error(`Vite creation failed with code ${code}`));
-		});
-		proc.on('error', reject);
-	});
-
+	await createViteProject(frontendPath, templateDefinition.viteTemplate);
 	await moveGeneratedTemplateIfNeeded(frontendPath, name);
 	await applyFrontendMetadata(frontendPath, name, scaffold);
 	await installProjectDependencies(frontendPath);
@@ -3157,47 +2860,11 @@ async function createFrontendWithStream(
 	}
 
 	eventEmitter.emit('log', '  Creating Vite project...');
-
-	await new Promise((resolve, reject) => {
-		const proc = spawnNpm(
-			[
-				'create',
-				'vite@latest',
-				'.',
-				'--',
-				'--template',
-				templateDefinition.viteTemplate,
-			],
-			{
-				cwd: frontendPath,
-				stdio: ['ignore', 'pipe', 'pipe'],
-			},
-		);
-
-		proc.stdout.on('data', (data) => {
-			const output = data.toString().trim();
-			if (output) {
-				eventEmitter.emit('log', `  ${output}`);
-			}
-		});
-		proc.stderr.on('data', (data) => {
-			const output = data.toString().trim();
-			if (output) {
-				eventEmitter.emit('log', `  warning: ${output}`);
-			}
-		});
-
-		proc.on('close', (code) => {
-			if (code === 0) {
-				resolve();
-				return;
-			}
-
-			reject(new Error(`Vite creation failed with code ${code}`));
-		});
-		proc.on('error', reject);
-	});
-
+	await createViteProject(
+		frontendPath,
+		templateDefinition.viteTemplate,
+		eventEmitter,
+	);
 	await moveGeneratedTemplateIfNeeded(frontendPath, name);
 	await applyFrontendMetadata(frontendPath, name, scaffold);
 	eventEmitter.emit('log', '  Installing frontend dependencies...');

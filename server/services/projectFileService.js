@@ -58,7 +58,7 @@ function normalizeRelativePath(relativePath = '') {
 		return '';
 	}
 
-	if (path.posix.isAbsolute(trimmed)) {
+	if (path.posix.isAbsolute(trimmed) || /^[A-Za-z]:\//.test(trimmed)) {
 		throw new Error('Absolute paths are not allowed');
 	}
 

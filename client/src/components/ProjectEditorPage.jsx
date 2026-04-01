@@ -18,13 +18,15 @@ function ProjectEditorPage() {
 			<div className='project-editor-nav'>
 				<Link
 					to={`/projects/${encodeURIComponent(projectName)}`}
-					className='project-editor-back-link'>
+					className='project-editor-back-link'
+				>
 					<ArrowBackRounded fontSize='small' />
 					Back to project
 				</Link>
 				<Link
 					to='/projects'
-					className='project-editor-back-link subtle'>
+					className='project-editor-back-link subtle'
+				>
 					<ArrowOutwardRounded fontSize='small' />
 					All projects
 				</Link>

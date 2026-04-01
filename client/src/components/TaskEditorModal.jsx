@@ -57,7 +57,8 @@ function TaskEditorModal({
 		<div className='task-modal-overlay' onClick={onClose}>
 			<div
 				className='task-modal-card'
-				onClick={(event) => event.stopPropagation()}>
+				onClick={(event) => event.stopPropagation()}
+			>
 				<div className='task-modal-header'>
 					<div>
 						<span className='section-tag muted'>Ticket Editor</span>
@@ -70,7 +71,8 @@ function TaskEditorModal({
 					<button
 						type='button'
 						className='ghost-button'
-						onClick={onClose}>
+						onClick={onClose}
+					>
 						Close
 					</button>
 				</div>
@@ -203,14 +205,16 @@ function TaskEditorModal({
 					<button
 						type='button'
 						className='ghost-button'
-						onClick={onClose}>
+						onClick={onClose}
+					>
 						Cancel
 					</button>
 					<button
 						type='button'
 						className='primary-action'
 						onClick={onSave}
-						disabled={savingTask}>
+						disabled={savingTask}
+					>
 						{savingTask
 							? 'Saving...'
 							: editingTask

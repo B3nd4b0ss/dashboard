@@ -28,6 +28,10 @@ import {
 	getTaskStatusLabel,
 	getTaskTypeLabel,
 } from '../utils/taskPresentation';
+import {
+	isPortCheckBlocking,
+	usePortAvailability,
+} from '../utils/portAvailability';
 import './ProjectDetail.css';
 
 const API = API_BASE_URL;
@@ -244,6 +248,33 @@ function ProjectDetail() {
 	const [logsError, setLogsError] = useState('');
 	const [selectedLogService, setSelectedLogService] = useState('');
 	const [folderPickerBusy, setFolderPickerBusy] = useState(false);
+	const canEditFrontendPort = Boolean(project?.frontend);
+	const canEditBackendPort = Boolean(project?.backend);
+	const editPortConflictMessage =
+		editMode &&
+		canEditFrontendPort &&
+		canEditBackendPort &&
+		String(edited.frontendPort || '').trim() &&
+		String(edited.backendPort || '').trim() &&
+		String(edited.frontendPort).trim() === String(edited.backendPort).trim()
+			? 'Frontend and backend ports must be different.'
+			: '';
+	const frontendPortCheck = usePortAvailability({
+		port: edited.frontendPort,
+		label: 'Frontend port',
+		enabled: editMode && canEditFrontendPort,
+		currentPort: project?.frontendPort,
+		excludeProjectName: project?.name,
+		localConflictMessage: editPortConflictMessage,
+	});
+	const backendPortCheck = usePortAvailability({
+		port: edited.backendPort,
+		label: 'Backend port',
+		enabled: editMode && canEditBackendPort,
+		currentPort: project?.backendPort,
+		excludeProjectName: project?.name,
+		localConflictMessage: editPortConflictMessage,
+	});
 
 	const getDefaultLogService = (nextProject = project) => {
 		if (nextProject?.frontend) {
@@ -442,8 +473,6 @@ function ProjectDetail() {
 	};
 
 	const saveChanges = async () => {
-		const canEditFrontendPort = Boolean(services.frontend);
-		const canEditBackendPort = Boolean(services.backend);
 		const projectScaffold = getProjectScaffold(project);
 		const isJavaProject = ['java', 'java-console', 'java-maven'].includes(
 			project.backend,
@@ -462,6 +491,22 @@ function ProjectDetail() {
 			String(edited.frontendPort) === String(edited.backendPort)
 		) {
 			alert('Frontend and backend ports must be different.');
+			return;
+		}
+
+		if (canEditFrontendPort && isPortCheckBlocking(frontendPortCheck)) {
+			alert(
+				frontendPortCheck.message ||
+					'Please choose a valid frontend port first.',
+			);
+			return;
+		}
+
+		if (canEditBackendPort && isPortCheckBlocking(backendPortCheck)) {
+			alert(
+				backendPortCheck.message ||
+					'Please choose a valid backend port first.',
+			);
 			return;
 		}
 
@@ -615,6 +660,13 @@ function ProjectDetail() {
 		project.backend,
 	);
 	const isMavenProject = project.backend === 'java-maven';
+	const detailHasBlockingPortCheck =
+		(editMode &&
+			canEditFrontendPort &&
+			isPortCheckBlocking(frontendPortCheck)) ||
+		(editMode &&
+			canEditBackendPort &&
+			isPortCheckBlocking(backendPortCheck));
 	const summaryTiles = showMonitoring
 		? [
 				{ label: 'Launch mode', value: launchLabel },
@@ -678,10 +730,12 @@ function ProjectDetail() {
 			{showConnectionModal && connectionInfo && (
 				<div
 					className='modal-overlay'
-					onClick={() => setShowConnectionModal(false)}>
+					onClick={() => setShowConnectionModal(false)}
+				>
 					<div
 						className='modal-content'
-						onClick={(event) => event.stopPropagation()}>
+						onClick={(event) => event.stopPropagation()}
+					>
 						<div className='modal-header'>
 							<div>
 								<span className='modal-label'>
@@ -692,7 +746,8 @@ function ProjectDetail() {
 							<button
 								type='button'
 								className='modal-close'
-								onClick={() => setShowConnectionModal(false)}>
+								onClick={() => setShowConnectionModal(false)}
+							>
 								X
 							</button>
 						</div>
@@ -717,10 +772,12 @@ function ProjectDetail() {
 			{showLogModal && (
 				<div
 					className='modal-overlay'
-					onClick={() => setShowLogModal(false)}>
+					onClick={() => setShowLogModal(false)}
+				>
 					<div
 						className='modal-content log-modal-content'
-						onClick={(event) => event.stopPropagation()}>
+						onClick={(event) => event.stopPropagation()}
+					>
 						<div className='modal-header log-modal-header'>
 							<div>
 								<span className='modal-label'>
@@ -737,14 +794,16 @@ function ProjectDetail() {
 											preferredService:
 												selectedLogService,
 										})
-									}>
+									}
+								>
 									<RefreshRounded fontSize='small' />
 									Refresh
 								</button>
 								<button
 									type='button'
 									className='modal-close'
-									onClick={() => setShowLogModal(false)}>
+									onClick={() => setShowLogModal(false)}
+								>
 									X
 								</button>
 							</div>
@@ -767,7 +826,8 @@ function ProjectDetail() {
 												setSelectedLogService(
 													option.key,
 												)
-											}>
+											}
+										>
 											<TabIcon fontSize='small' />
 											<span>{option.label}</span>
 											<strong>
@@ -815,7 +875,8 @@ function ProjectDetail() {
 												copyLogsToClipboard(
 													selectedLog.content,
 												)
-											}>
+											}
+										>
 											Copy logs
 										</button>
 									)}
@@ -895,7 +956,8 @@ function ProjectDetail() {
 											)}/stop`,
 										),
 									)
-								}>
+								}
+							>
 								{busyAction === 'stop'
 									? 'Stopping...'
 									: 'Stop project'}
@@ -913,7 +975,8 @@ function ProjectDetail() {
 											)}/start`,
 										),
 									)
-								}>
+								}
+							>
 								{busyAction === 'start'
 									? 'Starting...'
 									: isPartial
@@ -924,7 +987,8 @@ function ProjectDetail() {
 					) : (
 						<Link
 							to={`/projects/${encodeURIComponent(project.name)}/editor`}
-							className='success-button'>
+							className='success-button'
+						>
 							Run in editor
 						</Link>
 					)}
@@ -934,7 +998,8 @@ function ProjectDetail() {
 							href={project.frontendUrl}
 							target='_blank'
 							rel='noopener noreferrer'
-							className='ghost-link'>
+							className='ghost-link'
+						>
 							Open frontend
 						</a>
 					)}
@@ -944,7 +1009,8 @@ function ProjectDetail() {
 							href={project.backendUrl}
 							target='_blank'
 							rel='noopener noreferrer'
-							className='ghost-link'>
+							className='ghost-link'
+						>
 							Open backend
 						</a>
 					)}
@@ -954,13 +1020,15 @@ function ProjectDetail() {
 						className='ghost-button'
 						onClick={() =>
 							window.open(`vscode://file/${project.projectPath}`)
-						}>
+						}
+					>
 						Open code
 					</button>
 
 					<Link
 						to={`/projects/${encodeURIComponent(project.name)}/editor`}
-						className='ghost-link'>
+						className='ghost-link'
+					>
 						Open editor
 					</Link>
 
@@ -968,7 +1036,8 @@ function ProjectDetail() {
 						<button
 							type='button'
 							className='ghost-button'
-							onClick={() => openLogs()}>
+							onClick={() => openLogs()}
+						>
 							<TerminalRounded fontSize='small' />
 							Runtime logs
 						</button>
@@ -1009,7 +1078,8 @@ function ProjectDetail() {
 											services.frontend?.running
 												? 'running'
 												: 'stopped'
-										}`}>
+										}`}
+									>
 										{services.frontend?.running
 											? 'Live'
 											: 'Stopped'}
@@ -1018,7 +1088,8 @@ function ProjectDetail() {
 										className={`health-state ${
 											monitoringServices.frontend
 												?.healthStatus || 'offline'
-										}`}>
+										}`}
+									>
 										<MonitorHeartRounded fontSize='inherit' />
 										{getMonitoringStatusLabel(
 											monitoringServices.frontend
@@ -1086,7 +1157,8 @@ function ProjectDetail() {
 									<button
 										type='button'
 										className='ghost-button'
-										onClick={() => openLogs('frontend')}>
+										onClick={() => openLogs('frontend')}
+									>
 										<TerminalRounded fontSize='small' />
 										View logs
 									</button>
@@ -1107,7 +1179,8 @@ function ProjectDetail() {
 											services.backend?.running
 												? 'running'
 												: 'stopped'
-										}`}>
+										}`}
+									>
 										{services.backend?.running
 											? 'Live'
 											: 'Stopped'}
@@ -1117,7 +1190,8 @@ function ProjectDetail() {
 											className={`health-state ${
 												monitoringServices.backend
 													?.healthStatus || 'offline'
-											}`}>
+											}`}
+										>
 											<MonitorHeartRounded fontSize='inherit' />
 											{getMonitoringStatusLabel(
 												monitoringServices.backend
@@ -1220,7 +1294,8 @@ function ProjectDetail() {
 									<button
 										type='button'
 										className='ghost-button'
-										onClick={() => openLogs('backend')}>
+										onClick={() => openLogs('backend')}
+									>
 										<TerminalRounded fontSize='small' />
 										View logs
 									</button>
@@ -1276,7 +1351,8 @@ function ProjectDetail() {
 							<div className='service-card-actions'>
 								<Link
 									to={`/projects/${encodeURIComponent(project.name)}/editor`}
-									className='ghost-link'>
+									className='ghost-link'
+								>
 									<TerminalRounded fontSize='small' />
 									Open editor terminal
 								</Link>
@@ -1387,7 +1463,8 @@ function ProjectDetail() {
 						</div>
 						<Link
 							to={`/tasks?project=${encodeURIComponent(project.name)}`}
-							className='ghost-link'>
+							className='ghost-link'
+						>
 							<ArrowOutwardRounded fontSize='small' />
 							Open task board
 						</Link>
@@ -1421,7 +1498,8 @@ function ProjectDetail() {
 									<Link
 										key={task.id}
 										to={`/tasks/${encodeURIComponent(task.id)}`}
-										className='detail-task-item'>
+										className='detail-task-item'
+									>
 										<div className='detail-task-copy'>
 											<div className='task-chip-row'>
 												<span className='detail-task-ticket-key'>
@@ -1430,19 +1508,22 @@ function ProjectDetail() {
 												<span
 													className={`detail-task-type-pill type-${
 														task.type || 'task'
-													}`}>
+													}`}
+												>
 													{getTaskTypeLabel(
 														task.type,
 													)}
 												</span>
 												<span
-													className={`task-status-pill status-${task.status}`}>
+													className={`task-status-pill status-${task.status}`}
+												>
 													{getTaskStatusLabel(
 														task.status,
 													)}
 												</span>
 												<span
-													className={`task-priority-pill priority-${task.priority}`}>
+													className={`task-priority-pill priority-${task.priority}`}
+												>
 													{task.priority}
 												</span>
 											</div>
@@ -1473,7 +1554,8 @@ function ProjectDetail() {
 													task.overdue
 														? 'overdue'
 														: ''
-												}`}>
+												}`}
+											>
 												<EventRounded fontSize='inherit' />
 												<span>
 													{task.dueDate ||
@@ -1527,7 +1609,8 @@ function ProjectDetail() {
 									<a
 										href={repository.url}
 										target='_blank'
-										rel='noopener noreferrer'>
+										rel='noopener noreferrer'
+									>
 										{`${repository.owner || 'github'}/${repository.name || 'repo'}`}
 									</a>
 								) : repository?.status === 'local-only' ? (
@@ -1653,7 +1736,8 @@ function ProjectDetail() {
 									<a
 										href={`http://localhost:${project.database.clientPort}`}
 										target='_blank'
-										rel='noopener noreferrer'>
+										rel='noopener noreferrer'
+									>
 										Open on port{' '}
 										{project.database.clientPort}
 									</a>
@@ -1663,7 +1747,8 @@ function ProjectDetail() {
 						<button
 							type='button'
 							className='ghost-button connection-button'
-							onClick={() => setShowConnectionModal(true)}>
+							onClick={() => setShowConnectionModal(true)}
+						>
 							Show connection string
 						</button>
 					</article>
@@ -1691,7 +1776,8 @@ function ProjectDetail() {
 													)}/publish`,
 												),
 											)
-										}>
+										}
+									>
 										{busyAction === 'publish'
 											? 'Publishing...'
 											: 'Publish project'}
@@ -1701,7 +1787,8 @@ function ProjectDetail() {
 									type='button'
 									className='ghost-button'
 									disabled={busyAction === 'publish'}
-									onClick={() => setEditMode(true)}>
+									onClick={() => setEditMode(true)}
+								>
 									Edit project
 								</button>
 							</div>
@@ -1710,7 +1797,9 @@ function ProjectDetail() {
 								<button
 									type='button'
 									className='success-button'
-									onClick={saveChanges}>
+									disabled={detailHasBlockingPortCheck}
+									onClick={saveChanges}
+								>
 									Save changes
 								</button>
 								<button
@@ -1721,7 +1810,8 @@ function ProjectDetail() {
 											buildEditableProject(project),
 										);
 										setEditMode(false);
-									}}>
+									}}
+								>
 									Cancel
 								</button>
 							</div>
@@ -1746,7 +1836,8 @@ function ProjectDetail() {
 										type='button'
 										className='inline-field-action'
 										onClick={browseProjectLocation}
-										disabled={folderPickerBusy}>
+										disabled={folderPickerBusy}
+									>
 										<FolderRounded fontSize='inherit' />
 										{folderPickerBusy
 											? 'Opening...'
@@ -1809,6 +1900,12 @@ function ProjectDetail() {
 											)
 										}
 									/>
+									<small
+										className={`field-help port-check-message ${frontendPortCheck.status}`}
+									>
+										{frontendPortCheck.message ||
+											'This port is checked live while you edit it.'}
+									</small>
 								</label>
 							)}
 							{services.backend && (
@@ -1824,6 +1921,12 @@ function ProjectDetail() {
 											)
 										}
 									/>
+									<small
+										className={`field-help port-check-message ${backendPortCheck.status}`}
+									>
+										{backendPortCheck.message ||
+											'This port is checked live while you edit it.'}
+									</small>
 								</label>
 							)}
 							{isJavaProject && (

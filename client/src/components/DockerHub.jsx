@@ -335,10 +335,12 @@ function DockerHub() {
 			{logsOpen && (
 				<div
 					className='docker-modal-overlay'
-					onClick={() => setLogsOpen(false)}>
+					onClick={() => setLogsOpen(false)}
+				>
 					<div
 						className='docker-modal-card'
-						onClick={(event) => event.stopPropagation()}>
+						onClick={(event) => event.stopPropagation()}
+					>
 						<div className='docker-modal-head'>
 							<div>
 								<span className='section-tag muted'>
@@ -349,7 +351,8 @@ function DockerHub() {
 							<button
 								type='button'
 								className='ghost-button'
-								onClick={() => setLogsOpen(false)}>
+								onClick={() => setLogsOpen(false)}
+							>
 								Close
 							</button>
 						</div>
@@ -382,7 +385,8 @@ function DockerHub() {
 					<button
 						type='button'
 						className='secondary-action'
-						onClick={() => loadOverview()}>
+						onClick={() => loadOverview()}
+					>
 						<RefreshRounded fontSize='small' />
 						Refresh
 					</button>
@@ -542,7 +546,8 @@ function DockerHub() {
 									visibleStacks.map((stack) => (
 										<article
 											key={stack.id}
-											className='docker-stack-card'>
+											className='docker-stack-card'
+										>
 											<div className='docker-stack-head'>
 												<div className='docker-folder-icon'>
 													<FolderRounded />
@@ -550,7 +555,8 @@ function DockerHub() {
 												<div className='docker-stack-copy'>
 													<div className='docker-chip-row'>
 														<span
-															className={`docker-state-pill state-${stack.state}`}>
+															className={`docker-state-pill state-${stack.state}`}
+														>
 															{getStackStateLabel(
 																stack.state,
 															)}
@@ -611,7 +617,8 @@ function DockerHub() {
 														(fileName) => (
 															<span
 																key={`${stack.id}-${fileName}`}
-																className='docker-file-pill'>
+																className='docker-file-pill'
+															>
 																{fileName}
 															</span>
 														),
@@ -622,7 +629,8 @@ function DockerHub() {
 											<div className='docker-stack-actions'>
 												<Link
 													to={`/docker/${encodeURIComponent(stack.id)}`}
-													className='primary-action'>
+													className='primary-action'
+												>
 													<ArrowOutwardRounded fontSize='small' />
 													Open folder
 												</Link>
@@ -664,12 +672,14 @@ function DockerHub() {
 								visibleStandaloneContainers.map((container) => (
 									<article
 										key={container.id}
-										className='docker-container-card'>
+										className='docker-container-card'
+									>
 										<div className='docker-container-head'>
 											<div>
 												<div className='docker-chip-row'>
 													<span
-														className={`docker-state-pill state-${container.state}`}>
+														className={`docker-state-pill state-${container.state}`}
+													>
 														{getContainerStateLabel(
 															container.state,
 														)}
@@ -745,7 +755,8 @@ function DockerHub() {
 															container.name,
 															'stop',
 														)
-													}>
+													}
+												>
 													<StopRounded fontSize='small' />
 													{busyAction ===
 													`stop:${container.name}`
@@ -765,7 +776,8 @@ function DockerHub() {
 															container.name,
 															'start',
 														)
-													}>
+													}
+												>
 													<PlayArrowRounded fontSize='small' />
 													{busyAction ===
 													`start:${container.name}`
@@ -786,7 +798,8 @@ function DockerHub() {
 														container.name,
 														'restart',
 													)
-												}>
+												}
+											>
 												<RestartAltRounded fontSize='small' />
 												Restart
 											</button>
@@ -796,7 +809,8 @@ function DockerHub() {
 												className='ghost-button'
 												onClick={() =>
 													openLogs(container.name)
-												}>
+												}
+											>
 												<DescriptionRounded fontSize='small' />
 												Logs
 											</button>
@@ -837,7 +851,8 @@ function DockerHub() {
 								overview.images.slice(0, 12).map((image) => (
 									<article
 										key={image.id}
-										className='docker-image-card'>
+										className='docker-image-card'
+									>
 										<strong>{image.label}</strong>
 										<p>{image.size}</p>
 										<span>{image.createdSince}</span>

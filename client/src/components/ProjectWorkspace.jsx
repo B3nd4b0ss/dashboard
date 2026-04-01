@@ -501,10 +501,7 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 	}, [projectName]);
 
 	useEffect(() => {
-		if (
-			!terminalExecutionId ||
-			terminalExecutionStatus !== 'running'
-		) {
+		if (!terminalExecutionId || terminalExecutionStatus !== 'running') {
 			return undefined;
 		}
 
@@ -792,12 +789,14 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 							isSelected ? 'active' : ''
 						} ${isDirectory ? 'directory' : 'file'}`}
 						style={{ paddingLeft: `${12 + depth * 16}px` }}
-						onClick={() => handleEntryClick(entry)}>
+						onClick={() => handleEntryClick(entry)}
+					>
 						{isDirectory ? (
 							<span
 								className={`workspace-tree-caret ${
 									isExpanded ? 'expanded' : ''
-								}`}>
+								}`}
+							>
 								<KeyboardArrowRightRounded fontSize='inherit' />
 							</span>
 						) : (
@@ -1022,11 +1021,13 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 
 	return (
 		<div
-			className={`workspace-shell-stack ${standalone ? 'standalone' : ''}`}>
+			className={`workspace-shell-stack ${standalone ? 'standalone' : ''}`}
+		>
 			<article
 				className={`detail-card detail-card-wide workspace-editor-card ${
 					standalone ? 'standalone' : ''
-				}`}>
+				}`}
+			>
 				<div className='card-heading card-heading-spread'>
 					<div>
 						<span className='card-label'>Workspace</span>
@@ -1036,21 +1037,24 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 						<button
 							type='button'
 							className='ghost-button'
-							onClick={() => loadWorkspace()}>
+							onClick={() => loadWorkspace()}
+						>
 							<RefreshRounded fontSize='small' />
 							Refresh tree
 						</button>
 						<button
 							type='button'
 							className='ghost-button'
-							onClick={() => openCreateDraft('file')}>
+							onClick={() => openCreateDraft('file')}
+						>
 							<NoteAddRounded fontSize='small' />
 							New file
 						</button>
 						<button
 							type='button'
 							className='ghost-button'
-							onClick={() => openCreateDraft('directory')}>
+							onClick={() => openCreateDraft('directory')}
+						>
 							<CreateNewFolderRounded fontSize='small' />
 							New folder
 						</button>
@@ -1061,7 +1065,8 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 								!selectedEntry ||
 								actionBusy.startsWith('delete:')
 							}
-							onClick={deleteEntry}>
+							onClick={deleteEntry}
+						>
 							<DeleteOutlineRounded fontSize='small' />
 							Delete
 						</button>
@@ -1069,7 +1074,8 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 							<button
 								type='button'
 								className='ghost-button'
-								onClick={openInVsCode}>
+								onClick={openInVsCode}
+							>
 								<ArrowOutwardRounded fontSize='small' />
 								Open IDE
 							</button>
@@ -1079,7 +1085,8 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 								type='button'
 								className='success-button'
 								disabled={terminalBusy || executionRunning}
-								onClick={() => runPreset(primaryCommandPreset)}>
+								onClick={() => runPreset(primaryCommandPreset)}
+							>
 								<PlayArrowRounded fontSize='small' />
 								{selectedFile?.path && editorDirty
 									? 'Save + Run'
@@ -1091,7 +1098,8 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 								type='button'
 								className='danger-button'
 								disabled={terminalBusy}
-								onClick={stopExecution}>
+								onClick={stopExecution}
+							>
 								<StopRounded fontSize='small' />
 								Stop run
 							</button>
@@ -1100,7 +1108,8 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 							type='button'
 							className='success-button'
 							disabled={!selectedFile || !editorDirty || saveBusy}
-							onClick={saveFile}>
+							onClick={saveFile}
+						>
 							<SaveRounded fontSize='small' />
 							{saveBusy ? 'Saving...' : 'Save file'}
 						</button>
@@ -1154,14 +1163,16 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 										...previous,
 										open: false,
 									}))
-								}>
+								}
+							>
 								Cancel
 							</button>
 							<button
 								type='button'
 								className='primary-action'
 								disabled={actionBusy.startsWith('create:')}
-								onClick={submitCreation}>
+								onClick={submitCreation}
+							>
 								{actionBusy.startsWith('create:')
 									? 'Creating...'
 									: creationDraft.type === 'directory'
@@ -1240,11 +1251,13 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 									className='workspace-line-numbers'
 									onScroll={handleLineNumberScroll}
 									onMouseDown={handleLineNumberMouseDown}
-									aria-hidden='true'>
+									aria-hidden='true'
+								>
 									{lineNumbers.map((lineNumber) => (
 										<span
 											key={lineNumber}
-											className='workspace-line-number'>
+											className='workspace-line-number'
+										>
 											{lineNumber}
 										</span>
 									))}
@@ -1285,7 +1298,8 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 			<article
 				className={`workspace-terminal-shell ${
 					standalone ? 'standalone' : ''
-				}`}>
+				}`}
+			>
 				<div className='workspace-panel-head'>
 					<div className='workspace-editor-headline'>
 						<strong>Run and terminal</strong>
@@ -1302,7 +1316,8 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 							<button
 								type='button'
 								className='ghost-button'
-								onClick={copyTerminalOutput}>
+								onClick={copyTerminalOutput}
+							>
 								<ContentCopyRounded fontSize='small' />
 								Copy output
 							</button>
@@ -1313,7 +1328,8 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 							onClick={() => {
 								setTerminalExecution(null);
 								setTerminalError('');
-							}}>
+							}}
+						>
 							Clear
 						</button>
 					</div>
@@ -1329,7 +1345,8 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 									preset.primary ? 'primary' : ''
 								}`}
 								disabled={terminalBusy || executionRunning}
-								onClick={() => runPreset(preset)}>
+								onClick={() => runPreset(preset)}
+							>
 								<TerminalRounded fontSize='inherit' />
 								<span>{preset.label}</span>
 								<strong>{preset.cwdLabel}</strong>
@@ -1345,10 +1362,10 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 							{manualCommandLocked
 								? 'Manual commands are locked. Presets still run normally until you enable Advanced terminal mode.'
 								: selectedWorkingDirectory
-								? `Runs inside ${selectedWorkingDirectory}`
-								: terminalWorkingDirectory
-									? `Runs inside ${terminalWorkingDirectory} by default. Select a folder to override it.`
-									: 'Runs in the project root unless you select a folder first.'}
+									? `Runs inside ${selectedWorkingDirectory}`
+									: terminalWorkingDirectory
+										? `Runs inside ${terminalWorkingDirectory} by default. Select a folder to override it.`
+										: 'Runs in the project root unless you select a folder first.'}
 						</span>
 					</div>
 					<input
@@ -1380,7 +1397,8 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 								executionRunning ||
 								!commandValue.trim()
 							}
-							onClick={runManualCommand}>
+							onClick={runManualCommand}
+						>
 							<TerminalRounded fontSize='small' />
 							{manualCommandLocked ? 'Locked' : 'Run command'}
 						</button>
@@ -1389,7 +1407,8 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 								type='button'
 								className='danger-button'
 								disabled={terminalBusy}
-								onClick={stopExecution}>
+								onClick={stopExecution}
+							>
 								<StopRounded fontSize='small' />
 								Stop
 							</button>
@@ -1413,16 +1432,15 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 						<div className='workspace-terminal-history-head'>
 							<div className='workspace-terminal-history-copy'>
 								<strong>Recent executions</strong>
-								<span>
-									Saved per project for easier review
-								</span>
+								<span>Saved per project for easier review</span>
 							</div>
 							<div className='workspace-terminal-history-actions'>
 								<button
 									type='button'
 									className='ghost-button'
 									disabled={historyBusy}
-									onClick={clearTerminalHistory}>
+									onClick={clearTerminalHistory}
+								>
 									<DeleteOutlineRounded fontSize='small' />
 									{historyBusy
 										? 'Clearing...'
@@ -1434,7 +1452,8 @@ function ProjectWorkspace({ projectName, standalone = false }) {
 							{terminalHistory.map((entry) => (
 								<div
 									key={entry.id}
-									className='workspace-terminal-history-item'>
+									className='workspace-terminal-history-item'
+								>
 									<div className='workspace-terminal-history-main'>
 										<strong>{entry.label}</strong>
 										<span>{entry.command}</span>

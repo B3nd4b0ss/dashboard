@@ -315,7 +315,8 @@ function DashboardHome() {
 									<Link
 										key={project.name}
 										to={`/projects/${encodeURIComponent(project.name)}`}
-										className='health-item'>
+										className='health-item'
+									>
 										<div className='health-row'>
 											<div>
 												<strong>{project.name}</strong>
@@ -330,7 +331,8 @@ function DashboardHome() {
 												</p>
 											</div>
 											<span
-												className={`status-pill ${project.status}`}>
+												className={`status-pill ${project.status}`}
+											>
 												{getStatusLabel(project.status)}
 											</span>
 										</div>
@@ -461,7 +463,8 @@ function DashboardHome() {
 											columnTasks.map((task) => (
 												<div
 													key={task.id}
-													className='kanban-card'>
+													className='kanban-card'
+												>
 													<span className='mini-badge'>
 														{task.priority}
 													</span>
@@ -521,7 +524,8 @@ function DashboardHome() {
 											database.clientPort
 												? 'blue'
 												: 'slate'
-										}`}>
+										}`}
+									>
 										DB
 									</div>
 									<div>

@@ -733,6 +733,24 @@
 	line-height: 1.6;
 }
 
+.port-check-message {
+	min-height: 1.4em;
+}
+
+.port-check-message.available {
+	color: #1a8d6f;
+}
+
+.port-check-message.unavailable,
+.port-check-message.invalid,
+.port-check-message.error {
+	color: #cf4d3c;
+}
+
+.port-check-message.checking {
+	color: var(--soft-label);
+}
+
 .composer-selection-preview,
 .composer-selection-chip {
 	display: flex;
@@ -1018,6 +1036,16 @@ body.dark .composer-panel .surface-select-menu {
 	box-shadow:
 		0 28px 54px rgba(0, 0, 0, 0.42),
 		0 10px 20px rgba(0, 0, 0, 0.3);
+}
+
+body.dark .port-check-message.available {
+	color: #7be4c1;
+}
+
+body.dark .port-check-message.unavailable,
+body.dark .port-check-message.invalid,
+body.dark .port-check-message.error {
+	color: #ff9a88;
 }
 
 .project-grid-board {

@@ -250,14 +250,16 @@ function TasksBoard() {
 					<button
 						type='button'
 						className='secondary-action'
-						onClick={refreshBoard}>
+						onClick={refreshBoard}
+					>
 						<RefreshRounded fontSize='small' />
 						Refresh
 					</button>
 					<button
 						type='button'
 						className='primary-action'
-						onClick={openCreateTask}>
+						onClick={openCreateTask}
+					>
 						<AddRounded fontSize='small' />
 						New ticket
 					</button>
@@ -391,7 +393,8 @@ function TasksBoard() {
 													to={`/tasks/${encodeURIComponent(
 														task.id,
 													)}`}
-													className='task-list-row'>
+													className='task-list-row'
+												>
 													<div className='task-list-copy'>
 														<strong>
 															{task.title}

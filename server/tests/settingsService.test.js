@@ -1,9 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const {
-	DEFAULT_SETTINGS,
-	__test__,
-} = require('../services/settingsService');
+const { DEFAULT_SETTINGS, __test__ } = require('../services/settingsService');
 
 test('normalizeGitHubOwner strips supported prefixes', () => {
 	assert.equal(

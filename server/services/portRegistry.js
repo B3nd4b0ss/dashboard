@@ -1,5 +1,5 @@
-const { spawnSync } = require('child_process');
-const { loadProjects, loadDatabases } = require('../utils/fileOperations');
+const childProcess = require('child_process');
+const fileOperations = require('../utils/fileOperations');
 
 const RESERVED_SYSTEM_PORT_MAX = 1023;
 const PROTECTED_PORT_REASONS = new Map([
@@ -110,7 +110,7 @@ function addSystemBinding(bindingMap, port, protocol, localAddress, pid) {
  * @returns {Map<number, {protocols: Set<string>, bindings: Array<object>}>} System bindings keyed by port.
  */
 function listSystemPortBindings() {
-	const result = spawnSync('netstat', ['-ano'], {
+	const result = childProcess.spawnSync('netstat', ['-ano'], {
 		encoding: 'utf8',
 		windowsHide: true,
 	});
@@ -183,7 +183,7 @@ function listConfiguredPortBindings(options = {}) {
 	);
 	const bindings = new Map();
 
-	for (const project of loadProjects()) {
+	for (const project of fileOperations.loadProjects()) {
 		if (
 			excludeProjectName &&
 			project.name.toLowerCase() === excludeProjectName.toLowerCase()
@@ -217,7 +217,7 @@ function listConfiguredPortBindings(options = {}) {
 		}
 	}
 
-	for (const database of loadDatabases()) {
+	for (const database of fileOperations.loadDatabases()) {
 		if (excludeDatabaseId && database.id === excludeDatabaseId) {
 			continue;
 		}

@@ -173,7 +173,8 @@ function SurfaceSelect({
 			ref={rootRef}
 			className={`surface-select ${variant} ${align} ${
 				open ? 'open' : ''
-			} ${menuDirection === 'up' ? 'opens-up' : 'opens-down'} ${className}`.trim()}>
+			} ${menuDirection === 'up' ? 'opens-up' : 'opens-down'} ${className}`.trim()}
+		>
 			<button
 				type='button'
 				className='surface-select-trigger'
@@ -181,7 +182,8 @@ function SurfaceSelect({
 				aria-expanded={open}
 				aria-haspopup='listbox'
 				aria-controls={listboxId}
-				onClick={() => setOpen((previous) => !previous)}>
+				onClick={() => setOpen((previous) => !previous)}
+			>
 				<div className='surface-select-copy'>
 					<strong>{selectedOption?.label || placeholder}</strong>
 					{selectedOption?.description && variant === 'default' && (
@@ -201,7 +203,8 @@ function SurfaceSelect({
 							? { maxHeight: `${menuMaxHeight}px` }
 							: undefined
 					}
-					role='listbox'>
+					role='listbox'
+				>
 					{searchable && (
 						<label className='surface-select-search'>
 							<SearchRounded fontSize='small' />
@@ -255,7 +258,8 @@ function SurfaceSelect({
 									onChange(option.value);
 									setQuery('');
 									setOpen(false);
-								}}>
+								}}
+							>
 								<div className='surface-select-option-copy'>
 									<strong>{option.label}</strong>
 									{option.description && (

@@ -15,10 +15,13 @@ const {
 const {
 	configureProcessToolEnvironment,
 } = require('./services/developmentToolchain');
+const { sendErrorResponse, sendNotFound } = require('./utils/httpResponses');
 
 const detectedToolchain = configureProcessToolEnvironment();
 const serverHost = resolveServerHost();
-const extraAllowedOrigins = parseOriginList(process.env.DASHBOARD_ALLOWED_ORIGINS);
+const extraAllowedOrigins = parseOriginList(
+	process.env.DASHBOARD_ALLOWED_ORIGINS,
+);
 
 const app = express();
 app.disable('x-powered-by');
@@ -45,25 +48,21 @@ app.use('/tasks', tasksRouter);
 app.use('/members', membersRouter);
 app.use('/system', systemRouter);
 
+app.use((req, res) => {
+	sendNotFound(res, 'Route not found');
+});
+
 app.use((error, req, res, next) => {
 	if (res.headersSent) {
 		next(error);
 		return;
 	}
 
-	const statusCode = error.statusCode || 500;
-	res.status(statusCode).json({
-		error:
-			statusCode >= 500
-				? 'Internal server error'
-				: error.message || 'Request failed',
-	});
+	sendErrorResponse(res, error);
 });
 
 const server = app.listen(PORT, serverHost, () =>
-	console.log(
-		`Dashboard backend running on http://${serverHost}:${PORT}`,
-	),
+	console.log(`Dashboard backend running on http://${serverHost}:${PORT}`),
 );
 
 function shutdown(signal) {

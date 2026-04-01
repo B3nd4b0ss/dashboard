@@ -1,32 +1,38 @@
 {
-  "name": "dashboard",
-  "version": "1.0.0",
-  "description": "Local developer control center for scaffolding, running, editing, and tracking software projects.",
-  "main": "index.js",
-  "scripts": {
-    "test": "node --test \"server/tests/**/*.test.js\"",
-    "test:server": "node --test \"server/tests/**/*.test.js\"",
-    "lint:client": "npm run lint --prefix client",
-    "check": "npm run test:server && npm run lint:client",
-    "dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
-    "app:start": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\start-dashboard.ps1",
-    "app:stop": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\stop-dashboard.ps1",
-    "app:status": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\status-dashboard.ps1",
-    "pm2:main:start": "node .\\node_modules\\pm2\\bin\\pm2 start .\\ecosystem.config.cjs --only dashboard-main",
-    "pm2:main:restart": "node .\\node_modules\\pm2\\bin\\pm2 restart dashboard-main",
-    "pm2:main:stop": "node .\\node_modules\\pm2\\bin\\pm2 stop dashboard-main",
-    "pm2:main:delete": "node .\\node_modules\\pm2\\bin\\pm2 delete dashboard-main",
-    "pm2:main:status": "node .\\node_modules\\pm2\\bin\\pm2 status dashboard-main",
-    "pm2:main:logs": "node .\\node_modules\\pm2\\bin\\pm2 logs dashboard-main --lines 100",
-    "pm2:main:save": "node .\\node_modules\\pm2\\bin\\pm2 save",
-    "pm2:main:resurrect": "node .\\node_modules\\pm2\\bin\\pm2 resurrect"
-  },
-  "keywords": [],
-  "author": "Ben Grob",
-  "license": "ISC",
-  "type": "commonjs",
-  "dependencies": {
-    "concurrently": "^9.2.1",
-    "pm2": "^6.0.14"
-  }
+	"name": "dashboard",
+	"version": "1.0.0",
+	"description": "Local developer control center for scaffolding, running, editing, and tracking software projects.",
+	"main": "index.js",
+	"scripts": {
+		"test": "npm run test:server && npm run test:client",
+		"test:server": "node server/tests/run-tests.js",
+		"test:client": "npm run test --prefix client",
+		"lint:client": "npm run lint --prefix client",
+		"format": "prettier --write .",
+		"format:check": "prettier --check .",
+		"check": "npm run format:check && npm run test && npm run lint:client",
+		"dev": "concurrently \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+		"app:start": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\start-dashboard.ps1",
+		"app:stop": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\stop-dashboard.ps1",
+		"app:status": "powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File .\\scripts\\status-dashboard.ps1",
+		"pm2:main:start": "node .\\node_modules\\pm2\\bin\\pm2 start .\\ecosystem.config.cjs --only dashboard-main",
+		"pm2:main:restart": "node .\\node_modules\\pm2\\bin\\pm2 restart dashboard-main",
+		"pm2:main:stop": "node .\\node_modules\\pm2\\bin\\pm2 stop dashboard-main",
+		"pm2:main:delete": "node .\\node_modules\\pm2\\bin\\pm2 delete dashboard-main",
+		"pm2:main:status": "node .\\node_modules\\pm2\\bin\\pm2 status dashboard-main",
+		"pm2:main:logs": "node .\\node_modules\\pm2\\bin\\pm2 logs dashboard-main --lines 100",
+		"pm2:main:save": "node .\\node_modules\\pm2\\bin\\pm2 save",
+		"pm2:main:resurrect": "node .\\node_modules\\pm2\\bin\\pm2 resurrect"
+	},
+	"keywords": [],
+	"author": "Ben Grob",
+	"license": "ISC",
+	"type": "commonjs",
+	"dependencies": {
+		"concurrently": "^9.2.1",
+		"pm2": "^6.0.14"
+	},
+	"devDependencies": {
+		"prettier": "^3.8.1"
+	}
 }

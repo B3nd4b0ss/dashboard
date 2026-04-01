@@ -317,14 +317,16 @@ function SettingsPage() {
 						type='button'
 						className='ghost-button'
 						onClick={loadSettings}
-						disabled={saving}>
+						disabled={saving}
+					>
 						Reset
 					</button>
 					<button
 						type='button'
 						className='primary-action'
 						onClick={saveSettings}
-						disabled={saving}>
+						disabled={saving}
+					>
 						<SaveRounded fontSize='small' />
 						{saving ? 'Saving...' : 'Save settings'}
 					</button>

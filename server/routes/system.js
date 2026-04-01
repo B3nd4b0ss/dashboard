@@ -4,6 +4,7 @@ const {
 	getPublicSettings,
 	updateSettings,
 } = require('../services/settingsService');
+const { inspectPort } = require('../services/portRegistry');
 
 const router = express.Router();
 
@@ -38,6 +39,20 @@ router.post('/pick-folder', async (req, res) => {
 			title: req.body?.title,
 		});
 		res.json(result);
+	} catch (error) {
+		res.status(400).json({ error: error.message });
+	}
+});
+
+// `GET /system/ports/check`
+// Query params: `port` is required. Optional params are `label` and `excludeProjectName`.
+router.get('/ports/check', (req, res) => {
+	try {
+		const report = inspectPort(req.query.port, {
+			label: req.query.label || 'Port',
+			excludeProjectName: req.query.excludeProjectName || null,
+		});
+		res.json(report);
 	} catch (error) {
 		res.status(400).json({ error: error.message });
 	}

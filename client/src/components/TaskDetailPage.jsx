@@ -292,7 +292,8 @@ function TaskDetailPage() {
 							<>
 								From{' '}
 								<Link
-									to={`/projects/${encodeURIComponent(task.projectName)}`}>
+									to={`/projects/${encodeURIComponent(task.projectName)}`}
+								>
 									{task.projectName}
 								</Link>
 							</>
@@ -305,13 +306,15 @@ function TaskDetailPage() {
 				<div className='task-detail-actions'>
 					<Link
 						to='/tasks'
-						className='ghost-button task-detail-button-link'>
+						className='ghost-button task-detail-button-link'
+					>
 						Back to tickets
 					</Link>
 					<button
 						type='button'
 						className='ghost-button'
-						onClick={openEditTask}>
+						onClick={openEditTask}
+					>
 						<EditRounded fontSize='small' />
 						Edit
 					</button>
@@ -319,7 +322,8 @@ function TaskDetailPage() {
 						type='button'
 						className='primary-action'
 						disabled={busyAction === 'toggle'}
-						onClick={toggleTaskDone}>
+						onClick={toggleTaskDone}
+					>
 						<AssignmentTurnedInRounded fontSize='small' />
 						{task.status === 'done' ? 'Reopen' : 'Mark done'}
 					</button>
@@ -342,7 +346,8 @@ function TaskDetailPage() {
 					<strong>{getTaskTypeLabel(task.type)}</strong>
 				</article>
 				<article
-					className={`task-detail-metric ${task.overdue ? 'overdue' : ''}`}>
+					className={`task-detail-metric ${task.overdue ? 'overdue' : ''}`}
+				>
 					<span>Due date</span>
 					<strong>{task.dueDate || 'No due date'}</strong>
 				</article>
@@ -380,7 +385,8 @@ function TaskDetailPage() {
 							<strong>
 								{task.projectName ? (
 									<Link
-										to={`/projects/${encodeURIComponent(task.projectName)}`}>
+										to={`/projects/${encodeURIComponent(task.projectName)}`}
+									>
 										{getProjectLabel(task)}
 									</Link>
 								) : (
@@ -433,7 +439,8 @@ function TaskDetailPage() {
 								disabled={
 									!task.projectName || busyAction === 'branch'
 								}
-								onClick={createTaskBranch}>
+								onClick={createTaskBranch}
+							>
 								<HubRounded fontSize='small' />
 								{busyAction === 'branch'
 									? 'Working...'
@@ -443,7 +450,8 @@ function TaskDetailPage() {
 								<button
 									type='button'
 									className='ghost-button'
-									onClick={copyBranchName}>
+									onClick={copyBranchName}
+								>
 									<ContentCopyRounded fontSize='small' />
 									Copy
 								</button>
@@ -461,7 +469,8 @@ function TaskDetailPage() {
 						<button
 							type='button'
 							className='ghost-button'
-							onClick={openEditTask}>
+							onClick={openEditTask}
+						>
 							<EditRounded fontSize='small' />
 							Edit ticket
 						</button>
@@ -469,7 +478,8 @@ function TaskDetailPage() {
 							type='button'
 							className='primary-action'
 							disabled={busyAction === 'toggle'}
-							onClick={toggleTaskDone}>
+							onClick={toggleTaskDone}
+						>
 							<AssignmentTurnedInRounded fontSize='small' />
 							{task.status === 'done'
 								? 'Reopen ticket'
@@ -479,7 +489,8 @@ function TaskDetailPage() {
 							type='button'
 							className='text-button task-detail-delete'
 							disabled={busyAction === 'delete'}
-							onClick={deleteTask}>
+							onClick={deleteTask}
+						>
 							<DeleteOutlineRounded fontSize='small' />
 							Delete ticket
 						</button>

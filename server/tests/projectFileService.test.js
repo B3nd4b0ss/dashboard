@@ -12,6 +12,10 @@ test('normalizeRelativePath rejects traversal and absolute paths', () => {
 		() => __test__.normalizeRelativePath('/etc/passwd'),
 		/Absolute paths are not allowed/,
 	);
+	assert.throws(
+		() => __test__.normalizeRelativePath('C:\\temp\\secrets.txt'),
+		/Absolute paths are not allowed/,
+	);
 });
 
 test('normalizeRelativePath normalizes separators and dot segments', () => {

@@ -593,6 +593,24 @@
 	line-height: 1.55;
 }
 
+.port-check-message {
+	min-height: 1.35em;
+}
+
+.port-check-message.available {
+	color: #1a8d6f;
+}
+
+.port-check-message.unavailable,
+.port-check-message.invalid,
+.port-check-message.error {
+	color: #cf4d3c;
+}
+
+.port-check-message.checking {
+	color: var(--soft-label);
+}
+
 .field-group input,
 .field-group textarea {
 	min-height: 46px;
@@ -901,6 +919,16 @@
 		transform: translateY(0);
 		opacity: 1;
 	}
+}
+
+body.dark .port-check-message.available {
+	color: #7be4c1;
+}
+
+body.dark .port-check-message.unavailable,
+body.dark .port-check-message.invalid,
+body.dark .port-check-message.error {
+	color: #ff9a88;
 }
 
 @media (max-width: 1080px) {
