@@ -7,7 +7,7 @@ const {
 const { findProject, generateId } = require('../utils/helpers');
 const { createTaskBranch } = require('./projectRepositoryService');
 
-const TASK_STATUS_ORDER = ['backlog', 'in_progress', 'review', 'done'];
+const TASK_STATUS_ORDER = ['new', 'in_progress', 'review', 'done'];
 const TASK_PRIORITY_ORDER = ['low', 'medium', 'high', 'urgent'];
 const TASK_TYPE_ORDER = ['task', 'feature', 'bug', 'chore', 'docs', 'refactor'];
 const GENERAL_TASK_PREFIX = 'general';
@@ -75,7 +75,7 @@ function normalizeTaskStatus(status) {
 	const normalizedStatus = normalizeOptionalText(status)?.toLowerCase();
 
 	if (!normalizedStatus) {
-		return 'backlog';
+		return 'new';
 	}
 
 	if (!TASK_STATUS_ORDER.includes(normalizedStatus)) {
@@ -313,14 +313,14 @@ function sortTasks(tasks) {
  * Builds aggregate counts used in project and member summaries.
  *
  * @param {Array<object>} tasks - Task records to summarize.
- * @returns {{total: number, completed: number, pending: number, backlog: number, inProgress: number, review: number, overdue: number, progressPercentage: number}} Task summary counts.
+ * @returns {{total: number, completed: number, pending: number, new: number, inProgress: number, review: number, overdue: number, progressPercentage: number}} Task summary counts.
  */
 function buildTaskSummary(tasks) {
 	const summary = {
 		total: tasks.length,
 		completed: 0,
 		pending: 0,
-		backlog: 0,
+		new: 0,
 		inProgress: 0,
 		review: 0,
 		overdue: 0,
@@ -334,8 +334,8 @@ function buildTaskSummary(tasks) {
 			summary.pending += 1;
 		}
 
-		if (task.status === 'backlog') {
-			summary.backlog += 1;
+		if (task.status === 'new') {
+			summary.new += 1;
 		}
 
 		if (task.status === 'in_progress') {

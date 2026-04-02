@@ -86,3 +86,11 @@ test('projectDeleteQuerySchema parses deleteRemote into a boolean', () => {
 
 	assert.equal(payload.deleteRemote, true);
 });
+
+test('projectDeleteQuerySchema also accepts boolean deleteRemote values', () => {
+	const payload = projectDeleteQuerySchema.parse({
+		deleteRemote: true,
+	});
+
+	assert.equal(payload.deleteRemote, true);
+});

@@ -824,22 +824,28 @@ async function createTaskBranch(project, task, options = {}) {
  * Removes repository metadata and deletes the remote GitHub repository when configured.
  *
  * @param {object} project - Project record whose repository should be deleted.
+ * @param {{githubSettings?: {token?: string}, requestFn?: typeof githubRequest}} [options={}] - Test-only dependency overrides.
  * @returns {Promise<boolean>} True when a remote repository deletion was attempted.
  */
-async function deleteProjectRepository(project) {
-	if (!project?.repository || project.repository.provider !== 'github') {
+async function deleteProjectRepository(project, options = {}) {
+	if (
+		!project?.repository ||
+		project.repository.provider !== 'github' ||
+		project.repository.status !== 'connected'
+	) {
 		return false;
 	}
 
-	const githubSettings = getGitHubSettings();
+	const githubSettings = options.githubSettings || getGitHubSettings();
+	const requestFn = options.requestFn || githubRequest;
+	const owner = String(project.repository.owner || '').trim();
+	const repositoryName = String(project.repository.name || '').trim();
+
 	if (!githubSettings.token) {
 		throw new Error(
 			'A saved GitHub token is required to delete the remote repository.',
 		);
 	}
-
-	const owner = String(project.repository.owner || '').trim();
-	const repositoryName = String(project.repository.name || '').trim();
 
 	if (!owner || !repositoryName) {
 		throw new Error(
@@ -847,24 +853,21 @@ async function deleteProjectRepository(project) {
 		);
 	}
 
+	const requestPath = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repositoryName)}`;
 	try {
-		await githubRequest(
-			'DELETE',
-			`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repositoryName)}`,
-			githubSettings.token,
-		);
+		await requestFn('DELETE', requestPath, githubSettings.token);
 		return true;
 	} catch (error) {
 		if (error.statusCode === 404) {
-			throw new Error(
-				'GitHub could not find that repository. It may already be deleted or the token cannot access it.',
-			);
+			return false;
 		}
 
 		if (error.statusCode === 403) {
-			throw new Error(
+			const permissionError = new Error(
 				`${error.message} Deleting a GitHub repository requires admin access. Classic PATs need delete_repo; fine-grained PATs need Administration: write.`,
 			);
+			permissionError.statusCode = 403;
+			throw permissionError;
 		}
 
 		throw error;

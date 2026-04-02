@@ -163,9 +163,14 @@ const projectHistoryQuerySchema = z.object({
 
 const projectDeleteQuerySchema = z.object({
 	deleteRemote: z
-		.union([z.literal('true'), z.literal('false')])
+		.union([
+			z.literal('true'),
+			z.literal('false'),
+			z.literal(true),
+			z.literal(false),
+		])
 		.optional()
-		.transform((value) => value === 'true'),
+		.transform((value) => value === 'true' || value === true),
 });
 
 module.exports = {

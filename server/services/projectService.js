@@ -3373,7 +3373,13 @@ async function deleteProject(name, options = {}) {
 	const project = findProject(projects, name);
 	if (!project) throw new Error('Project not found');
 	const projectIndex = projects.findIndex((p) => p.name === project.name);
-	const shouldDeleteRemote = options.deleteRemote === true;
+	const requestedDeleteRemote = options.deleteRemote === true;
+	const hasConnectedRemoteRepository =
+		project.repository?.provider === 'github' &&
+		project.repository?.status === 'connected';
+	const shouldDeleteRemote =
+		hasConnectedRemoteRepository || requestedDeleteRemote;
+	const projectPath = getProjectPath(project);
 
 	if (shouldDeleteRemote) {
 		await deleteProjectRepository(project);
@@ -3385,7 +3391,7 @@ async function deleteProject(name, options = {}) {
 	}
 
 	// Remove folder
-	await fs.remove(getProjectPath(project));
+	await fs.remove(projectPath);
 
 	// Remove metadata
 	projects.splice(projectIndex, 1);

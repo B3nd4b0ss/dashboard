@@ -38,6 +38,7 @@ import {
 	buildNextTextSearchParams,
 	getSearchParamValue,
 } from '../utils/searchParams';
+import { buildProjectCreatePayload } from '../utils/projectCreatePayload';
 import {
 	isPortCheckBlocking,
 	usePortAvailability,
@@ -1198,11 +1199,12 @@ function Overview({ mode = 'board' }) {
 			const response = await fetch(`${API}/projects/create-stream`, {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					...form,
-					autoCreateRepo: repositoryAutoCreate,
-					visibility: repositoryVisibility,
-				}),
+				body: JSON.stringify(
+					buildProjectCreatePayload(form, {
+						autoCreateRepo: repositoryAutoCreate,
+						visibility: repositoryVisibility,
+					}),
+				),
 			});
 
 			if (!response.ok) {
@@ -1308,26 +1310,24 @@ function Overview({ mode = 'board' }) {
 
 	const deleteProject = async (project) => {
 		const name = project.name;
-		if (!window.confirm(`Delete "${name}" and its local files?`)) {
+		const hasGitHubRepository =
+			project.repository?.provider === 'github' &&
+			project.repository?.status === 'connected' &&
+			Boolean(project.repository?.owner) &&
+			Boolean(project.repository?.name);
+		const confirmMessage = hasGitHubRepository
+			? `Delete "${name}", its local files, and ${project.repository.owner}/${project.repository.name} from GitHub?`
+			: `Delete "${name}" and its local files?`;
+
+		if (!window.confirm(confirmMessage)) {
 			return;
 		}
 
-		const hasGitHubRepository =
-			project.repository?.provider === 'github' &&
-			Boolean(project.repository?.owner) &&
-			Boolean(project.repository?.name);
-		let deleteRemote = false;
-
-		if (hasGitHubRepository) {
-			deleteRemote = window.confirm(
-				`Also delete ${project.repository.owner}/${project.repository.name} from GitHub?\n\nChoose "Cancel" here if you only want to remove the local project.`,
-			);
-		}
+		const deleteRemote = hasGitHubRepository;
+		const deleteUrl = `${API}/projects/${encodeURIComponent(name)}/delete?deleteRemote=${deleteRemote ? 'true' : 'false'}`;
 
 		await runProjectAction(name, 'delete', () =>
-			axios.delete(`${API}/projects/${encodeURIComponent(name)}/delete`, {
-				params: { deleteRemote },
-			}),
+			axios.delete(deleteUrl),
 		);
 	};
 

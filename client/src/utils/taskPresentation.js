@@ -1,7 +1,7 @@
 export const TASK_STATUS_OPTIONS = [
 	{
-		value: 'backlog',
-		label: 'Backlog',
+		value: 'new',
+		label: 'New',
 		description: 'Ideas and tasks not started yet.',
 	},
 	{
@@ -82,7 +82,7 @@ export const EMPTY_TASK_FORM = {
 	title: '',
 	description: '',
 	projectName: '',
-	status: 'backlog',
+	status: 'new',
 	priority: 'medium',
 	type: 'task',
 	dueDate: '',
@@ -103,7 +103,7 @@ export function getTaskStatusLabel(status) {
 		case 'done':
 			return 'Done';
 		default:
-			return 'Backlog';
+			return 'New';
 	}
 }
 

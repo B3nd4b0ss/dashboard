@@ -58,7 +58,7 @@ function buildTaskForm(task) {
 		title: task.title || '',
 		description: task.description || '',
 		projectName: task.projectName || '',
-		status: task.status || 'backlog',
+		status: task.status || 'new',
 		priority: task.priority || 'medium',
 		type: task.type || 'task',
 		dueDate: task.dueDate || '',
@@ -161,24 +161,50 @@ function TaskDetailPage() {
 		if (!task) {
 			return;
 		}
+		let nextStatus;
 
-		const nextStatus = task.status === 'done' ? 'backlog' : 'done';
+		switch (task.status) {
+			case 'new':
+				nextStatus = 'in_progress';
+				break;
+			case 'in_progress':
+				nextStatus = 'review';
+				break;
+			case 'review':
+				nextStatus = 'done';
+				break;
+			case 'done':
+				nextStatus = 'in_progress';
+				break;
+			default:
+				nextStatus = 'done';
+		}
+
 		setBusyAction('toggle');
-
 		try {
 			await axios.patch(`${API}/tasks/${id}`, {
 				status: nextStatus,
 			});
-			setPageNotice(
-				nextStatus === 'done'
-					? 'Ticket marked done.'
-					: 'Ticket reopened.',
-			);
+			switch (nextStatus) {
+				case 'in_progress':
+					setPageNotice('Ticket marked in progress.');
+					break;
+				case 'review':
+					setPageNotice('Ticket marked for review.');
+					break;
+				case 'done':
+					setPageNotice('Ticket marked done.');
+					break;
+				default:
+					setPageNotice('Ticket status updated.');
+			}
 			await fetchTaskData({ keepLoading: true });
 		} catch (requestError) {
+			console.log(requestError.response.data.error);
 			alert(
 				requestError.response?.data?.error ||
 					'Failed to update ticket status.',
+				error,
 			);
 		} finally {
 			setBusyAction('');
@@ -265,6 +291,21 @@ function TaskDetailPage() {
 		);
 	}
 
+	const toggleTaskActionLabel = (() => {
+		switch (task.status) {
+			case 'new':
+				return 'Start progress';
+			case 'in_progress':
+				return 'Mark for review';
+			case 'review':
+				return 'Mark done';
+			case 'done':
+				return 'Reopen ticket';
+			default:
+				return 'Toggle status';
+		}
+	})();
+
 	const branchPreview =
 		task.branch?.name ||
 		buildBranchPreview(task.type, task.ticketKey, task.title);
@@ -325,7 +366,7 @@ function TaskDetailPage() {
 						onClick={toggleTaskDone}
 					>
 						<AssignmentTurnedInRounded fontSize='small' />
-						{task.status === 'done' ? 'Reopen' : 'Mark done'}
+						{toggleTaskActionLabel}
 					</button>
 				</div>
 			</section>

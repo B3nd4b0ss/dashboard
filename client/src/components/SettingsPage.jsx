@@ -306,7 +306,10 @@ function SettingsPage() {
 								The token stays local to this machine. On
 								Windows, the dashboard encrypts it with the
 								current user profile before writing settings to
-								disk.
+								disk. To delete GitHub repos from the dashboard
+								later, classic PATs need <code>delete_repo</code>{' '}
+								and fine-grained tokens need repository
+								Administration write access.
 							</p>
 						</div>
 					</label>
