@@ -230,11 +230,11 @@ function getDefaultTerminalWorkingDirectory(projectMeta, primaryCommandPreset) {
 	}
 
 	if (projectMeta?.backend) {
-		return 'backend';
+		return 'server';
 	}
 
 	if (projectMeta?.frontend) {
-		return 'frontend';
+		return 'client';
 	}
 
 	return '';

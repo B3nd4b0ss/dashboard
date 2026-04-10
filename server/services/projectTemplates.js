@@ -111,6 +111,11 @@ const BACKEND_TEMPLATE_DEFINITIONS = Object.freeze({
 	},
 });
 
+const CLIENT_WORKSPACE_DIRECTORY = 'client';
+const LEGACY_FRONTEND_WORKSPACE_DIRECTORY = 'frontend';
+const SERVER_WORKSPACE_DIRECTORY = 'server';
+const LEGACY_BACKEND_WORKSPACE_DIRECTORY = 'backend';
+
 /**
  * Resolves a frontend template id to its template definition.
  *
@@ -186,13 +191,54 @@ function getPythonShellCommand() {
  */
 function getDirectoryLabel(directory) {
 	switch (directory) {
+		case CLIENT_WORKSPACE_DIRECTORY:
 		case 'frontend':
-			return 'frontend';
+			return directory;
+		case SERVER_WORKSPACE_DIRECTORY:
 		case 'backend':
-			return 'backend';
+			return directory;
 		default:
 			return 'project root';
 	}
+}
+
+/**
+ * Resolves the preferred workspace folder while keeping legacy folder names working.
+ *
+ * @param {string} projectPath - Absolute workspace root.
+ * @param {string} preferredDirectory - New default directory name.
+ * @param {string} legacyDirectory - Legacy directory name kept for compatibility.
+ * @returns {string} Absolute workspace path, preferring the new directory when present.
+ */
+function resolveWorkspacePath(
+	projectPath,
+	preferredDirectory,
+	legacyDirectory,
+) {
+	const preferredPath = path.join(projectPath, preferredDirectory);
+	if (fs.existsSync(preferredPath)) {
+		return preferredPath;
+	}
+
+	const legacyPath = path.join(projectPath, legacyDirectory);
+	if (fs.existsSync(legacyPath)) {
+		return legacyPath;
+	}
+
+	return preferredPath;
+}
+
+/**
+ * Detects the older plain HTML layout that lived directly in the project root.
+ *
+ * @param {string} projectPath - Absolute workspace root.
+ * @returns {boolean} True when the root already contains the static starter files.
+ */
+function hasRootStaticFrontend(projectPath) {
+	return (
+		fs.existsSync(path.join(projectPath, 'index.html')) ||
+		fs.existsSync(path.join(projectPath, 'serve-static.js'))
+	);
 }
 
 /**
@@ -203,15 +249,88 @@ function getDirectoryLabel(directory) {
  * @returns {string} Relative working directory token used by terminal presets.
  */
 function getCommandPresetWorkingDirectory(project, backendDefinition) {
+	const projectPath = getProjectPath(project);
+	const backendPath = getBackendWorkspacePath(project);
+
 	if (
-		backendDefinition?.kind !== 'java-console' &&
-		backendDefinition?.kind !== 'java-maven'
+		backendDefinition?.kind === 'java-console' ||
+		backendDefinition?.kind === 'java-maven'
 	) {
-		return 'backend';
+		return path.relative(projectPath, backendPath) || '';
 	}
 
+	return path.relative(projectPath, backendPath) || SERVER_WORKSPACE_DIRECTORY;
+}
+
+/**
+ * Resolves the absolute workspace path used by the backend template.
+ *
+ * Console and Maven Java projects can still live at the project root, while
+ * managed backends now default to `server` and keep the legacy `backend`
+ * directory working for older workspaces.
+ *
+ * @param {object} project - Project record used to resolve the workspace path.
+ * @returns {string} Absolute backend workspace path.
+ */
+function getBackendWorkspacePath(project) {
 	const projectPath = getProjectPath(project);
-	return fs.existsSync(path.join(projectPath, 'backend')) ? 'backend' : '';
+	const backendDefinition = getBackendTemplateDefinition(project?.backend);
+	const backendPath = resolveWorkspacePath(
+		projectPath,
+		SERVER_WORKSPACE_DIRECTORY,
+		LEGACY_BACKEND_WORKSPACE_DIRECTORY,
+	);
+
+	if (
+		backendDefinition?.kind === 'java-console' ||
+		backendDefinition?.kind === 'java-maven'
+	) {
+		return fs.existsSync(backendPath) ? backendPath : projectPath;
+	}
+
+	return backendPath;
+}
+
+/**
+ * Resolves the absolute workspace path used by the frontend template.
+ *
+ * Frontend projects now default to a nested `client` folder. Older workspaces
+ * may still use a nested `frontend` folder, and older plain HTML projects may
+ * still live in the project root. This keeps all three layouts working.
+ *
+ * @param {object} project - Project record used to resolve the workspace path.
+ * @returns {string} Absolute frontend workspace path.
+ */
+function getFrontendWorkspacePath(project) {
+	const projectPath = getProjectPath(project);
+	const frontendDefinition = getFrontendTemplateDefinition(project?.frontend);
+	const frontendPath = resolveWorkspacePath(
+		projectPath,
+		CLIENT_WORKSPACE_DIRECTORY,
+		LEGACY_FRONTEND_WORKSPACE_DIRECTORY,
+	);
+
+	if (frontendDefinition?.kind !== 'static') {
+		return frontendPath;
+	}
+
+	if (fs.existsSync(frontendPath)) {
+		return frontendPath;
+	}
+
+	return hasRootStaticFrontend(projectPath) ? projectPath : frontendPath;
+}
+
+/**
+ * Chooses the folder where frontend presets should execute.
+ *
+ * @param {object} project - Project record used to resolve the workspace path.
+ * @returns {string} Relative working directory token used by terminal presets.
+ */
+function getFrontendCommandPresetWorkingDirectory(project) {
+	const projectPath = getProjectPath(project);
+	const frontendPath = getFrontendWorkspacePath(project);
+	return path.relative(projectPath, frontendPath) || '';
 }
 
 /**
@@ -252,6 +371,7 @@ function getProjectCommandPresets(project) {
 	const scaffold = getProjectScaffold(project);
 	const pythonCommand = getPythonShellCommand();
 	const backendPort = project?.backendPort || 8000;
+	const frontendCwd = getFrontendCommandPresetWorkingDirectory(project);
 
 	if (frontendDefinition?.kind === 'vite') {
 		presets.push(
@@ -260,7 +380,7 @@ function getProjectCommandPresets(project) {
 				label: 'Run frontend',
 				description:
 					'Start the frontend dev server in the workspace terminal.',
-				cwd: 'frontend',
+				cwd: frontendCwd,
 				steps: ['npm run dev'],
 				primary: !backendDefinition,
 			}),
@@ -270,7 +390,7 @@ function getProjectCommandPresets(project) {
 				id: 'frontend-build',
 				label: 'Build frontend',
 				description: 'Create a production frontend build.',
-				cwd: 'frontend',
+				cwd: frontendCwd,
 				steps: ['npm run build'],
 			}),
 		);
@@ -283,7 +403,7 @@ function getProjectCommandPresets(project) {
 				label: 'Preview static site',
 				description:
 					'Serve the static frontend files locally from the editor.',
-				cwd: 'frontend',
+				cwd: frontendCwd,
 				steps: ['node serve-static.js'],
 				primary: !backendDefinition,
 			}),
@@ -495,6 +615,9 @@ module.exports = {
 	getBackendTemplateDefinition,
 	templateRequiresPort,
 	templateHasManagedService,
+	getBackendWorkspacePath,
+	getFrontendWorkspacePath,
+	getFrontendCommandPresetWorkingDirectory,
 	getProjectCommandPresets,
 	getPrimaryProjectCommandPresetId,
 };

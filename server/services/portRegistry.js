@@ -35,6 +35,7 @@ const PROTECTED_PORT_REASONS = new Map([
 	[2375, 'Docker commonly uses this port'],
 	[2376, 'Docker TLS commonly uses this port'],
 	[3702, 'WS-Discovery commonly uses this port'],
+	[4000, 'Port of this Project'],
 	[5353, 'mDNS discovery commonly uses this port'],
 	[5355, 'LLMNR commonly uses this port'],
 ]);

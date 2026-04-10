@@ -4,7 +4,6 @@ const path = require('path');
 const kill = require('tree-kill');
 const { loadProjects, saveProjects } = require('../utils/fileOperations');
 const { findProject } = require('../utils/helpers');
-const { getProjectPath } = require('../utils/projectPaths');
 const {
 	startContainer,
 	stopContainer,
@@ -31,6 +30,8 @@ const {
 const {
 	getFrontendTemplateDefinition,
 	getBackendTemplateDefinition,
+	getBackendWorkspacePath,
+	getFrontendWorkspacePath,
 	templateHasManagedService,
 } = require('./projectTemplates');
 const {
@@ -340,18 +341,6 @@ function pipeProcessOutput(projectName, serviceName, proc, logSession) {
 	}
 }
 
-function getValidatedServicePath(projectPath, projectName, serviceName) {
-	const servicePath = path.join(projectPath, serviceName);
-
-	if (!fs.existsSync(servicePath)) {
-		throw new Error(
-			`${serviceName} workspace not found for ${projectName}. Expected ${servicePath}`,
-		);
-	}
-
-	return servicePath;
-}
-
 function resolveServiceCommand(project, servicePath, serviceName) {
 	if (serviceName === 'frontend') {
 		const templateDefinition = getFrontendTemplateDefinition(
@@ -598,7 +587,6 @@ async function startProject(name) {
 		throw new Error('Project not found');
 	}
 
-	const projectPath = getProjectPath(project);
 	const runtime = processes[project.name] || {};
 	const servicePaths = {};
 	const servicesToStart = [];
@@ -610,11 +598,12 @@ async function startProject(name) {
 	);
 
 	if (frontendManaged && !isChildProcessAlive(runtime.frontend)) {
-		servicePaths.frontend = getValidatedServicePath(
-			projectPath,
-			project.name,
-			'frontend',
-		);
+		servicePaths.frontend = getFrontendWorkspacePath(project);
+		if (!fs.existsSync(servicePaths.frontend)) {
+			throw new Error(
+				`frontend workspace not found for ${project.name}. Expected ${servicePaths.frontend}`,
+			);
+		}
 
 		assertPortAvailable(project.frontendPort, {
 			label: 'Frontend port',
@@ -625,11 +614,12 @@ async function startProject(name) {
 	}
 
 	if (backendManaged && !isChildProcessAlive(runtime.backend)) {
-		servicePaths.backend = getValidatedServicePath(
-			projectPath,
-			project.name,
-			'backend',
-		);
+		servicePaths.backend = getBackendWorkspacePath(project);
+		if (!fs.existsSync(servicePaths.backend)) {
+			throw new Error(
+				`backend workspace not found for ${project.name}. Expected ${servicePaths.backend}`,
+			);
+		}
 
 		assertPortAvailable(project.backendPort, {
 			label: 'Backend port',

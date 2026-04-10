@@ -1,45 +1,9 @@
-const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
+const { spawnNpm } = require('./dashboard-dev-utils');
 
 const rootDir = path.resolve(__dirname, '..');
-const commandShell = process.env.ComSpec || 'C:\\Windows\\System32\\cmd.exe';
 const ANSI_PATTERN = /\u001B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
-
-function quoteForCmd(value) {
-	if (!/\s/.test(value)) {
-		return value;
-	}
-
-	return `"${value.replace(/"/g, '""')}"`;
-}
-
-function resolveNpmCmd() {
-	const candidateDirectories = [
-		process.env.NVM_SYMLINK,
-		process.env.NVM_HOME,
-		...(process.env.PATH || '').split(path.delimiter),
-	]
-		.map((entry) => entry && entry.trim())
-		.filter(Boolean);
-
-	const seenDirectories = new Set();
-	for (const directory of candidateDirectories) {
-		const normalizedDirectory = directory.toLowerCase();
-		if (seenDirectories.has(normalizedDirectory)) {
-			continue;
-		}
-
-		seenDirectories.add(normalizedDirectory);
-
-		const candidate = path.join(directory, 'npm.cmd');
-		if (fs.existsSync(candidate)) {
-			return candidate;
-		}
-	}
-
-	return 'npm.cmd';
-}
 
 function killChildTree(childProcess) {
 	if (
@@ -96,25 +60,18 @@ function forwardStream(stream, target) {
 	});
 }
 
-const npmCmdPath = resolveNpmCmd();
-const childProcess = spawn(
-	commandShell,
-	['/d', '/c', `call ${quoteForCmd(npmCmdPath)} run dev`],
-	{
-		cwd: rootDir,
-		stdio: ['ignore', 'pipe', 'pipe'],
-		shell: false,
-		windowsHide: true,
-		env: {
-			...process.env,
-			FORCE_COLOR: '0',
-			NO_COLOR: '1',
-			CLICOLOR: '0',
-			CLICOLOR_FORCE: '0',
-			npm_config_color: 'false',
-		},
+const childProcess = spawnNpm(['run', 'dev'], {
+	cwd: rootDir,
+	stdio: ['ignore', 'pipe', 'pipe'],
+	env: {
+		...process.env,
+		FORCE_COLOR: '0',
+		NO_COLOR: '1',
+		CLICOLOR: '0',
+		CLICOLOR_FORCE: '0',
+		npm_config_color: 'false',
 	},
-);
+});
 
 forwardStream(childProcess.stdout, process.stdout);
 forwardStream(childProcess.stderr, process.stderr);

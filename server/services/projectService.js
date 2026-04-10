@@ -23,6 +23,8 @@ const {
 const {
 	getFrontendTemplateDefinition,
 	getBackendTemplateDefinition,
+	getBackendWorkspacePath,
+	getFrontendWorkspacePath,
 } = require('./projectTemplates');
 const {
 	getJavaQualifiedMainClass,
@@ -337,7 +339,13 @@ async function createProjectWithStream(data, eventEmitter) {
 			'log',
 			'🔗 Creating .env file with database connection...',
 		);
-		const envPath = path.join(projectPath, 'backend', '.env');
+		const envPath = path.join(
+			getBackendWorkspacePath({
+				projectPath,
+				backend,
+			}),
+			'.env',
+		);
 		await fs.writeFile(
 			envPath,
 			`DATABASE_URL=postgresql://${linkedDatabase.credentials.user}:${linkedDatabase.credentials.password}@${linkedDatabase.credentials.host}:${linkedDatabase.credentials.port}/${linkedDatabase.credentials.database}`,
@@ -480,7 +488,13 @@ async function createProjectWithStreamSafe(data, eventEmitter) {
 				'log',
 				'Creating .env file with database connection...',
 			);
-			const envPath = path.join(projectPath, 'backend', '.env');
+			const envPath = path.join(
+				getBackendWorkspacePath({
+					projectPath,
+					backend,
+				}),
+				'.env',
+			);
 			await fs.writeFile(
 				envPath,
 				`DATABASE_URL=postgresql://${linkedDatabase.credentials.user}:${linkedDatabase.credentials.password}@${linkedDatabase.credentials.host}:${linkedDatabase.credentials.port}/${linkedDatabase.credentials.database}`,
@@ -2298,7 +2312,11 @@ async function applyFrontendMetadata(frontendPath, name, scaffold = null) {
 }
 
 async function createFrontend(projectPath, name, template, scaffold = null) {
-	const frontendPath = path.join(projectPath, 'frontend');
+	const frontendPath = getFrontendWorkspacePath({
+		name,
+		projectPath,
+		frontend: template,
+	});
 	const templateDefinition = getFrontendTemplateDefinition(template);
 	await fs.mkdirp(frontendPath);
 
@@ -2388,7 +2406,11 @@ async function createFrontendWithStream(
 	template,
 	eventEmitter,
 ) {
-	const frontendPath = path.join(projectPath, 'frontend');
+	const frontendPath = getFrontendWorkspacePath({
+		name,
+		projectPath,
+		frontend: template,
+	});
 	const templateDefinition = getFrontendTemplateDefinition(template);
 	await fs.mkdirp(frontendPath);
 
@@ -2512,7 +2534,10 @@ async function createBackend(
 	template,
 	linkedDatabase = null,
 ) {
-	const backendPath = path.join(projectPath, 'backend');
+	const backendPath = getBackendWorkspacePath({
+		projectPath,
+		backend: template,
+	});
 	const blueprint = buildBackendBlueprint(
 		name,
 		port,
@@ -2596,7 +2621,10 @@ async function createBackendWithStream(
 	eventEmitter,
 	linkedDatabase = null,
 ) {
-	const backendPath = path.join(projectPath, 'backend');
+	const backendPath = getBackendWorkspacePath({
+		projectPath,
+		backend: template,
+	});
 	const blueprint = buildBackendBlueprint(
 		name,
 		port,
@@ -2824,7 +2852,11 @@ app.listen(PORT, () => console.log("Running ${name} on port " + PORT));
 }
 
 async function createFrontend(projectPath, name, template, scaffold = null) {
-	const frontendPath = path.join(projectPath, 'frontend');
+	const frontendPath = getFrontendWorkspacePath({
+		name,
+		projectPath,
+		frontend: template,
+	});
 	const templateDefinition = getFrontendTemplateDefinition(template);
 	await fs.mkdirp(frontendPath);
 
@@ -2847,7 +2879,11 @@ async function createFrontendWithStream(
 	eventEmitter,
 	scaffold = null,
 ) {
-	const frontendPath = path.join(projectPath, 'frontend');
+	const frontendPath = getFrontendWorkspacePath({
+		name,
+		projectPath,
+		frontend: template,
+	});
 	const templateDefinition = getFrontendTemplateDefinition(template);
 	await fs.mkdirp(frontendPath);
 
@@ -2880,7 +2916,10 @@ async function createBackend(
 	linkedDatabase = null,
 	scaffold = null,
 ) {
-	const backendPath = getBackendWorkspacePath(projectPath, template);
+	const backendPath = getBackendWorkspacePath({
+		projectPath,
+		backend: template,
+	});
 	const blueprint = buildBackendBlueprint(
 		name,
 		port,
@@ -2912,7 +2951,10 @@ async function createBackendWithStream(
 	linkedDatabase = null,
 	scaffold = null,
 ) {
-	const backendPath = getBackendWorkspacePath(projectPath, template);
+	const backendPath = getBackendWorkspacePath({
+		projectPath,
+		backend: template,
+	});
 	const blueprint = buildBackendBlueprint(
 		name,
 		port,
@@ -3024,7 +3066,10 @@ async function syncJavaSourceFile(
 	const nextRelativePath = getJavaSourceRelativePath(nextScaffold, {
 		mavenLayout,
 	});
-	const backendRoot = getBackendWorkspacePath(projectPath, backendKind);
+	const backendRoot = getBackendWorkspacePath({
+		projectPath,
+		backend: backendKind,
+	});
 	const oldSourcePath = path.join(backendRoot, oldRelativePath);
 	const nextSourcePath = path.join(backendRoot, nextRelativePath);
 
@@ -3099,7 +3144,7 @@ async function syncGeneratedProjectFiles(
 
 	if (nextProject.frontend) {
 		await applyFrontendMetadata(
-			path.join(projectPath, 'frontend'),
+			getFrontendWorkspacePath(nextProject),
 			nextProject.name,
 			nextScaffold,
 		);
@@ -3109,10 +3154,7 @@ async function syncGeneratedProjectFiles(
 		return;
 	}
 
-	const backendPath = getBackendWorkspacePath(
-		projectPath,
-		nextProject.backend,
-	);
+	const backendPath = getBackendWorkspacePath(nextProject);
 
 	if (backendDefinition.kind === 'node') {
 		await updateJsonFileIfPresent(
@@ -3278,7 +3320,10 @@ async function updateProject(oldName, updates) {
 		updates.frontendPort &&
 		parseInt(updates.frontendPort) !== oldFrontendPort
 	) {
-		const configPath = path.join(projectPath, 'frontend', 'vite.config.js');
+		const configPath = path.join(
+			getFrontendWorkspacePath(project),
+			'vite.config.js',
+		);
 		if (await fs.pathExists(configPath)) {
 			let content = await fs.readFile(configPath, 'utf8');
 			content = content.replace(
@@ -3294,7 +3339,8 @@ async function updateProject(oldName, updates) {
 		parseInt(updates.backendPort) !== oldBackendPort
 	) {
 		if (backendDefinition?.kind === 'node') {
-			const indexPath = path.join(projectPath, 'backend', 'index.js');
+			const backendPath = getBackendWorkspacePath(project);
+			const indexPath = path.join(backendPath, 'index.js');
 			if (await fs.pathExists(indexPath)) {
 				let content = await fs.readFile(indexPath, 'utf8');
 				content = content.replace(
@@ -3306,7 +3352,8 @@ async function updateProject(oldName, updates) {
 		}
 
 		if (backendDefinition?.kind === 'python') {
-			const appPath = path.join(projectPath, 'backend', 'app.py');
+			const backendPath = getBackendWorkspacePath(project);
+			const appPath = path.join(backendPath, 'app.py');
 			if (await fs.pathExists(appPath)) {
 				let content = await fs.readFile(appPath, 'utf8');
 				content = content.replace(
@@ -3319,8 +3366,7 @@ async function updateProject(oldName, updates) {
 
 		if (backendDefinition?.kind === 'java') {
 			const javaPath = path.join(
-				projectPath,
-				'backend',
+				getBackendWorkspacePath(project),
 				getJavaSourceRelativePath(getProjectScaffold(project)),
 			);
 			if (await fs.pathExists(javaPath)) {
@@ -3336,7 +3382,7 @@ async function updateProject(oldName, updates) {
 
 	if (project.backend && typeof updates.databaseId !== 'undefined') {
 		const envPath = path.join(
-			getBackendWorkspacePath(projectPath, project.backend),
+			getBackendWorkspacePath(project),
 			'.env',
 		);
 		let envContent = '';
@@ -3446,23 +3492,6 @@ function getConnectionString(db) {
 		default:
 			return '';
 	}
-}
-
-function shouldUseProjectRootForBackend(template) {
-	const backendDefinition = getBackendTemplateDefinition(template);
-	return (
-		backendDefinition?.kind === 'java-console' ||
-		backendDefinition?.kind === 'java-maven'
-	);
-}
-
-function getBackendWorkspacePath(projectPath, template) {
-	if (!shouldUseProjectRootForBackend(template)) {
-		return path.join(projectPath, 'backend');
-	}
-
-	const legacyBackendPath = path.join(projectPath, 'backend');
-	return fs.existsSync(legacyBackendPath) ? legacyBackendPath : projectPath;
 }
 
 // ---------- Export ----------

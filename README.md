@@ -112,37 +112,40 @@ The dashboard includes local monitoring features for website projects:
 
 ### Required Software
 
-| Requirement        | Why it is needed                                      | Recommended version                           |
-| ------------------ | ----------------------------------------------------- | --------------------------------------------- |
-| Node.js            | Runs the dashboard frontend and backend tooling       | Node.js 20+                                   |
-| npm                | Installs root, client, and server dependencies        | npm version bundled with your Node.js install |
-| Git                | Creates local repositories and supports publish flows | Any current Git release                       |
-| Windows PowerShell | Used by the included helper scripts                   | PowerShell 5.1+ or PowerShell 7+              |
+| Requirement | Why it is needed                                      | Recommended version                           |
+| ----------- | ----------------------------------------------------- | --------------------------------------------- |
+| Node.js     | Runs the dashboard frontend and backend tooling       | Node.js 20+                                   |
+| npm         | Installs root, client, and server dependencies        | npm version bundled with your Node.js install |
+| Git         | Creates local repositories and supports publish flows | Any current Git release                       |
 
 ### Optional Software
 
 Install these only if you want the matching project types or integrations:
 
-| Optional tool  | Needed for                                         |
-| -------------- | -------------------------------------------------- |
-| Docker Desktop | Docker page usage and local Docker stack workflows |
-| Python 3       | Python HTTP backends and Python CLI projects       |
-| Java JDK       | Java HTTP projects and Java console projects       |
-| Maven          | Java Maven project generation and builds           |
+| Optional tool         | Needed for                                                                   |
+| --------------------- | ---------------------------------------------------------------------------- |
+| Docker Desktop        | Docker page usage and local Docker stack workflows                           |
+| Python 3              | Python HTTP backends and Python CLI projects                                 |
+| Java JDK              | Java HTTP projects and Java console projects                                 |
+| Maven                 | Java Maven project generation and builds                                     |
+| PowerShell 7          | Windows helper scripts if you want to keep using the legacy `.ps1` launchers |
+| `zenity` or `kdialog` | Native folder picker dialogs on Linux desktops                               |
 
 ### Official Download Pages
 
 Use the official installers or download pages below:
 
-| Software           | Official download page                                                                                                                                                                 | Notes                                                               |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Node.js + npm      | [nodejs.org/en/download](https://nodejs.org/en/download/)                                                                                                                              | npm is included with the standard Node.js installer                 |
-| Git for Windows    | [git-scm.com/install/windows](https://git-scm.com/install/windows)                                                                                                                     | Recommended for local repositories and GitHub publishing            |
-| PowerShell 7       | [learn.microsoft.com/powershell/installing-powershell-on-windows](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.5) | Optional if Windows PowerShell 5.1 is already enough for your setup |
-| Docker Desktop     | [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/)                                                                                                  | Needed only for Docker features                                     |
-| Python for Windows | [python.org/downloads/windows](https://www.python.org/downloads/windows/)                                                                                                              | Needed only for Python-based project templates                      |
-| Java JDK           | [adoptium.net/temurin](https://adoptium.net/temurin)                                                                                                                                   | A practical OpenJDK distribution for Java project templates         |
-| Apache Maven       | [maven.apache.org/download.cgi](https://maven.apache.org/download.cgi)                                                                                                                 | Needed only for Maven-based Java projects                           |
+| Software         | Official download page                                                                                                                                                                 | Notes                                                               |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| Node.js + npm    | [nodejs.org/en/download](https://nodejs.org/en/download/)                                                                                                                              | npm is included with the standard Node.js installer                 |
+| Git              | [git-scm.com/downloads](https://git-scm.com/downloads)                                                                                                                                 | Recommended for local repositories and GitHub publishing            |
+| PowerShell 7     | [learn.microsoft.com/powershell/installing-powershell](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell)                                         | Optional, mainly useful on Windows                                  |
+| Docker Desktop   | [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/)                                                                                                  | Needed only for Docker features                                     |
+| Python 3         | [python.org/downloads](https://www.python.org/downloads/)                                                                                                                              | Needed only for Python-based project templates                      |
+| Java JDK         | [adoptium.net/temurin](https://adoptium.net/temurin)                                                                                                                                   | A practical OpenJDK distribution for Java project templates         |
+| Apache Maven     | [maven.apache.org/download.cgi](https://maven.apache.org/download.cgi)                                                                                                                 | Needed only for Maven-based Java projects                           |
+| Zenity           | [help.gnome.org/users/zenity](https://help.gnome.org/users/zenity/stable/)                                                                                                             | Optional Linux folder picker helper                                 |
+| KDialog          | [develop.kde.org/docs/administration/kdialog](https://develop.kde.org/docs/administration/kdialog/)                                                                                   | Optional Linux folder picker helper                                 |
 
 ### Common Windows Install Locations
 
@@ -159,7 +162,7 @@ These can vary depending on the installer options, but these are common default 
 
 These are practical recommendations for a smooth local experience:
 
-- OS: Windows 10 or Windows 11
+- OS: Windows 10+, Windows 11, or a recent Linux desktop distribution
 - RAM: 8 GB minimum, 16 GB recommended
 - CPU: modern 4-core processor or better
 - Free disk space: at least 2 GB for the dashboard itself, more if you generate many projects
@@ -173,7 +176,7 @@ Generated projects may use additional frontend and backend ports that you choose
 
 ## How To Install the Requirements
 
-This project is primarily set up for Windows because it ships with PowerShell helper scripts.
+This project now supports both Windows and Linux for the main dashboard workflow. Windows still includes PowerShell helper scripts, while the shared npm launchers work on both operating systems.
 
 ### 1. Install Node.js and npm
 
@@ -190,28 +193,30 @@ If `npm -v` fails, reinstall Node.js using the official installer and make sure 
 
 ### 2. Install Git
 
-1. Download and install Git for Windows from [git-scm.com/install/windows](https://git-scm.com/install/windows).
-2. Keep the option that adds Git to your terminal path enabled.
+1. Install Git from [git-scm.com/downloads](https://git-scm.com/downloads).
+2. Make sure Git is available on your terminal path.
 3. Verify the installation:
 
 ```bash
 git --version
 ```
 
-### 3. Check PowerShell
+### 3. Optional platform helpers
 
-PowerShell is included on modern Windows systems. If you want the newer standalone release, download it from [learn.microsoft.com/powershell/installing-powershell-on-windows](https://learn.microsoft.com/en-us/powershell/scripting/install/installing-powershell-on-windows?view=powershell-7.5). Verify your current installation with:
+Windows can still use the legacy PowerShell helpers:
 
 ```powershell
 $PSVersionTable.PSVersion
 ```
+
+On Linux, install `zenity` or `kdialog` if you want the folder picker button to open a native desktop dialog. Without one of those tools you can still paste folder paths manually.
 
 ### 4. Install Optional Toolchains
 
 Only install the tools you plan to use:
 
 - install Docker Desktop from [docker.com/products/docker-desktop](https://www.docker.com/products/docker-desktop/) if you want Docker stack support
-- install Python 3 from [python.org/downloads/windows](https://www.python.org/downloads/windows/) if you want Python projects or Python HTTP backends
+- install Python 3 from [python.org/downloads](https://www.python.org/downloads/) if you want Python projects or Python HTTP backends
 - install a Java JDK from [adoptium.net/temurin](https://adoptium.net/temurin) if you want Java project templates
 - install Maven from [maven.apache.org/download.cgi](https://maven.apache.org/download.cgi) if you want Maven-based Java projects
 
@@ -241,7 +246,7 @@ Dashboard is built first as a local, single-user developer workspace. The curren
 - manual terminal commands are disabled by default until you explicitly enable Advanced terminal mode in `/settings`
 - saved project command presets still work even when manual commands are locked
 - recent terminal executions are written to `logs/terminal-history.json` so command activity is easier to review later
-- on Windows, GitHub tokens are encrypted with the current user profile before they are written to `settings.json`; the token is never returned in public API responses and is only used for GitHub-related actions
+- on Windows, GitHub tokens are encrypted with the current user profile before they are written to `settings.json`; on non-Windows platforms the token is stored as plain text in `settings.json`, so protect that file accordingly
 - the app is not intended to be exposed directly to the public internet or untrusted multi-user environments without adding your own authentication and network controls
 
 If you need to access the dashboard from a non-loopback origin during development, set `DASHBOARD_ALLOWED_ORIGINS` to a comma-separated allowlist and `DASHBOARD_HOST` to the interface you want the backend to bind to. The default behavior is local-only.
@@ -278,15 +283,17 @@ Open:
 - frontend UI: [http://localhost:5173](http://localhost:5173)
 - backend API: [http://localhost:4000](http://localhost:4000)
 
-### 4. Start the App with the Windows Helper Scripts
+### 4. Start the App with the Background Helper Scripts
 
-If you want background-style startup helpers on Windows:
+If you want background-style startup helpers on either Windows or Linux:
 
 ```bash
 npm run app:start
 npm run app:status
 npm run app:stop
 ```
+
+Windows also keeps the legacy `.cmd` and `.ps1` helpers, and Linux can use `./start-dashboard.sh`, `./status-dashboard.sh`, and `./stop-dashboard.sh` if you prefer shell entrypoints.
 
 ### 5. Start the Main Dashboard with PM2
 
@@ -330,7 +337,7 @@ The app stores its working state directly in the repository for easy inspection 
 dashboard/
   client/              React + Vite frontend
   server/              Express API and orchestration layer
-  scripts/             PowerShell helper scripts
+  scripts/             Shared Node launch helpers and Windows PowerShell scripts
   docs/                Supporting documentation
   projects/            Generated project workspaces
   docker-stacks/       Docker stack data
@@ -347,7 +354,8 @@ dashboard/
 - The dashboard is designed first for local developer workflow orchestration, not multi-user cloud deployment.
 - Website projects are the main monitored runtime surface.
 - Python and Java standalone apps behave more like generated workspaces or runnable projects than continuously monitored web services.
-- Windows is the primary target environment because the helper scripts and workflow assumptions are PowerShell-oriented.
+- The top-level dashboard launchers are cross-platform for Windows and Linux.
+- Windows-only helpers remain in place for compatibility, but they are no longer required to run the app.
 
 ## Current Status
 

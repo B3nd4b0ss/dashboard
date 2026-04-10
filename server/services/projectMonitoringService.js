@@ -274,6 +274,78 @@ function runPowerShell(command) {
 	});
 }
 
+function runProcessSamplingCommand(command, args) {
+	return new Promise((resolve) => {
+		execFile(
+			command,
+			args,
+			{
+				windowsHide: true,
+				maxBuffer: 1024 * 1024,
+			},
+			(error, stdout) => {
+				if (error) {
+					console.warn(
+						`[monitoring] ${command} sampling failed: ${error.message}`,
+					);
+					resolve('');
+					return;
+				}
+
+				resolve(stdout || '');
+			},
+		);
+	});
+}
+
+function parsePosixMetricLine(entry) {
+	const match = String(entry || '')
+		.trim()
+		.match(
+			/^(\d+)\s+([\d.,]+)\s+(\d+)\s+([A-Za-z]{3}\s+[A-Za-z]{3}\s+\d+\s+\d{2}:\d{2}:\d{2}\s+\d{4})\s+(.+)$/,
+		);
+
+	if (!match) {
+		return null;
+	}
+
+	const [, id, cpuPercent, rssKilobytes, startedAtText, processName] = match;
+	const startedAtMs = Date.parse(startedAtText);
+
+	return {
+		pid: Number(id),
+		cpuPercent: roundMetric(
+			Number(String(cpuPercent).replace(',', '.')) || 0,
+		),
+		memoryBytes: (Number(rssKilobytes) || 0) * 1024,
+		startedAt: Number.isFinite(startedAtMs)
+			? new Date(startedAtMs).toISOString()
+			: null,
+		processName: processName || null,
+	};
+}
+
+async function readPosixProcessMetrics(uniquePids) {
+	const rawEntries = String(
+		await runProcessSamplingCommand('ps', [
+			'-p',
+			uniquePids.join(','),
+			'-o',
+			'pid=,%cpu=,rss=,lstart=,comm=',
+		]),
+	)
+		.split(/\r?\n/)
+		.map(parsePosixMetricLine)
+		.filter(Boolean);
+	const metrics = new Map();
+
+	for (const entry of rawEntries) {
+		metrics.set(entry.pid, entry);
+	}
+
+	return metrics;
+}
+
 async function readProcessMetrics(pids) {
 	const uniquePids = [...new Set(pids)]
 		.map((pid) => Number(pid))
@@ -284,7 +356,7 @@ async function readProcessMetrics(pids) {
 	}
 
 	if (process.platform !== 'win32') {
-		return new Map();
+		return readPosixProcessMetrics(uniquePids);
 	}
 
 	const powerShellCommand = [
@@ -866,4 +938,7 @@ module.exports = {
 	invalidateProjectWorkspaceMetrics,
 	renameProjectMonitoringState,
 	clearProjectMonitoringState,
+	__test__: {
+		parsePosixMetricLine,
+	},
 };
